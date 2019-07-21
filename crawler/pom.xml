@@ -2,16 +2,36 @@
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <artifactId>search-engine</artifactId>
         <groupId>in.nimbo</groupId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>Backend</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <properties>
+        <jsoup.version>1.12.1</jsoup.version>
+        <commons-io.version>2.6</commons-io.version>
+    </properties>
 
-    <name>Backend</name>
+    <artifactId>crawler</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <name>crawler</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>${commons-io.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>${jsoup.version}</version>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>
@@ -29,7 +49,5 @@
             </plugin>
         </plugins>
     </build>
-    <dependencies>
 
-    </dependencies>
 </project>
