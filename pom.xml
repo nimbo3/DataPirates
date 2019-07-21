@@ -14,6 +14,8 @@
 
     <properties>
         <junit.version>4.12</junit.version>
+        <log4j.version>1.2.17</log4j.version>
+        <slf4j.version>2.0.0-alpha0</slf4j.version>
         <typesafe.version>1.3.4</typesafe.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -23,31 +25,41 @@
     <modules>
         <module>Crawler</module>
         <module>Backend</module>
+        <module>Common</module>
     </modules>
 
     <dependencies>
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>com.typesafe</groupId>
+            <artifactId>config</artifactId>
+            <version>${typesafe.version}</version>
+        </dependency>
     </dependencies>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>com.typesafe</groupId>
-                <artifactId>config</artifactId>
-                <version>${typesafe.version}</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <build>
         <pluginManagement>
             <plugins>
-                <!-- plugin for fat-jar; it is inherited by each child pom file !-->
+                <!-- plugin for fat-jar; it is inherited in each child-pom-file !-->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-shade-plugin</artifactId>
