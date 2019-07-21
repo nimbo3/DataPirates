@@ -9,9 +9,9 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>Crawler</artifactId>
+    <artifactId>crawler</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>Crawler</name>
+    <name>crawler</name>
 
     <build>
         <plugins>
