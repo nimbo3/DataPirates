@@ -3,40 +3,15 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-
-    <properties>
-        <log4j.version>1.2.17</log4j.version>
-        <slf4j.version>2.0.0-alpha0</slf4j.version>
-    </properties>
-
     <parent>
         <artifactId>search-engine</artifactId>
         <groupId>in.nimbo</groupId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>Crawler</artifactId>
+    <artifactId>backend</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>Crawler</name>
-
-    <dependencies>
-        <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>${log4j.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-            <version>${slf4j.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.typesafe</groupId>
-            <artifactId>config</artifactId>
-        </dependency>
-    </dependencies>
+    <name>backend</name>
 
     <build>
         <plugins>
