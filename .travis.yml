@@ -4,7 +4,6 @@ jdk:
   - openjdk8
 script:
   - mvn cobertura:cobertura
-  # the following command line builds the project, runs the tests with coverage and then execute the SonarCloud analysis
 cache:
   directories:
     - '$HOME/.m2/repository'
