@@ -42,7 +42,27 @@ public class ElasticDaoImpl implements SiteDao, Searchable {
 
     @Override
     public List<SearchResult> search(String search) {
-        return null;
+        SearchRequest searchRequest = new SearchRequest("sites");
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(QueryBuilders.termQuery("keywords", search));
+        searchSourceBuilder.query(QueryBuilders.termQuery("title", search));
+        searchSourceBuilder.query(QueryBuilders.termQuery("text", search));
+        searchRequest.source(searchSourceBuilder);
+        SearchResponse searchResponse;
+        try (RestHighLevelClient client = getClient()) {
+            searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+            List<SearchResult> searchResults = new ArrayList<>();
+            for (SearchHit searchHit : searchResponse.getHits().getHits()) {
+                SearchResult searchResult = new SearchResult();
+                searchResult.setLink(searchHit.getId());
+                searchResult.setTitle(searchHit.getSourceAsMap().get("title").toString());
+                searchResults.add(searchResult);
+            }
+            return searchResults;
+        } catch (IOException e) {
+            logger.error(e);
+            return null;
+        }
     }
 
     @Override
