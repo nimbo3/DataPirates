@@ -9,9 +9,21 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
+    <properties>
+        <kafka-clients.version>2.3.0</kafka-clients.version>
+    </properties>
+
     <artifactId>crawler</artifactId>
     <version>1.0-SNAPSHOT</version>
     <name>crawler</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>${kafka-clients.version}</version>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>
