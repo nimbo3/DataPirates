@@ -1,0 +1,145 @@
+plainText:
+jsoup
+News
+Bugs
+Discussion
+Download
+API Reference
+Cookbook
+Try jsoup
+jsoup » jsoup: Java HTML Parser
+jsoup: Java HTML Parser
+jsoup is a Java library for working with real-world HTML. It provides a very convenient API for extracting and manipulating data, using the best of DOM, CSS, and jquery-like methods.
+
+
+jsoup implements the WHATWG HTML5 specification, and parses HTML to the same DOM as modern browsers do.
+
+scrape and parse HTML from a URL, file, or string
+find and extract data, using DOM traversal or CSS selectors
+manipulate the HTML elements, attributes, and text
+clean user-submitted content against a safe white-list, to prevent XSS attacks
+output tidy HTML
+jsoup is designed to deal with all varieties of HTML found in the wild; from pristine and validating, to invalid tag-soup; jsoup will create a sensible parse tree.
+
+Example
+Fetch the Wikipedia homepage, parse it to a DOM, and select the headlines from the In the news section into a list of Elements (online sample, full source):
+
+Document doc = Jsoup.connect("http://en.wikipedia.org/").get();
+log(doc.title());
+Elements newsHeadlines = doc.select("#mp-itn b a");
+for (Element headline : newsHeadlines) {
+  log("%s\n\t%s",
+    headline.attr("title"), headline.absUrl("href"));
+}
+
+Open source
+jsoup is an open source project distributed under the liberal MIT license. The source code is available at GitHub.
+
+Getting started
+Download the jsoup jar (version 1.12.1)
+Read the cookbook introduction
+Enjoy!
+Development and support
+If you have any questions on how to use jsoup, or have ideas for future development, please get in touch via the mailing list.
+
+If you find any issues, please file a bug after checking for duplicates.
+
+The colophon talks about the history of and tools used to build jsoup.
+
+Status
+jsoup is in general release.
+
+Cookbook contents
+Introduction
+Parsing and traversing a Document
+Input
+Parse a document from a String
+Parsing a body fragment
+Load a Document from a URL
+Load a Document from a File
+Extracting data
+Use DOM methods to navigate a document
+Use selector-syntax to find elements
+Extract attributes, text, and HTML from elements
+Working with URLs
+Example program: list links
+Modifying data
+Set attribute values
+Set the HTML of an element
+Setting the text content of elements
+Cleaning HTML
+Sanitize untrusted HTML (to prevent XSS)
+jsoup HTML parser © 2009 - 2019 Jonathan Hedley
+
+
+keywords:
+jsoup, java html parser, home
+Open source Java HTML parser, with DOM, CSS, and jquery-like methods for easy data extraction.
+Open source Java HTML parser, with DOM, CSS, and jquery-like methods for easy data extraction.
+Download Jonathan Hedley jsoup HTML parser
+jsoup: Java HTML Parser Example Open source Getting started Development and support Status Cookbook contents
+Introduction Input Extracting data Modifying data Cleaning HTML
+jsoup
+
+
+
+title:
+jsoup Java HTML Parser, with best of DOM, CSS, and jquery
+
+metadata:
+name="keywords" content="jsoup, java html parser, home"
+name="description" content="Open source Java HTML parser, with DOM, CSS, and jquery-like methods for easy data extraction."
+name="viewport" content="width=device-width, initial-scale=1"
+name="twitter:card" content="summary"
+name="twitter:site" content="@jhy"
+name="twitter:title" content="jsoup Java HTML Parser, with best of DOM, CSS, and jquery"
+name="twitter:description" content="Open source Java HTML parser, with DOM, CSS, and jquery-like methods for easy data extraction."
+name="twitter:image" content="https://jsoup.org/rez/jsoup%20logo%20twitter.png"
+
+anchors:
+https://jsoup.org/
+https://jsoup.org/news/
+https://jsoup.org/bugs
+https://jsoup.org/discussion
+https://jsoup.org/download
+https://jsoup.org/apidocs/
+https://jsoup.org/cookbook/
+https://try.jsoup.org/
+https://jsoup.org/
+http://whatwg.org/html
+https://jsoup.org/cookbook/input/parse-document-from-string
+https://jsoup.org/cookbook/extracting-data/selector-syntax
+https://jsoup.org/cookbook/modifying-data/set-html
+https://jsoup.org/cookbook/cleaning-html/whitelist-sanitizer
+https://jsoup.org/apidocs/org/jsoup/select/Elements.html#html--
+http://en.wikipedia.org/wiki/Main_Page
+https://jsoup.org/apidocs/index.html?org/jsoup/select/Elements.html
+https://try.jsoup.org/~LGB7rk_atM2roavV0d-czMt3J_g
+https://github.com/jhy/jsoup/blob/master/src/main/java/org/jsoup/examples/Wikipedia.java
+https://jsoup.org/license
+https://github.com/jhy/jsoup/
+https://jsoup.org/download
+https://jsoup.org/news/release-1.12.1
+https://jsoup.org/cookbook/introduction/
+https://jsoup.org/discussion
+https://jsoup.org/bugs
+https://jsoup.org/colophon
+https://jsoup.org/cookbook/introduction/parsing-a-document
+https://jsoup.org/cookbook/input/parse-document-from-string
+https://jsoup.org/cookbook/input/parse-body-fragment
+https://jsoup.org/cookbook/input/load-document-from-url
+https://jsoup.org/cookbook/input/load-document-from-file
+https://jsoup.org/cookbook/extracting-data/dom-navigation
+https://jsoup.org/cookbook/extracting-data/selector-syntax
+https://jsoup.org/cookbook/extracting-data/attributes-text-html
+https://jsoup.org/cookbook/extracting-data/working-with-urls
+https://jsoup.org/cookbook/extracting-data/example-list-links
+https://jsoup.org/cookbook/modifying-data/set-attributes
+https://jsoup.org/cookbook/modifying-data/set-html
+https://jsoup.org/cookbook/modifying-data/set-text
+https://jsoup.org/cookbook/cleaning-html/whitelist-sanitizer
+https://jhy.io/
+http://whatwg.org/html
+http://www.opensource.org/
+https://jsoup.org/cookbook
+

@@ -32,12 +32,6 @@
             <artifactId>jsoup</artifactId>
             <version>${jsoup.version}</version>
         </dependency>
-
-        <dependency>
-            <groupId>com.uttesh</groupId>
-            <artifactId>exude</artifactId>
-            <version>${exude.version}</version>
-        </dependency>
     </dependencies>
 
     <build>
