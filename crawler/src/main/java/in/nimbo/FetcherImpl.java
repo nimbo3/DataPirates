@@ -48,7 +48,6 @@ public class FetcherImpl implements Fetcher {
     @Override
     public String fetch(String url) throws IOException {
 
-
         CloseableHttpResponse response = (CloseableHttpResponse) client.execute(new HttpGet(url), HttpClientContext.create());
         try {
             responseStatusCode = response.getStatusLine().getStatusCode();
