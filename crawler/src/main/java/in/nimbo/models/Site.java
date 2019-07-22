@@ -1,4 +1,4 @@
-package in.nimbo.parser;
+package in.nimbo.models;
 
 import java.util.List;
 

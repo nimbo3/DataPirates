@@ -18,6 +18,10 @@ public class Parser {
         document = Jsoup.parse(html);
     }
 
+    /**
+     * finds the <title>title</title> part in the header of the html which is shown on each tab opened by some browsers
+     * @return string containing the title of html
+     */
     public String extractTitle(){
         return document.title();
     }
@@ -42,9 +46,9 @@ public class Parser {
 
     public String extractMetadata(){
         Elements metaTags = document.getElementsByTag("meta");
-
+        StringBuilder sb = new StringBuilder();
         for (Element metaTag : metaTags) {
-            System.out.println(metaTag.attributes());
+            sb.append(metaTag.attributes());
             String content = metaTag.attr("content");
             String name = metaTag.attr("name");
 //
@@ -58,6 +62,6 @@ public class Parser {
 //                ex.setLanguage(content);
 //            }
         }
-        return null;
+        return sb.toString();
     }
 }

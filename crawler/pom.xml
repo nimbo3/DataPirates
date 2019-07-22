@@ -12,6 +12,7 @@
     <properties>
         <jsoup.version>1.12.1</jsoup.version>
         <commons-io.version>2.6</commons-io.version>
+        <exude.version>0.0.4</exude.version>
     </properties>
 
     <artifactId>crawler</artifactId>
@@ -30,6 +31,12 @@
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
             <version>${jsoup.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.uttesh</groupId>
+            <artifactId>exude</artifactId>
+            <version>${exude.version}</version>
         </dependency>
     </dependencies>
 
