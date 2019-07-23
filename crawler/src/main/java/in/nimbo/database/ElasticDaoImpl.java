@@ -6,7 +6,6 @@ import in.nimbo.model.Site;
 import org.apache.http.HttpHost;
 import org.apache.log4j.Logger;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
@@ -44,6 +43,7 @@ public class ElasticDaoImpl implements SiteDao, Searchable {
     public List<SearchResult> search(String search) {
         SearchRequest searchRequest = new SearchRequest("sites");
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(QueryBuilders.termQuery("metadata", search));
         searchSourceBuilder.query(QueryBuilders.termQuery("keywords", search));
         searchSourceBuilder.query(QueryBuilders.termQuery("title", search));
         searchSourceBuilder.query(QueryBuilders.termQuery("text", search));
@@ -71,6 +71,7 @@ public class ElasticDaoImpl implements SiteDao, Searchable {
             XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
             builder.field("title", site.getTitle());
+            builder.field("metadata", site.getMetadata());
             builder.field("text", site.getPlainText());
             builder.field("keywords", site.getKeywords());
             builder.endObject();
