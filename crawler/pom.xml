@@ -4,19 +4,21 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <artifactId>search-engine</artifactId>
         <groupId>in.nimbo</groupId>
+        <artifactId>search-engine</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
     <properties>
         <jsoup.version>1.12.1</jsoup.version>
         <commons-io.version>2.6</commons-io.version>
+        <httpclient.version>4.5.9</httpclient.version>
     </properties>
 
     <artifactId>crawler</artifactId>
     <version>1.0-SNAPSHOT</version>
     <name>crawler</name>
+
 
     <dependencies>
         <dependency>
@@ -30,6 +32,12 @@
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
             <version>${jsoup.version}</version>
+        </dependency>
+      
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>${httpclient.version}</version>
         </dependency>
     </dependencies>
 
@@ -49,5 +57,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>

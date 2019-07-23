@@ -27,6 +27,7 @@ public class Site {
     public void setHtml(String html) {
         this.html = html;
     }
+    
     public String getLink() {
         return link;
     }
@@ -62,7 +63,6 @@ public class Site {
     public Map<String, String> getAnchors() {
         return anchors;
     }
-
 
     public void setAnchors(Map<String, String> anchors) {
         this.anchors = anchors;
