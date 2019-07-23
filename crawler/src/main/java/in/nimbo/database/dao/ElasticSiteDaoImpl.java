@@ -1,6 +1,6 @@
-package in.nimbo.database;
+package in.nimbo.database.dao;
 
-import in.nimbo.database.dao.SiteDao;
+import in.nimbo.database.Searchable;
 import in.nimbo.model.SearchResult;
 import in.nimbo.model.Site;
 import org.apache.http.HttpHost;
@@ -21,13 +21,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ElasticDaoImpl implements SiteDao, Searchable {
-    private static Logger logger = Logger.getLogger(ElasticDaoImpl.class);
+public class ElasticSiteDaoImpl implements SiteDao, Searchable {
+    private static Logger logger = Logger.getLogger(ElasticSiteDaoImpl.class);
     private RestHighLevelClient restHighLevelClient;
     private String hostname;
     private int port;
 
-    public ElasticDaoImpl(String hostname, int port) {
+    public ElasticSiteDaoImpl(String hostname, int port) {
         this.hostname = hostname;
         this.port = port;
     }
