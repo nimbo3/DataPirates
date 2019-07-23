@@ -1,18 +1,13 @@
 package in.nimbo;
 
+import org.apache.http.client.RedirectException;
+
 import java.io.IOException;
 
 public class App {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException, RedirectException {
         FetcherImpl fetcher = new FetcherImpl();
-        int constant = 1000;
-        CrawlerThread[] crawlerThreads = new CrawlerThread[constant];
-        for (int i = 0; i < constant; i++) {
-            crawlerThreads[i] = new CrawlerThread(fetcher);
-        }
-        for (int i = 0; i < constant; i++) {
-            crawlerThreads[i].start();
-        }
+        System.out.println(fetcher.fetch("https://www.yahoo.com"));
     }
 }
 
@@ -35,6 +30,8 @@ class CrawlerThread extends Thread {
             } catch (IOException e) {
                 // TODO: 7/22/19 do something in here
                 e.printStackTrace();
+            } catch (RedirectException e) {
+                // TODO: 7/23/19 do another thing in here
             }
             // TODO: 7/22/19 parse and insert into databases
         }
