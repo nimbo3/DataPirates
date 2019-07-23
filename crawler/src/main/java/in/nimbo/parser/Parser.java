@@ -1,5 +1,6 @@
 package in.nimbo.parser;
 
+import in.nimbo.model.Site;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -77,5 +78,16 @@ public class Parser {
             sb.append(metaTag.attributes());
         }
         return sb.toString();
+    }
+
+    public Site parse() {
+        Site site = new Site();
+        site.setTitle(extractTitle());
+        site.setKeywords(extractKeywords());
+        site.setMetadata(extractMetadata());
+        site.setAnchors(extractAnchors());
+        site.setPlainText(extractPlainText());
+        site.setLink(link);
+        return site;
     }
 }

@@ -72,4 +72,19 @@ public class Site {
     public String toString() {
         return plainText + "\n" + keywords + "\n" + title + "\n" + metadata + "\n" + anchors;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof Site))
+            return false;
+        Site that = (Site) o;
+        return this.link.equals(that.link);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = 0;
+        result = result * 37 + (link != null ? (link.hashCode()) : 0);
+        return result;
+    }
 }
