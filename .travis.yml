@@ -1,0 +1,17 @@
+language: java
+jdk:
+  - oraclejdk8
+  - openjdk8
+script:
+  - mvn cobertura:cobertura
+cache:
+  directories:
+    - '$HOME/.m2/repository'
+    - '$HOME/.sonar/cache'
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+addons:
+  sonarcloud:
+    organization: "nimbo3"
+    token:
+      secure: ${SONAR_TOKEN}
