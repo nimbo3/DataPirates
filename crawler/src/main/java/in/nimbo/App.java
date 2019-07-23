@@ -1,6 +1,5 @@
 package in.nimbo;
 
-
 import org.apache.http.client.RedirectException;
 
 import java.io.IOException;
