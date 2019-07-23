@@ -1,5 +1,7 @@
 package in.nimbo.parser;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import in.nimbo.model.Site;
 import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
@@ -12,17 +14,19 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class ParserTest {
-    private static final double confidence = 0.80;
-    private static final int numOfTests = 2;
+    private static final Config config = ConfigFactory.load("config");
+    private static final double confidence = config.getDouble("Parser.confidence");
+    private static final int numOfTests = config.getInt("Parser.numOfTests");
     private static String[] htmls = new String[numOfTests];
     private static Site[] sites = new Site[numOfTests];
-    String[] links = {"http://www.jsoup.org", "http://www.york.ac.uk/teaching/cws/wws"};
+    private String[] links = {config.getString("Parser.link1"), config.getString("Parser.link2")};
 
     @BeforeClass
     public static void init() throws IOException {
         for (int i = 0; i < numOfTests; i++) {
             try (InputStream inputStream =
-                         ParserTest.class.getClassLoader().getResourceAsStream("html/parserTest" + (i + 1) + ".html")) {
+                         ParserTest.class.getClassLoader().getResourceAsStream(
+                                 "html/" + "parserTest" + (i + 1) + ".html")) {
                 assert inputStream != null;
                 htmls[i] = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
             }
@@ -85,7 +89,6 @@ public class ParserTest {
             String actual = parser.extractMetadata();
             String expected = sites[i].getMetadata();
             double percentage = getPercentage(expected, actual);
-            System.out.println(percentage);
         }
     }
 
