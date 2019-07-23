@@ -2,7 +2,9 @@ package in.nimbo;
 
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
+import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.RedirectException;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -58,13 +60,14 @@ public class FetcherImpl implements Fetcher {
         defaultHeaders.add(new BasicHeader(HttpHeaders.ACCEPT, DEFAULT_ACCEPT));
 
         httpClientBuilder.setDefaultHeaders(defaultHeaders);
+        httpClientBuilder.disableRedirectHandling();
 
 
         client = httpClientBuilder.build();
     }
 
     @Override
-    public String fetch(String url) throws IOException {
+    public String fetch(String url) throws IOException, RedirectException {
 
         CloseableHttpResponse response = (CloseableHttpResponse) client.execute(new HttpGet(url), HttpClientContext.create());
         try {
@@ -75,6 +78,9 @@ public class FetcherImpl implements Fetcher {
             // maybe response type to be closeable and closing it should be optional
             response.close();
         }
+        // TODO: 7/23/19 bad smell in hard coding !!
+        if (responseStatusCode >= 300 && responseStatusCode < 400) // checks if it has been redirected or not
+            throw new RedirectException("url redirection occurred!");
         return rawHtmlDocument;
     }
 

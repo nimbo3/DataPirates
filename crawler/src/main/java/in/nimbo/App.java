@@ -1,6 +1,7 @@
 package in.nimbo;
 
 import in.nimbo.util.cacheManager.CaffeineVistedSiteCache;
+import org.apache.http.client.RedirectException;
 
 import java.io.IOException;
 
@@ -37,6 +38,8 @@ class CrawlerThread extends Thread {
             } catch (IOException e) {
                 // TODO: 7/22/19 do something in here
                 e.printStackTrace();
+            } catch (RedirectException e) {
+                // TODO: 7/23/19 do another thing in here
             }
             // TODO: 7/22/19 parse and insert into databases
         }
