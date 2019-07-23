@@ -15,15 +15,15 @@ import java.util.*;
 
 public class ParserTest {
     private static final Config config = ConfigFactory.load("config");
-    private static final double confidence = config.getDouble("Parser.confidence");
-    private static final int numOfTests = config.getInt("Parser.numOfTests");
-    private static String[] htmls = new String[numOfTests];
-    private static Site[] sites = new Site[numOfTests];
+    private static final double CONFIDENCE = config.getDouble("Parser.confidence");
+    private static final int NUM_OF_TESTS = config.getInt("Parser.numOfTests");
+    private static String[] htmls = new String[NUM_OF_TESTS];
+    private static Site[] sites = new Site[NUM_OF_TESTS];
     private String[] links = {config.getString("Parser.link1"), config.getString("Parser.link2")};
 
     @BeforeClass
     public static void init() throws IOException {
-        for (int i = 0; i < numOfTests; i++) {
+        for (int i = 0; i < NUM_OF_TESTS; i++) {
             try (InputStream inputStream =
                          ParserTest.class.getClassLoader().getResourceAsStream(
                                  "html/" + "parserTest" + (i + 1) + ".html")) {
@@ -56,9 +56,10 @@ public class ParserTest {
                         sb.append(string).append(" ");
                     }
                 }
-                List<String> anchors = new LinkedList<>();
+                HashMap<String, String> anchors = new HashMap<>();
                 while (scanner.hasNextLine()) {
-                    anchors.add(scanner.nextLine());
+                    String[] parts = scanner.nextLine().split("=");
+                    anchors.put(parts[0], parts.length > 1 ? parts[1] : "");
                 }
                 sites[i].setAnchors(anchors);
             }
@@ -84,7 +85,7 @@ public class ParserTest {
 
     @Test
     public void extractMetadataTest() {
-        for (int i = 0; i < numOfTests; i++) {
+        for (int i = 0; i < NUM_OF_TESTS; i++) {
             Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractMetadata();
             String expected = sites[i].getMetadata();
@@ -94,52 +95,64 @@ public class ParserTest {
 
     @Test
     public void extractTitleTest() {
-        for (int i = 0; i < numOfTests; i++) {
+        for (int i = 0; i < NUM_OF_TESTS; i++) {
             Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractTitle();
             String expected = sites[i].getTitle();
             double percentage = getPercentage(expected, actual);
-            Assert.assertTrue(percentage >= confidence);
+            Assert.assertTrue(percentage >= CONFIDENCE);
         }
     }
 
     @Test
     public void extractPlainTextTest() {
-        for (int i = 0; i < numOfTests; i++) {
+        for (int i = 0; i < NUM_OF_TESTS; i++) {
             Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractPlainText();
             String expected = sites[i].getPlainText();
             double percentage = getPercentage(expected, actual);
-            Assert.assertTrue(percentage >= confidence);
+            Assert.assertTrue(percentage >= CONFIDENCE);
         }
     }
 
     @Test
     public void extractKeywordsTest() {
-        for (int i = 0; i < numOfTests; i++) {
+        for (int i = 0; i < NUM_OF_TESTS; i++) {
             Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractKeywords();
             String expected = sites[i].getKeywords();
             double percentage = getPercentage(expected, actual);
-            Assert.assertTrue(percentage >= confidence);
+            Assert.assertTrue(percentage >= CONFIDENCE);
         }
     }
 
     @Test
     public void extractAnchorsTest() {
-        for (int i = 0; i < numOfTests; i++) {
+        for (int i = 0; i < NUM_OF_TESTS; i++) {
             Parser parser = new Parser(links[i], htmls[i]);
-            List<String> actualList = parser.extractAnchors();
-            List<String> expectedList = sites[i].getAnchors();
+            Map<String, String> actualList = parser.extractAnchors();
+            Map<String, String> expectedList = sites[i].getAnchors();
             StringBuilder actual = new StringBuilder(), expected = new StringBuilder();
-            for (String s : actualList) {
+            for (String s : actualList.keySet()) {
                 actual.append(s).append(" ");
             }
-            for (String s : expectedList) {
+            for (String s : expectedList.keySet()) {
                 expected.append(s).append(" ");
             }
             double percentage = getPercentage(expected.toString(), actual.toString());
-            Assert.assertTrue(percentage >= confidence);
+            Assert.assertTrue(percentage >= CONFIDENCE);
+
+
+            actual = new StringBuilder();
+            expected = new StringBuilder();
+            for (String s : actualList.values()) {
+                actual.append(s).append(" ");
+            }
+            for (String s : expectedList.values()) {
+                expected.append(s).append(" ");
+            }
+            percentage = getPercentage(expected.toString(), actual.toString());
+            Assert.assertTrue(percentage >= CONFIDENCE);
         }
     }
 }

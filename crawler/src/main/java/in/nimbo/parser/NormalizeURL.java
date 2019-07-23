@@ -27,7 +27,7 @@ public class NormalizeURL {
             throw new MalformedURLException(e.getMessage());
         }
 
-        final String path = url.getPath().replace("/$", "");
+        final String path = url.getPath().replaceAll("/$", "");
         final SortedMap<String, String> params = createParameterMap(url.getQuery());
         final int port = url.getPort();
         final String queryString;
@@ -88,7 +88,7 @@ public class NormalizeURL {
             }
         }
 
-        return new TreeMap<String, String>(params);
+        return new TreeMap<>(params);
     }
 
     /**

@@ -9,15 +9,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.MalformedURLException;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Parser {
     private static final Logger logger = LoggerFactory.getLogger(Parser.class);
     private String link;
     private Document document;
+    private String html;
 
     public Parser(String link, String html) {
+        this.html = html;
         this.link = link;
         document = Jsoup.parse(html, link);
     }
@@ -48,27 +50,26 @@ public class Parser {
         for (Element metaTag : metaTags) {
             String content = metaTag.attr("content");
             String name = metaTag.attr("name");
-            if (name.contains("description"))
-                sb.append(content).append(" ");
-            else if (name.contains("keyword"))
+            if (name.contains("description") || name.contains("keyword"))
                 sb.append(content).append(" ");
         }
         return sb.toString();
     }
 
-    public List<String> extractAnchors() {
+    public Map<String, String> extractAnchors() {
         Elements elements = document.select("a");
-        List<String> list = new LinkedList<>();
+        Map<String, String> map = new HashMap<>();
         String href = "";
         for (Element element : elements) {
             try {
                 href = element.absUrl("href");
-                list.add(NormalizeURL.normalize(href));
+                String content = element.text();
+                map.put(NormalizeURL.normalize(href), content);
             } catch (MalformedURLException e) {
                 logger.debug("normalizer can't add link: " + href + " to the anchors list for this page: " + link, e);
             }
         }
-        return list;
+        return map;
     }
 
     public String extractMetadata() {
@@ -88,6 +89,7 @@ public class Parser {
         site.setAnchors(extractAnchors());
         site.setPlainText(extractPlainText());
         site.setLink(link);
+        site.setHtml(html);
         return site;
     }
 }

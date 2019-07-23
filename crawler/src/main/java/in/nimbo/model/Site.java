@@ -1,6 +1,6 @@
 package in.nimbo.model;
 
-import java.util.List;
+import java.util.Map;
 
 public class Site {
     private String link;
@@ -8,7 +8,9 @@ public class Site {
     private String keywords;
     private String plainText;
     private String metadata;
-    private List<String> anchors;
+    private String html;
+    //TODO it should be a map from string to list of strings to store different texts for the same link
+    private Map<String, String> anchors;
 
     public Site() {
     }
@@ -18,7 +20,13 @@ public class Site {
         this.title = title;
     }
 
+    public String getHtml() {
+        return html;
+    }
 
+    public void setHtml(String html) {
+        this.html = html;
+    }
     public String getLink() {
         return link;
     }
@@ -51,12 +59,12 @@ public class Site {
         this.plainText = plainText;
     }
 
-    public List<String> getAnchors() {
+    public Map<String, String> getAnchors() {
         return anchors;
     }
 
 
-    public void setAnchors(List<String> anchors) {
+    public void setAnchors(Map<String, String> anchors) {
         this.anchors = anchors;
     }
 
