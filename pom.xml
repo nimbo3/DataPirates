@@ -9,8 +9,14 @@
 
     <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
-
     <name>search-engine</name>
+
+    <modules>
+        <module>crawler</module>
+        <module>common</module>
+        <module>backend</module>
+    </modules>
+
 
     <properties>
         <junit.version>4.12</junit.version>
@@ -18,16 +24,11 @@
         <slf4j.version>2.0.0-alpha0</slf4j.version>
         <typesafe.version>1.3.4</typesafe.version>
         <elasticsearch.version>7.2.0</elasticsearch.version>
+        <slf4j-api.version>2.0.0-alpha0</slf4j-api.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
     </properties>
-
-    <modules>
-        <module>crawler</module>
-        <module>backend</module>
-        <module>common</module>
-    </modules>
 
     <dependencyManagement>
         <dependencies>
