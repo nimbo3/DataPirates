@@ -17,7 +17,6 @@
         <module>backend</module>
     </modules>
 
-    <name>search-engine</name>
 
     <properties>
         <junit.version>4.12</junit.version>
