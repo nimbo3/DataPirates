@@ -6,20 +6,20 @@ public class App {
     public static void main(String[] args) {
         FetcherImpl fetcher = new FetcherImpl();
         int constant = 1000;
-        crawlerThread[] threads = new crawlerThread[constant];
+        CrawlerThread[] crawlerThreads = new CrawlerThread[constant];
         for (int i = 0; i < constant; i++) {
-            threads[i] = new crawlerThread(fetcher);
+            crawlerThreads[i] = new CrawlerThread(fetcher);
         }
         for (int i = 0; i < constant; i++) {
-            threads[i].start();
+            crawlerThreads[i].start();
         }
     }
 }
 
-class crawlerThread extends Thread {
+class CrawlerThread extends Thread {
     FetcherImpl fetcher;
 
-    public crawlerThread(FetcherImpl fetcher) {
+    public CrawlerThread(FetcherImpl fetcher) {
         this.fetcher = fetcher;
     }
 

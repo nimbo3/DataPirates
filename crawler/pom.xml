@@ -13,6 +13,10 @@
     <version>1.0-SNAPSHOT</version>
     <name>crawler</name>
 
+    <properties>
+        <httpclient.version>4.5.9</httpclient.version>
+    </properties>
+
     <build>
         <plugins>
             <plugin>
@@ -34,7 +38,7 @@
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
-            <version>4.5.9</version>
+            <version>${httpclient.version}</version>
         </dependency>
     </dependencies>
 

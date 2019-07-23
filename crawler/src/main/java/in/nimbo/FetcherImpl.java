@@ -1,5 +1,7 @@
 package in.nimbo;
 
+import org.apache.http.Header;
+import org.apache.http.HttpHeaders;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -8,11 +10,18 @@ import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.message.BasicHeader;
 import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
+import java.util.HashSet;
 
 public class FetcherImpl implements Fetcher {
+    private static final String DEFAULT_ACCEPT_LANGUAGE = "en-us,en-gb,en;q=0.7,*;q=0.3";
+    private static final String DEFAULT_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+    private static final String DEFAULT_ACCEPT_CHARSET = "utf-8,ISO-8859-1;q=0.7,*;q=0.7";
+    private static final String DEFAULT_ACCEPT_ENCODING = "x-gzip, gzip";
+
     private HttpClient client;
     private String rawHtmlDocument;
     private int responseStatusCode;
@@ -41,6 +50,15 @@ public class FetcherImpl implements Fetcher {
         RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
         requestConfigBuilder.setRedirectsEnabled(false);
         httpClientBuilder.setDefaultRequestConfig(requestConfigBuilder.build());
+
+        HashSet<Header> defaultHeaders = new HashSet<Header>();
+        defaultHeaders.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE, DEFAULT_ACCEPT_LANGUAGE));
+        defaultHeaders.add(new BasicHeader(HttpHeaders.ACCEPT_CHARSET, DEFAULT_ACCEPT_CHARSET));
+        defaultHeaders.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, DEFAULT_ACCEPT_ENCODING));
+        defaultHeaders.add(new BasicHeader(HttpHeaders.ACCEPT, DEFAULT_ACCEPT));
+
+        httpClientBuilder.setDefaultHeaders(defaultHeaders);
+
 
         client = httpClientBuilder.build();
     }
