@@ -1,6 +1,5 @@
 package in.nimbo;
 
-import in.nimbo.util.cacheManager.CaffeineVistedSiteCache;
 import org.apache.http.client.RedirectException;
 
 import java.io.IOException;
