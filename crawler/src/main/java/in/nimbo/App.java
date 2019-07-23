@@ -1,5 +1,7 @@
 package in.nimbo;
 
+import in.nimbo.util.cacheManager.CaffeineVistedSiteCache;
+
 import java.io.IOException;
 
 public class App {

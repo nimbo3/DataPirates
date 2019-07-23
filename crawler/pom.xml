@@ -15,6 +15,7 @@
 
     <properties>
         <httpclient.version>4.5.9</httpclient.version>
+        <caffeine.version>2.7.0</caffeine.version>
     </properties>
 
     <build>
@@ -40,6 +41,12 @@
             <artifactId>httpclient</artifactId>
             <version>${httpclient.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>${caffeine.version}</version>
+        </dependency>
+
     </dependencies>
 
 </project>
