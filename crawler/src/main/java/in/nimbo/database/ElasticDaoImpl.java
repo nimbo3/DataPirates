@@ -75,8 +75,7 @@ public class ElasticDaoImpl implements SiteDao, Searchable {
             builder.field("keywords", site.getKeywords());
             builder.endObject();
             IndexRequest indexRequest = new IndexRequest("sites").id(site.getLink()).source(builder);
-            IndexResponse indexResponse = client.index(indexRequest, RequestOptions.DEFAULT);
-            System.out.println(indexResponse);
+            client.index(indexRequest, RequestOptions.DEFAULT);
         } catch (IOException e) {
             logger.error(e);
         }
