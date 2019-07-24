@@ -4,7 +4,6 @@ import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
 import org.apache.http.client.HttpClient;
-import org.apache.http.client.RedirectException;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -31,14 +30,18 @@ public class FetcherImpl implements Fetcher {
     private static final String DEFAULT_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
     private static final String DEFAULT_ACCEPT_CHARSET = "utf-8,ISO-8859-1;q=0.7,*;q=0.7";
     private static final String DEFAULT_ACCEPT_ENCODING = "x-gzip, gzip";
-
     private HttpClient client;
     private String rawHtmlDocument;
     private int responseStatusCode;
     private ContentType contentType;
+    private String redirectUrl;
 
     public FetcherImpl() {
         init();
+    }
+
+    public String getRedirectUrl() {
+        return redirectUrl;
     }
 
     void init() {
@@ -81,22 +84,23 @@ public class FetcherImpl implements Fetcher {
 
     @Override
     public String fetch(String url) throws IOException {
-
-
-        HttpClientContext context = HttpClientContext.create();
-        HttpGet httpGet = new HttpGet(url);
-        HttpHost target = context.getTargetHost();
-        List<URI> redirectLocations = context.getRedirectLocations();
         try {
-            URI location = URIUtils.resolve(httpGet.getURI(), target, redirectLocations);
-            httpGet = new HttpGet(location.toASCIIString());
-            try(CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context)){
+            HttpClientContext context = HttpClientContext.create();
+            HttpGet httpGet = new HttpGet(url);
+            try (CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context)) {
+                HttpHost target = context.getTargetHost();
+                List<URI> redirectLocations = context.getRedirectLocations();
+                URI location = URIUtils.resolve(httpGet.getURI(), target, redirectLocations);
+                redirectUrl = location.toASCIIString();
                 responseStatusCode = response.getStatusLine().getStatusCode();
                 rawHtmlDocument = EntityUtils.toString(response.getEntity());
                 contentType = ContentType.getOrDefault(response.getEntity());
+            } catch (URISyntaxException e) {
+                logger.error("uri syntax exception", e);
             }
-        } catch (URISyntaxException e) {
-            logger.error("uri syntax exception", e);
+        }catch (IllegalArgumentException e) {
+            //Todo : Suppurt For Persian Link
+            logger.error("IllegalArgumentException ", e);
         }
         // TODO: 7/23/19 bad smell in hard coding !!
 //        if (responseStatusCode >= 300 && responseStatusCode < 400) // checks if it has been redirected or not

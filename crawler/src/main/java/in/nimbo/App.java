@@ -13,6 +13,8 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -29,7 +31,6 @@ public class App {
     }
 
     public static void main(String[] args) {
-
         Config config = ConfigFactory.load("config");
         FetcherImpl fetcher = new FetcherImpl();
         int threads = 1;
@@ -62,15 +63,15 @@ public class App {
             }
         };
         VisitedLinksCache visitedUrlsCache = new VisitedLinksCache() {
-            LinkedHashSet<String> visitedUrls = new LinkedHashSet<>();
+            Map<String, Integer> visitedUrls = new ConcurrentHashMap<>();
             @Override
             public void put(String normalizedUrl) {
-                visitedUrls.add(normalizedUrl);
+                visitedUrls.put(normalizedUrl, 0);
             }
 
             @Override
             public boolean hasVisited(String normalizedUrl) {
-                return visitedUrls.contains(normalizedUrl);
+                return visitedUrls.keySet().contains(normalizedUrl);
             }
         };
         linkQueue.put("https://cafebazaar.ir/");
@@ -123,7 +124,7 @@ class CrawlerThread extends Thread {
                         site.getAnchors().keySet().forEach(link -> linkQueue.put(link));
                         visitedUrlsCache.put(url);
                         System.out.println(site.getTitle() + " : " + site.getLink());
-                                            database.insert(site);
+//                        database.insert(site);
                     }
                 } catch (IOException e) {
                     logger.error(e);
