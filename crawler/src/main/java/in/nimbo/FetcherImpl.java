@@ -16,6 +16,8 @@ import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
@@ -24,6 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 
 public class FetcherImpl implements Fetcher {
+    private static final Logger logger = LoggerFactory.getLogger(FetcherImpl.class);
     private static final String DEFAULT_ACCEPT_LANGUAGE = "en-us,en-gb,en;q=0.7,*;q=0.3";
     private static final String DEFAULT_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
     private static final String DEFAULT_ACCEPT_CHARSET = "utf-8,ISO-8859-1;q=0.7,*;q=0.7";
@@ -77,28 +80,23 @@ public class FetcherImpl implements Fetcher {
     }
 
     @Override
-    public String fetch(String url) throws IOException, RedirectException {
+    public String fetch(String url) throws IOException {
 
 
         HttpClientContext context = HttpClientContext.create();
         HttpGet httpGet = new HttpGet(url);
-        CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context);
         HttpHost target = context.getTargetHost();
         List<URI> redirectLocations = context.getRedirectLocations();
         try {
             URI location = URIUtils.resolve(httpGet.getURI(), target, redirectLocations);
-            return  location.toASCIIString();
+            httpGet = new HttpGet(location.toASCIIString());
+            try(CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context)){
+                responseStatusCode = response.getStatusLine().getStatusCode();
+                rawHtmlDocument = EntityUtils.toString(response.getEntity());
+                contentType = ContentType.getOrDefault(response.getEntity());
+            }
         } catch (URISyntaxException e) {
-
-        }
-
-        try {
-            responseStatusCode = response.getStatusLine().getStatusCode();
-            rawHtmlDocument = EntityUtils.toString(response.getEntity());
-            contentType = ContentType.getOrDefault(response.getEntity());
-        } finally {
-            // maybe response type to be closeable and closing it should be optional
-            response.close();
+            logger.error("uri syntax exception", e);
         }
         // TODO: 7/23/19 bad smell in hard coding !!
 //        if (responseStatusCode >= 300 && responseStatusCode < 400) // checks if it has been redirected or not

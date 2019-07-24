@@ -9,7 +9,6 @@ import in.nimbo.parser.Parser;
 import in.nimbo.queue.LinkQueue;
 import in.nimbo.util.VisitedLinksCache;
 import in.nimbo.util.cacheManager.CaffeineVistedDomainCache;
-import org.apache.http.client.RedirectException;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -32,7 +31,7 @@ public class App {
     public static void main(String[] args) {
         Config config = ConfigFactory.load("config");
         FetcherImpl fetcher = new FetcherImpl();
-        int threads = 1;
+        int threads = 100;
         CrawlerThread[] crawlerThreads = new CrawlerThread[threads];
         LinkQueue linkQueue = new LinkQueue() {
             LinkedBlockingQueue<String> links = new LinkedBlockingQueue<>();
@@ -125,8 +124,6 @@ class CrawlerThread extends Thread {
                     }
                 } catch (IOException e) {
                     logger.error(e);
-                } catch (RedirectException e) {
-                    logger.info(e);
                 }
             } else {
                 linkQueue.put(url);
