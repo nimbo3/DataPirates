@@ -41,6 +41,7 @@ public class FetcherImpl implements Fetcher {
          */
 
         HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+
         // to handle multithreading we're using PoolingHttpClientConnectionManager
         PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
         connectionManager.setDefaultMaxPerRoute(1);
@@ -48,7 +49,7 @@ public class FetcherImpl implements Fetcher {
         httpClientBuilder.setConnectionManager(connectionManager);
 
         RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
-        requestConfigBuilder.setRedirectsEnabled(false);
+        requestConfigBuilder.setRedirectsEnabled(true);
         httpClientBuilder.setDefaultRequestConfig(requestConfigBuilder.build());
 
         HashSet<Header> defaultHeaders = new HashSet<Header>();

@@ -63,7 +63,6 @@ public class App {
         };
         VisitedLinksCache visitedUrlsCache = new VisitedLinksCache() {
             LinkedHashSet<String> visitedUrls = new LinkedHashSet<>();
-
             @Override
             public void put(String normalizedUrl) {
                 visitedUrls.add(normalizedUrl);
