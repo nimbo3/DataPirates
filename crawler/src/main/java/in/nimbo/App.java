@@ -21,7 +21,6 @@ import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.security.KeyManagementException;

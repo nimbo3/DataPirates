@@ -155,4 +155,17 @@ public class ParserTest {
             Assert.assertTrue(percentage >= CONFIDENCE);
         }
     }
+    @Test
+    public void extractTest() throws IOException {
+        String h;
+        try (InputStream inputStream =
+                     ParserTest.class.getClassLoader().getResourceAsStream(
+                             "html/" + 3 + ".html")) {
+            assert inputStream != null;
+            h = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+        }
+        Parser parser = new Parser("https://stackoverflow.com/company/management", h);
+        Map<String, String> actualList = parser.extractAnchors();
+        System.out.println(actualList);
+    }
 }
