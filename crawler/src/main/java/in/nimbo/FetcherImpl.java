@@ -2,7 +2,6 @@ package in.nimbo;
 
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
-import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.RedirectException;
 import org.apache.http.client.config.RequestConfig;

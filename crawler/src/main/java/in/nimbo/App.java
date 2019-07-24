@@ -20,7 +20,7 @@ public class App {
         Configuration hbaseConfig = HBaseConfiguration.create();
         String path = HBaseConfiguration.class.getClassLoader().getResource("xml/hbase-site.xml").getPath();
         hbaseConfig.addResource(new Path(path));
-        Config config = ConfigFactory.load();
+        Config config = ConfigFactory.load("config");
         HbaseSiteDaoImpl hbaseSiteDaoImpl;
         try {
             hbaseSiteDaoImpl = new HbaseSiteDaoImpl(hbaseConfig, config);
@@ -28,15 +28,15 @@ public class App {
             logger.error("can't connect to Hbase", e);
             //TODO do sth after failing connection to Hbase
         }
-        FetcherImpl fetcher = new FetcherImpl();
-        int constant = 1000;
-        CrawlerThread[] crawlerThreads = new CrawlerThread[constant];
-        for (int i = 0; i < constant; i++) {
-            crawlerThreads[i] = new CrawlerThread(fetcher);
-        }
-        for (int i = 0; i < constant; i++) {
-            crawlerThreads[i].start();
-        }
+//        FetcherImpl fetcher = new FetcherImpl();
+//        int constant = 1000;
+//        CrawlerThread[] crawlerThreads = new CrawlerThread[constant];
+//        for (int i = 0; i < constant; i++) {
+//            crawlerThreads[i] = new CrawlerThread(fetcher);
+//        }
+//        for (int i = 0; i < constant; i++) {
+//            crawlerThreads[i].start();
+//        }
     }
 }
 

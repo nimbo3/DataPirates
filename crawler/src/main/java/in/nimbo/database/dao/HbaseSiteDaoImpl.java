@@ -15,11 +15,11 @@ import java.util.Map;
 
 
 public class HbaseSiteDaoImpl implements SiteDao {
+    private static final Logger logger = LoggerFactory.getLogger(SiteDao.class);
     private final Configuration hbaseConfig;
     private final String TABLE_NAME;
-    private String family1;
     private final Config config;
-    private static final Logger logger = LoggerFactory.getLogger(SiteDao.class);
+    private String family1;
 
     public HbaseSiteDaoImpl(Configuration hbaseConfig, Config config) throws IOException {
         TABLE_NAME = config.getString("hbase.table.name");
@@ -69,7 +69,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
     }
 
     public void create() throws IOException {
-        try(Connection connection = ConnectionFactory.createConnection(hbaseConfig)) {
+        try (Connection connection = ConnectionFactory.createConnection(hbaseConfig)) {
             Admin admin = connection.getAdmin();
             TableDescriptor desc = TableDescriptorBuilder.newBuilder(TableName.valueOf(TABLE_NAME)).setColumnFamily(
                     ColumnFamilyDescriptorBuilder.newBuilder(Bytes.toBytes(family1)).build()
