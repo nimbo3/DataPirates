@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import java.net.MalformedURLException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Parser {
     private static final Logger logger = LoggerFactory.getLogger(Parser.class);
@@ -91,5 +93,15 @@ public class Parser {
         site.setLink(link);
         site.setHtml(html);
         return site;
+    }
+
+    // TODO: 7/24/19 discover a better place for this function!
+    public static String getDomain(String url) {
+        Pattern regex = Pattern.compile("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
+        Matcher matcher = regex.matcher(url);
+        if (matcher.find()) {
+            return matcher.group(4);
+        }
+        return url;
     }
 }
