@@ -29,9 +29,10 @@ public class App {
     }
 
     public static void main(String[] args) {
+
         Config config = ConfigFactory.load("config");
         FetcherImpl fetcher = new FetcherImpl();
-        int threads = 100;
+        int threads = 1;
         CrawlerThread[] crawlerThreads = new CrawlerThread[threads];
         LinkQueue linkQueue = new LinkQueue() {
             LinkedBlockingQueue<String> links = new LinkedBlockingQueue<>();
@@ -75,12 +76,14 @@ public class App {
         linkQueue.put("https://cafebazaar.ir/");
         linkQueue.put("https://www.mehrnews.com/");
         linkQueue.put("http://www.sharif.ir/home");
+        CaffeineVistedDomainCache vistedDomainCache = new CaffeineVistedDomainCache(config);
+        ElasticDaoImpl elasticDao = new ElasticDaoImpl("slave1", 9200);
         for (int i = 0; i < threads; i++) {
             crawlerThreads[i] = new CrawlerThread(fetcher,
-                    new CaffeineVistedDomainCache(config),
+                    vistedDomainCache,
                     visitedUrlsCache,
                     linkQueue,
-                    new ElasticDaoImpl("slave1", 9200));
+                    elasticDao);
         }
         for (int i = 0; i < threads; i++) {
             crawlerThreads[i].start();
@@ -120,7 +123,7 @@ class CrawlerThread extends Thread {
                         site.getAnchors().keySet().forEach(link -> linkQueue.put(link));
                         visitedUrlsCache.put(url);
                         System.out.println(site.getTitle() + " : " + site.getLink());
-//                                            database.insert(site);
+                                            database.insert(site);
                     }
                 } catch (IOException e) {
                     logger.error(e);
