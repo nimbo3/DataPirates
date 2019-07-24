@@ -52,7 +52,7 @@ public class FetcherImpl implements Fetcher {
         requestConfigBuilder.setRedirectsEnabled(false);
         httpClientBuilder.setDefaultRequestConfig(requestConfigBuilder.build());
 
-        HashSet<Header> defaultHeaders = new HashSet<Header>();
+        HashSet<Header> defaultHeaders = new HashSet<>();
         defaultHeaders.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE, DEFAULT_ACCEPT_LANGUAGE));
         defaultHeaders.add(new BasicHeader(HttpHeaders.ACCEPT_CHARSET, DEFAULT_ACCEPT_CHARSET));
         defaultHeaders.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, DEFAULT_ACCEPT_ENCODING));

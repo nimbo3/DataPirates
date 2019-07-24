@@ -23,7 +23,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
 
     public HbaseSiteDaoImpl(Configuration hbaseConfig, Config config) throws IOException {
         TABLE_NAME = config.getString("hbase.table.name");
-        family1 = config.getString("hbase.table.family1");
+        family1 = config.getString("hbase.table.column.family.anchors");
         this.hbaseConfig = hbaseConfig;
         this.config = config;
         HBaseAdmin.available(hbaseConfig);
