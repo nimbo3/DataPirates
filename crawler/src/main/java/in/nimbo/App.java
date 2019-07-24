@@ -12,7 +12,6 @@ import in.nimbo.util.cacheManager.CaffeineVistedDomainCache;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -21,10 +20,10 @@ import java.util.regex.Pattern;
 
 public class App {
 
-    public static String getDomain(String url){
+    public static String getDomain(String url) {
         Pattern regex = Pattern.compile("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
         Matcher matcher = regex.matcher(url);
-        if (matcher.find()){
+        if (matcher.find()) {
             return matcher.group(4);
         }
         return url;
@@ -33,7 +32,7 @@ public class App {
     public static void main(String[] args) {
         Config config = ConfigFactory.load("config");
         FetcherImpl fetcher = new FetcherImpl();
-        int threads = 1;
+        int threads = 100;
         CrawlerThread[] crawlerThreads = new CrawlerThread[threads];
         LinkQueue linkQueue = new LinkQueue() {
             LinkedBlockingQueue<String> links = new LinkedBlockingQueue<>();
@@ -64,6 +63,7 @@ public class App {
         };
         VisitedLinksCache visitedUrlsCache = new VisitedLinksCache() {
             Map<String, Integer> visitedUrls = new ConcurrentHashMap<>();
+
             @Override
             public void put(String normalizedUrl) {
                 visitedUrls.put(normalizedUrl, 0);
@@ -74,6 +74,7 @@ public class App {
                 return visitedUrls.keySet().contains(normalizedUrl);
             }
         };
+        linkQueue.put("http://ehsan-edu.org/ehs/");
         linkQueue.put("https://cafebazaar.ir/");
         linkQueue.put("https://www.mehrnews.com/");
         linkQueue.put("http://www.sharif.ir/home");
@@ -123,8 +124,8 @@ class CrawlerThread extends Thread {
                         visitedDomainsCache.put(App.getDomain(url));
                         site.getAnchors().keySet().forEach(link -> linkQueue.put(link));
                         visitedUrlsCache.put(url);
+                        database.insert(site);
                         System.out.println(site.getTitle() + " : " + site.getLink());
-//                        database.insert(site);
                     }
                 } catch (IOException e) {
                     logger.error(e);
