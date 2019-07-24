@@ -13,6 +13,8 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -61,23 +63,24 @@ public class App {
             }
         };
         VisitedLinksCache visitedUrlsCache = new VisitedLinksCache() {
-            LinkedHashSet<String> visitedUrls = new LinkedHashSet<>();
+            Map<String, Integer> visitedUrls = new ConcurrentHashMap<>();
             @Override
             public void put(String normalizedUrl) {
-                visitedUrls.add(normalizedUrl);
+                visitedUrls.put(normalizedUrl, 0);
             }
 
             @Override
             public boolean hasVisited(String normalizedUrl) {
-                return visitedUrls.contains(normalizedUrl);
+                return visitedUrls.keySet().contains(normalizedUrl);
             }
         };
         linkQueue.put("https://cafebazaar.ir/");
-        linkQueue.put("https://www.mehrnews.com/");
-        linkQueue.put("http://www.sharif.ir/home");
+//        linkQueue.put("https://www.mehrnews.com/");
+//        linkQueue.put("http://www.sharif.ir/home");
+        CaffeineVistedDomainCache vistedDomainCache = new CaffeineVistedDomainCache(config);
         for (int i = 0; i < threads; i++) {
             crawlerThreads[i] = new CrawlerThread(fetcher,
-                    new CaffeineVistedDomainCache(config),
+                    vistedDomainCache,
                     visitedUrlsCache,
                     linkQueue,
                     new ElasticDaoImpl("slave1", 9200));
@@ -120,7 +123,7 @@ class CrawlerThread extends Thread {
                         site.getAnchors().keySet().forEach(link -> linkQueue.put(link));
                         visitedUrlsCache.put(url);
                         System.out.println(site.getTitle() + " : " + site.getLink());
-//                                            database.insert(site);
+//                        database.insert(site);
                     }
                 } catch (IOException e) {
                     logger.error(e);
