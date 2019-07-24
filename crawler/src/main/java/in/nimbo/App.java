@@ -14,16 +14,28 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.LinkedHashSet;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class App {
+
+    public static String getDomain(String url){
+        Pattern regex = Pattern.compile("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
+        Matcher matcher = regex.matcher(url);
+        if (matcher.find()){
+            return matcher.group(4);
+        }
+        return url;
+    }
+
     public static void main(String[] args) {
         Config config = ConfigFactory.load("config");
         FetcherImpl fetcher = new FetcherImpl();
         int threads = 1;
         CrawlerThread[] crawlerThreads = new CrawlerThread[threads];
         LinkQueue linkQueue = new LinkQueue() {
-            ArrayBlockingQueue<String> links = new ArrayBlockingQueue<>(1000);
+            LinkedBlockingQueue<String> links = new LinkedBlockingQueue<>();
 
             @Override
             public void put(String link) {
@@ -51,6 +63,7 @@ public class App {
         };
         VisitedLinksCache visitedUrlsCache = new VisitedLinksCache() {
             LinkedHashSet<String> visitedUrls = new LinkedHashSet<>();
+
             @Override
             public void put(String normalizedUrl) {
                 visitedUrls.add(normalizedUrl);

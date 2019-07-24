@@ -2,7 +2,6 @@ package in.nimbo;
 
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
-import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.RedirectException;
 import org.apache.http.client.config.RequestConfig;
@@ -42,7 +41,6 @@ public class FetcherImpl implements Fetcher {
          */
 
         HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
-
         // to handle multithreading we're using PoolingHttpClientConnectionManager
         PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
         connectionManager.setDefaultMaxPerRoute(1);
