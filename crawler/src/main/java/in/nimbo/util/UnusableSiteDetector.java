@@ -11,13 +11,6 @@ public class UnusableSiteDetector {
     private static Logger logger = LoggerFactory.getLogger(UnusableSiteDetector.class);
     private String plainText;
 
-    static {
-        try {
-            DetectorFactory.loadProfile("profiles");
-        } catch (LangDetectException e) {
-            logger.error("Failed To Load Languages",e);
-        }
-    }
 
     public UnusableSiteDetector(String plainText) {
         this.plainText = plainText;
