@@ -1,18 +1,20 @@
 package in.nimbo;
 
-import org.apache.http.Header;
-import org.apache.http.HttpHeaders;
-import org.apache.http.StatusLine;
+import org.apache.http.*;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.RedirectException;
+import org.apache.http.client.RedirectStrategy;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHeader;
+import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
@@ -42,7 +44,6 @@ public class FetcherImpl implements Fetcher {
          */
 
         HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
-
         // to handle multithreading we're using PoolingHttpClientConnectionManager
         PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
         connectionManager.setDefaultMaxPerRoute(1);
@@ -50,7 +51,7 @@ public class FetcherImpl implements Fetcher {
         httpClientBuilder.setConnectionManager(connectionManager);
 
         RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
-        requestConfigBuilder.setRedirectsEnabled(false);
+        requestConfigBuilder.setRedirectsEnabled(true);
         httpClientBuilder.setDefaultRequestConfig(requestConfigBuilder.build());
 
         HashSet<Header> defaultHeaders = new HashSet<Header>();
@@ -86,5 +87,9 @@ public class FetcherImpl implements Fetcher {
 
     boolean isContentTypeTextHtml() {
         return contentType == ContentType.TEXT_HTML;
+    }
+
+    public String getRawHtmlDocument() {
+        return rawHtmlDocument;
     }
 }
