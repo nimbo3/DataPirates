@@ -2,20 +2,26 @@ package in.nimbo;
 
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
+import org.apache.http.HttpHost;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.RedirectException;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.client.utils.URIUtils;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashSet;
+import java.util.List;
 
 public class FetcherImpl implements Fetcher {
     private static final String DEFAULT_ACCEPT_LANGUAGE = "en-us,en-gb,en;q=0.7,*;q=0.3";
@@ -41,6 +47,14 @@ public class FetcherImpl implements Fetcher {
          */
 
         HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+        httpClientBuilder.setRedirectStrategy(new LaxRedirectStrategy());
+
+        int timeout = 30;
+        RequestConfig config = RequestConfig.custom()
+                .setConnectTimeout(timeout * 1000)
+                .setConnectionRequestTimeout(timeout * 1000)
+                .setSocketTimeout(timeout * 1000).build();
+        httpClientBuilder.setDefaultRequestConfig(config);
 
         // to handle multithreading we're using PoolingHttpClientConnectionManager
         PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
@@ -49,18 +63,15 @@ public class FetcherImpl implements Fetcher {
         httpClientBuilder.setConnectionManager(connectionManager);
 
         RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
-        requestConfigBuilder.setRedirectsEnabled(true);
         httpClientBuilder.setDefaultRequestConfig(requestConfigBuilder.build());
 
-        HashSet<Header> defaultHeaders = new HashSet<Header>();
+        HashSet<Header> defaultHeaders = new HashSet<>();
         defaultHeaders.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE, DEFAULT_ACCEPT_LANGUAGE));
         defaultHeaders.add(new BasicHeader(HttpHeaders.ACCEPT_CHARSET, DEFAULT_ACCEPT_CHARSET));
         defaultHeaders.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, DEFAULT_ACCEPT_ENCODING));
         defaultHeaders.add(new BasicHeader(HttpHeaders.ACCEPT, DEFAULT_ACCEPT));
 
         httpClientBuilder.setDefaultHeaders(defaultHeaders);
-        httpClientBuilder.disableRedirectHandling();
-
 
         client = httpClientBuilder.build();
     }
@@ -68,7 +79,19 @@ public class FetcherImpl implements Fetcher {
     @Override
     public String fetch(String url) throws IOException, RedirectException {
 
-        CloseableHttpResponse response = (CloseableHttpResponse) client.execute(new HttpGet(url), HttpClientContext.create());
+
+        HttpClientContext context = HttpClientContext.create();
+        HttpGet httpGet = new HttpGet(url);
+        CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context);
+        HttpHost target = context.getTargetHost();
+        List<URI> redirectLocations = context.getRedirectLocations();
+        try {
+            URI location = URIUtils.resolve(httpGet.getURI(), target, redirectLocations);
+            return  location.toASCIIString();
+        } catch (URISyntaxException e) {
+
+        }
+
         try {
             responseStatusCode = response.getStatusLine().getStatusCode();
             rawHtmlDocument = EntityUtils.toString(response.getEntity());
@@ -78,8 +101,8 @@ public class FetcherImpl implements Fetcher {
             response.close();
         }
         // TODO: 7/23/19 bad smell in hard coding !!
-        if (responseStatusCode >= 300 && responseStatusCode < 400) // checks if it has been redirected or not
-            throw new RedirectException("url redirection occurred!");
+//        if (responseStatusCode >= 300 && responseStatusCode < 400) // checks if it has been redirected or not
+//            throw new RedirectException("url redirection occurred!");
         return rawHtmlDocument;
     }
 

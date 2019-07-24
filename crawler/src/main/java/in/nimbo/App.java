@@ -118,7 +118,7 @@ class CrawlerThread extends Thread {
                     site.getAnchors().keySet().forEach(link -> linkQueue.put(link));
                     visitedUrlsCache.put(url);
                     System.out.println(site.getTitle() + " : " + site.getLink());
-                    database.insert(site);
+//                    database.insert(site);
                 } catch (IOException e) {
                     logger.error(e);
                 } catch (RedirectException e) {
