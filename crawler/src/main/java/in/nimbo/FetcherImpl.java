@@ -4,6 +4,7 @@ import com.typesafe.config.Config;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -69,6 +70,7 @@ public class FetcherImpl implements Fetcher {
                 .setConnectionRequestTimeout(connectionTimeout)
                 .setSocketTimeout(connectionTimeout)
                 .setMaxRedirects(maxRedirects)
+                .setRedirectsEnabled(true)
                 .build();
         httpClientBuilder.setDefaultRequestConfig(requestConfig);
 
@@ -107,14 +109,13 @@ public class FetcherImpl implements Fetcher {
                 contentType = ContentType.getOrDefault(response.getEntity());
             } catch (URISyntaxException e) {
                 logger.error("uri syntax exception", e);
+            } catch (ClientProtocolException e) {
+                logger.error("ClientProtocolException", e);
             }
         } catch (IllegalArgumentException e) {
-            //Todo : Suppurt For Persian Link
+            //Todo : Support For Persian Link
             logger.error("IllegalArgumentException ", e);
         }
-        // TODO: 7/23/19 bad smell in hard coding !!
-//        if (responseStatusCode >= 300 && responseStatusCode < 400) // checks if it has been redirected or not
-//            throw new RedirectException("url redirection occurred!");
         return rawHtmlDocument;
     }
 
