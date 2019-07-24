@@ -74,6 +74,8 @@ public class App {
             }
         };
         linkQueue.put("https://cafebazaar.ir/");
+        linkQueue.put("https://www.mehrnews.com/");
+        linkQueue.put("http://www.sharif.ir/home");
         for (int i = 0; i < threads; i++) {
             crawlerThreads[i] = new CrawlerThread(fetcher,
                     new CaffeineVistedDomainCache(config),
@@ -90,14 +92,14 @@ public class App {
 class CrawlerThread extends Thread {
     private static Logger logger = Logger.getLogger(CrawlerThread.class);
     private FetcherImpl fetcher;
-    private VisitedLinksCache visitedLinksCache;
+    private VisitedLinksCache visitedDomainsCache;
     private VisitedLinksCache visitedUrlsCache;
     private LinkQueue linkQueue;
     private SiteDao database;
 
     public CrawlerThread(FetcherImpl fetcher, VisitedLinksCache visitedDomainsCache, VisitedLinksCache visitedUrlsCache, LinkQueue linkQueue, SiteDao database) {
         this.fetcher = fetcher;
-        this.visitedLinksCache = visitedDomainsCache;
+        this.visitedDomainsCache = visitedDomainsCache;
         this.database = database;
         this.linkQueue = linkQueue;
         this.visitedUrlsCache = visitedUrlsCache;
@@ -108,17 +110,19 @@ class CrawlerThread extends Thread {
         while (!interrupted()) {
             String url = linkQueue.pop();
             logger.info(String.format("New link (%s) poped from queue", url));
-            if (!visitedLinksCache.hasVisited(url.substring(0, 12)) &&
+            if (!visitedDomainsCache.hasVisited(App.getDomain(url)) &&
                     !visitedUrlsCache.hasVisited(url)) {
                 try {
                     fetcher.fetch(url);
-                    Parser parser = new Parser(url, fetcher.getRawHtmlDocument());
-                    Site site = parser.parse();
-                    visitedLinksCache.put(site.getLink().substring(0, 12));
-                    site.getAnchors().keySet().forEach(link -> linkQueue.put(link));
-                    visitedUrlsCache.put(url);
-                    System.out.println(site.getTitle() + " : " + site.getLink());
-                    database.insert(site);
+                    if (fetcher.isContentTypeTextHtml()) {
+                        Parser parser = new Parser(url, fetcher.getRawHtmlDocument());
+                        Site site = parser.parse();
+                        visitedDomainsCache.put(App.getDomain(url));
+                        site.getAnchors().keySet().forEach(link -> linkQueue.put(link));
+                        visitedUrlsCache.put(url);
+                        System.out.println(site.getTitle() + " : " + site.getLink());
+//                                            database.insert(site);
+                    }
                 } catch (IOException e) {
                     logger.error(e);
                 } catch (RedirectException e) {
