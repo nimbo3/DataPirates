@@ -87,4 +87,8 @@ public class FetcherImpl implements Fetcher {
     boolean isContentTypeTextHtml() {
         return contentType == ContentType.TEXT_HTML;
     }
+
+    public String getRawHtmlDocument() {
+        return rawHtmlDocument;
+    }
 }
