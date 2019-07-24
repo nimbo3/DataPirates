@@ -10,6 +10,7 @@
     </parent>
 
     <properties>
+        <kafka-clients.version>2.3.0</kafka-clients.version>
         <jsoup.version>1.12.1</jsoup.version>
         <commons-io.version>2.6</commons-io.version>
         <httpclient.version>4.5.9</httpclient.version>
@@ -22,6 +23,12 @@
     <name>crawler</name>
 
     <dependencies>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>${kafka-clients.version}</version>
+        </dependency>
+        
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
@@ -52,7 +59,6 @@
             <artifactId>elasticsearch-rest-high-level-client</artifactId>
             <version>${elasticsearch.version}</version>
         </dependency>
-
     </dependencies>
 
     <build>
