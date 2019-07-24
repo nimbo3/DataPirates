@@ -1,5 +1,6 @@
 package in.nimbo;
 
+import com.typesafe.config.Config;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
@@ -35,8 +36,10 @@ public class FetcherImpl implements Fetcher {
     private int responseStatusCode;
     private ContentType contentType;
     private String redirectUrl;
+    private Config config;
 
-    public FetcherImpl() {
+    public FetcherImpl(Config config) {
+        this.config = config;
         init();
     }
 
@@ -48,24 +51,31 @@ public class FetcherImpl implements Fetcher {
         /*
          TODO: 7/22/19
          - handle or deactivate redirects
-         - create headers
          - disable ssl
+         - handle status codes (for example too many requests)
+         - test redirects
          */
+
+        int connectionTimeout = config.getInt("fetcher.connection.timeout.milliseconds");
+        int maxRedirects = config.getInt("fetcher.max.redirects");
+        int maxTotalConnections = config.getInt("fetcher.client.num.of.maximum.total.connections");
+        int maxConnectionsPerRoute = config.getInt("fetcher.client.num.of.maximum.connections.per.route");
 
         HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
         httpClientBuilder.setRedirectStrategy(new LaxRedirectStrategy());
 
-        int timeout = 30;
-        RequestConfig config = RequestConfig.custom()
-                .setConnectTimeout(timeout * 1000)
-                .setConnectionRequestTimeout(timeout * 1000)
-                .setSocketTimeout(timeout * 1000).build();
-        httpClientBuilder.setDefaultRequestConfig(config);
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setConnectTimeout(connectionTimeout)
+                .setConnectionRequestTimeout(connectionTimeout)
+                .setSocketTimeout(connectionTimeout)
+                .setMaxRedirects(maxRedirects)
+                .build();
+        httpClientBuilder.setDefaultRequestConfig(requestConfig);
 
         // to handle multithreading we're using PoolingHttpClientConnectionManager
         PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
-        connectionManager.setDefaultMaxPerRoute(1);
-        connectionManager.setMaxTotal(500);
+        connectionManager.setDefaultMaxPerRoute(maxConnectionsPerRoute);
+        connectionManager.setMaxTotal(maxTotalConnections);
         httpClientBuilder.setConnectionManager(connectionManager);
 
         RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
@@ -98,7 +108,7 @@ public class FetcherImpl implements Fetcher {
             } catch (URISyntaxException e) {
                 logger.error("uri syntax exception", e);
             }
-        }catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             //Todo : Suppurt For Persian Link
             logger.error("IllegalArgumentException ", e);
         }

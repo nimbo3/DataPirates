@@ -21,7 +21,6 @@ import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.security.KeyManagementException;
@@ -75,9 +74,13 @@ public class App {
         }
 
         Config config = ConfigFactory.load("config");
-        FetcherImpl fetcher = new FetcherImpl();
-        int threads = config.getInt("fetcher.threads");
-        CrawlerThread[] crawlerThreads = new CrawlerThread[threads];
+
+        int numberOfFetcherThreads = config.getInt("num.of.fetcher.threads");
+        int elasticPort = config.getInt("elastic.port");
+        String elasticHostname = config.getString("elastic.hostname");
+
+        FetcherImpl fetcher = new FetcherImpl(config);
+        CrawlerThread[] crawlerThreads = new CrawlerThread[numberOfFetcherThreads];
         VisitedLinksCache visitedUrlsCache = new VisitedLinksCache() {
             Map<String, Integer> visitedUrls = new ConcurrentHashMap<>();
 
@@ -92,7 +95,7 @@ public class App {
             }
         };
         CaffeineVistedDomainCache vistedDomainCache = new CaffeineVistedDomainCache(config);
-        ElasticDaoImpl elasticDao = new ElasticDaoImpl("slave1", 9200);
+        ElasticDaoImpl elasticDao = new ElasticDaoImpl(elasticHostname, elasticPort);
         Properties kafkaConsumerProperties = new Properties();
         Properties kafkaProducerProperties = new Properties();
         try {
@@ -106,7 +109,7 @@ public class App {
         KafkaProducer<String, String> kafkaProducer = new KafkaProducer<>(kafkaProducerProperties);
         linkConsumer.start();
 
-        for (int i = 0; i < threads; i++) {
+        for (int i = 0; i < numberOfFetcherThreads; i++) {
             crawlerThreads[i] = new CrawlerThread(fetcher,
                     vistedDomainCache,
                     visitedUrlsCache,
@@ -114,7 +117,7 @@ public class App {
                     kafkaProducer,
                     elasticDao);
         }
-        for (int i = 0; i < threads; i++) {
+        for (int i = 0; i < numberOfFetcherThreads; i++) {
             crawlerThreads[i].start();
         }
     }
