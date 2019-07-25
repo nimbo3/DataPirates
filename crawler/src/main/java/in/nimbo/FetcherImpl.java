@@ -107,14 +107,13 @@ public class FetcherImpl implements Fetcher {
                 rawHtmlDocument = EntityUtils.toString(response.getEntity());
                 contentType = ContentType.getOrDefault(response.getEntity());
             } catch (URISyntaxException e) {
-                logger.error("uri syntax exception", e);
+                logger.error(String.format("uri syntax exception in fetching %s", url), e);
             } catch (ClientProtocolException e) {
-                logger.error("ClientProtocolException", e);
+                logger.error(String.format("ClientProtocolException in fetching %s", url), e);
             } finally {
                 response.close();
             }
         } catch (IllegalArgumentException e) {
-            //Todo : Support For Persian Link
             logger.error("IllegalArgumentException ", e);
         }
         return rawHtmlDocument;

@@ -66,7 +66,7 @@ class CrawlerThread extends Thread {
                     }
                 } catch (IOException | SiteDaoException e) {
                     e.printStackTrace();
-                    logger.error(e);
+                    logger.error(String.format("url: %s", url), e);
                 }
             } else {
                 kafkaProducer.send(new ProducerRecord("links", url));

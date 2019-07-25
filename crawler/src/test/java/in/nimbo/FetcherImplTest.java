@@ -21,7 +21,8 @@ public class FetcherImplTest {
     @Test
     public void fetcherRedirectionTest() throws IOException {
         FetcherImpl fetcher = new FetcherImpl(config);
-        fetcher.fetch("http://httpbin.org/redirect/1");
+        int maxRedirects = config.getInt("fetcher.max.redirects");
+        fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects));
         Assert.assertEquals("http://httpbin.org/get", fetcher.getRedirectUrl());
         fetcher.fetch("http://bit.ly/2Y0QwLF");
         Assert.assertEquals("https://git-scm.com/docs/git-credential-store", fetcher.getRedirectUrl());
@@ -31,6 +32,8 @@ public class FetcherImplTest {
     @Test(expected = IOException.class)
     public void fetcherMaxRedirectionTest() throws IOException {
         FetcherImpl fetcher = new FetcherImpl(config);
-        fetcher.fetch("http://httpbin.org/redirect/2");
+        int maxRedirects = config.getInt("fetcher.max.redirects");
+        fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects+1));
     }
+
 }
