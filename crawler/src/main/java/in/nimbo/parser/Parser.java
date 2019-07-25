@@ -59,12 +59,12 @@ public class Parser {
     }
 
     public Map<String, String> extractAnchors() {
-        Elements elements = document.select("a");
+        Elements elements = document.select("a[href]");
         Map<String, String> map = new HashMap<>();
         String href = "";
         for (Element element : elements) {
             try {
-                href = element.absUrl("href");
+                href = element.absUrl("abs:href");
                 String content = element.text();
                 map.put(NormalizeURL.normalize(href), content);
             } catch (MalformedURLException e) {
