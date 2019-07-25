@@ -15,6 +15,8 @@
         <commons-io.version>2.6</commons-io.version>
         <httpclient.version>4.5.9</httpclient.version>
         <caffeine.version>2.7.0</caffeine.version>
+        <hbase.version>2.2.0</hbase.version>
+        <hbase-client.version>2.2.0</hbase-client.version>
         <elasticsearch.version>7.2.0</elasticsearch.version>
         <langdetect.version>1.1-20120112</langdetect.version>
     </properties>
@@ -25,11 +27,24 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-client</artifactId>
+            <version>${hbase-client.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase</artifactId>
+            <version>${hbase.version}</version>
+            <type>pom</type>
+            
+        </dependency>
+        <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
             <version>${kafka-clients.version}</version>
         </dependency>
-        
+
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
@@ -58,7 +73,6 @@
         <dependency>
             <groupId>org.elasticsearch.client</groupId>
             <artifactId>elasticsearch-rest-high-level-client</artifactId>
-            <version>${elasticsearch.version}</version>
         </dependency>
 
         <dependency>

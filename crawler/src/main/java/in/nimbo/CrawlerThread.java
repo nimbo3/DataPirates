@@ -1,6 +1,8 @@
 package in.nimbo;
 
-import in.nimbo.database.dao.SiteDao;
+import in.nimbo.database.dao.ElasticSiteDaoImpl;
+import in.nimbo.database.dao.HbaseSiteDaoImpl;
+import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
 import in.nimbo.parser.Parser;
 import in.nimbo.util.LinkConsumer;
@@ -19,18 +21,20 @@ class CrawlerThread extends Thread {
     private VisitedLinksCache visitedUrlsCache;
     private LinkConsumer linkConsumer;
     private KafkaProducer kafkaProducer;
-    private SiteDao database;
+    private ElasticSiteDaoImpl elasitcSiteDao;
+    private HbaseSiteDaoImpl hbaseSiteDao;
     private UnusableSiteDetector unusableSiteDetector;
 
     public CrawlerThread(FetcherImpl fetcher,
                          VisitedLinksCache visitedDomainsCache, VisitedLinksCache visitedUrlsCache,
-                         LinkConsumer linkConsumer, KafkaProducer kafkaProducer, SiteDao database) {
+                         LinkConsumer linkConsumer, KafkaProducer kafkaProducer, ElasticSiteDaoImpl elasticSiteDao, HbaseSiteDaoImpl hbaseSiteDao) {
         this.fetcher = fetcher;
         this.visitedDomainsCache = visitedDomainsCache;
-        this.database = database;
         this.linkConsumer = linkConsumer;
         this.kafkaProducer = kafkaProducer;
         this.visitedUrlsCache = visitedUrlsCache;
+        this.elasitcSiteDao = elasticSiteDao;
+        this.hbaseSiteDao = hbaseSiteDao;
     }
 
     @Override
@@ -55,11 +59,15 @@ class CrawlerThread extends Thread {
                             //Todo : Check In Travis And Then Put
                             site.getAnchors().keySet().forEach(link -> kafkaProducer.send(new ProducerRecord("links", link)));
                             visitedUrlsCache.put(url);
-                            database.insert(site);
+                            elasitcSiteDao.insert(site);
+                            hbaseSiteDao.insert(site);
                             System.out.println(site.getTitle() + " : " + site.getLink());
                         }
                     }
                 } catch (IOException e) {
+                    e.printStackTrace();
+                    logger.error(e);
+                } catch (SiteDaoException e) {
                     e.printStackTrace();
                     logger.error(e);
                 }
