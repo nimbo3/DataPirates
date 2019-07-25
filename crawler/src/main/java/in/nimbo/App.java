@@ -34,7 +34,7 @@ public class App {
 
     public static void main(String[] args) {
         try {
-            DetectorFactory.loadProfile(Paths.get("./profiles").toAbsolutePath().toFile());
+            DetectorFactory.loadProfile("profiles");
         } catch (LangDetectException e) {
             logger.error("./profiles can't be loaded, lang detection not started", e);
         }

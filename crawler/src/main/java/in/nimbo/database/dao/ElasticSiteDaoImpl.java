@@ -69,7 +69,8 @@ public class ElasticSiteDaoImpl implements SiteDao, Searchable {
 
     @Override
     public void insert(Site site) throws SiteDaoException {
-        try (RestHighLevelClient client = getClient()) {
+        try {
+            RestHighLevelClient client = getClient();
             XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
             builder.field("title", site.getTitle());
