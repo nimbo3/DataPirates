@@ -37,8 +37,8 @@ public class HbaseSiteDaoImpl implements SiteDao {
 
     @Override
     public void insert(Site site) throws SiteDaoException {
-        try (Connection connection = ConnectionFactory.createConnection(hbaseConfig)) {
-            Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
+        try (Connection connection = ConnectionFactory.createConnection(hbaseConfig);
+             Table table = connection.getTable(TableName.valueOf(TABLE_NAME))) {
             Put put = new Put(Bytes.toBytes(site.getLink()));
             for (String qualifier : site.getAnchors().keySet()) {
                 String value = site.getAnchors().get(qualifier);
@@ -52,8 +52,8 @@ public class HbaseSiteDaoImpl implements SiteDao {
     }
 
     public Map<byte[], byte[]> get(Site site) throws SiteDaoException {
-        try (Connection connection = ConnectionFactory.createConnection(hbaseConfig)) {
-            Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
+        try (Connection connection = ConnectionFactory.createConnection(hbaseConfig);
+             Table table = connection.getTable(TableName.valueOf(TABLE_NAME))) {
             Get get = new Get(Bytes.toBytes(site.getLink()));
             Result result = table.get(get);
             return result.getFamilyMap(Bytes.toBytes(family1));
@@ -63,8 +63,8 @@ public class HbaseSiteDaoImpl implements SiteDao {
     }
 
     public boolean contains(Site site) throws SiteDaoException {
-        try (Connection connection = ConnectionFactory.createConnection(hbaseConfig)) {
-            Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
+        try (Connection connection = ConnectionFactory.createConnection(hbaseConfig);
+             Table table = connection.getTable(TableName.valueOf(TABLE_NAME))) {
             Get get = new Get(Bytes.toBytes(site.getLink()));
             Result result = table.get(get);
             return result.size() > 0;
@@ -74,8 +74,8 @@ public class HbaseSiteDaoImpl implements SiteDao {
     }
 
     public void create() throws SiteDaoException {
-        try (Connection connection = ConnectionFactory.createConnection(hbaseConfig)) {
-            Admin admin = connection.getAdmin();
+        try (Connection connection = ConnectionFactory.createConnection(hbaseConfig);
+             Admin admin = connection.getAdmin()) {
             TableDescriptor desc = TableDescriptorBuilder.newBuilder(TableName.valueOf(TABLE_NAME)).setColumnFamily(
                     ColumnFamilyDescriptorBuilder.newBuilder(Bytes.toBytes(family1)).build()
             ).build();

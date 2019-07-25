@@ -62,7 +62,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Searchable {
             }
             return searchResults;
         } catch (IOException e) {
-            logger.error("can't search", e);
+            logger.error("can't search in elastic", e);
             return null;
         }
     }

@@ -56,18 +56,15 @@ class CrawlerThread extends Thread {
                         Site site = parser.parse();
                         if (new UnusableSiteDetector(site.getPlainText()).hasAcceptableLanguage()) {
                             visitedDomainsCache.put(Parser.getDomain(url));
-                            //Todo : Check In Travis And Then Put
+                            //Todo : Check In redis And Then Put
                             site.getAnchors().keySet().forEach(link -> kafkaProducer.send(new ProducerRecord("links", link)));
                             visitedUrlsCache.put(url);
                             elasitcSiteDao.insert(site);
                             hbaseSiteDao.insert(site);
-                            System.out.println(site.getTitle() + " : " + site.getLink());
+                            logger.info(site.getTitle() + " : " + site.getLink());
                         }
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    logger.error(e);
-                } catch (SiteDaoException e) {
+                } catch (IOException | SiteDaoException e) {
                     e.printStackTrace();
                     logger.error(e);
                 }
