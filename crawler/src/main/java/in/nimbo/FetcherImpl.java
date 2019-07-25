@@ -80,8 +80,6 @@ public class FetcherImpl implements Fetcher {
         connectionManager.setMaxTotal(maxTotalConnections);
         httpClientBuilder.setConnectionManager(connectionManager);
 
-        RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
-        httpClientBuilder.setDefaultRequestConfig(requestConfigBuilder.build());
 
         HashSet<Header> defaultHeaders = new HashSet<>();
         defaultHeaders.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE, DEFAULT_ACCEPT_LANGUAGE));
@@ -99,7 +97,8 @@ public class FetcherImpl implements Fetcher {
         try {
             HttpClientContext context = HttpClientContext.create();
             HttpGet httpGet = new HttpGet(url);
-            try (CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context)) {
+            CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context);
+            try {
                 HttpHost target = context.getTargetHost();
                 List<URI> redirectLocations = context.getRedirectLocations();
                 URI location = URIUtils.resolve(httpGet.getURI(), target, redirectLocations);
@@ -111,6 +110,8 @@ public class FetcherImpl implements Fetcher {
                 logger.error("uri syntax exception", e);
             } catch (ClientProtocolException e) {
                 logger.error("ClientProtocolException", e);
+            } finally {
+                response.close();
             }
         } catch (IllegalArgumentException e) {
             //Todo : Support For Persian Link
