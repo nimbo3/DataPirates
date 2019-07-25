@@ -3,6 +3,8 @@ package in.nimbo;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.database.dao.HbaseSiteDaoImpl;
+import in.nimbo.exception.SiteDaoException;
+import in.nimbo.model.Site;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.http.client.RedirectException;
@@ -10,6 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,10 +24,19 @@ public class App {
         Configuration hbaseConfig = HBaseConfiguration.create();
         Config config = ConfigFactory.load("config");
         HbaseSiteDaoImpl hbaseSiteDaoImpl;
+        Site site = new Site();
+        site.setLink("www.google.com");
+        Map<String, String> map = new HashMap<>();
+        map.put("http://www.york.ac.uk/teaching/cws/webpage2.html", "see our page");
+        map.put("http://www.github.com", "see our github");
+        site.setAnchors(map);
         try {
             hbaseSiteDaoImpl = new HbaseSiteDaoImpl(hbaseConfig, config);
+            hbaseSiteDaoImpl.insert(site);
         } catch (IOException e) {
             logger.error("can't connect to Hbase", e);
+        } catch (SiteDaoException e) {
+            logger.error("can't add site with link: " + site.getLink() + " to hbase!");
         }
     }
 }
