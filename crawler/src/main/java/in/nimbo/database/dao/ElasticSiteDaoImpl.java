@@ -1,6 +1,7 @@
 package in.nimbo.database.dao;
 
 import in.nimbo.database.Searchable;
+import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.SearchResult;
 import in.nimbo.model.Site;
 import org.apache.http.HttpHost;
@@ -60,13 +61,13 @@ public class ElasticSiteDaoImpl implements SiteDao, Searchable {
             }
             return searchResults;
         } catch (IOException e) {
-            logger.error(e);
+            logger.error("can't search", e);
             return null;
         }
     }
 
     @Override
-    public void insert(Site site) {
+    public void insert(Site site) throws SiteDaoException {
         try (RestHighLevelClient client = getClient()) {
             XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
@@ -78,7 +79,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Searchable {
             IndexRequest indexRequest = new IndexRequest("sites").id(site.getLink()).source(builder);
             client.index(indexRequest, RequestOptions.DEFAULT);
         } catch (IOException e) {
-            logger.error(e);
+            throw new SiteDaoException(e);
         }
     }
 }

@@ -21,13 +21,17 @@ public class HbaseSiteDaoImpl implements SiteDao {
     private final Config config;
     private String family1;
 
-    public HbaseSiteDaoImpl(Configuration hbaseConfig, Config config) throws IOException {
+    public HbaseSiteDaoImpl(Configuration hbaseConfig, Config config) throws SiteDaoException {
         TABLE_NAME = config.getString("hbase.table.name");
         family1 = config.getString("hbase.table.column.family.anchors");
         this.hbaseConfig = hbaseConfig;
         this.config = config;
-        HBaseAdmin.available(hbaseConfig);
-        logger.info("connection available to hbase!");
+        try {
+            HBaseAdmin.available(hbaseConfig);
+            logger.info("connection available to hbase!");
+        } catch (IOException e) {
+            throw new SiteDaoException(e);
+        }
     }
 
 
@@ -69,13 +73,15 @@ public class HbaseSiteDaoImpl implements SiteDao {
         }
     }
 
-    public void create() throws IOException {
+    public void create() throws SiteDaoException {
         try (Connection connection = ConnectionFactory.createConnection(hbaseConfig)) {
             Admin admin = connection.getAdmin();
             TableDescriptor desc = TableDescriptorBuilder.newBuilder(TableName.valueOf(TABLE_NAME)).setColumnFamily(
                     ColumnFamilyDescriptorBuilder.newBuilder(Bytes.toBytes(family1)).build()
             ).build();
             admin.createTable(desc);
+        } catch (IOException e) {
+            throw new SiteDaoException(e);
         }
     }
 }

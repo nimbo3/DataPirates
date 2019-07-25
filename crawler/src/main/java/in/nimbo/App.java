@@ -3,6 +3,7 @@ package in.nimbo;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.database.dao.HbaseSiteDaoImpl;
+import in.nimbo.exception.SiteDaoException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.http.client.RedirectException;
@@ -22,7 +23,7 @@ public class App {
         HbaseSiteDaoImpl hbaseSiteDaoImpl;
         try {
             hbaseSiteDaoImpl = new HbaseSiteDaoImpl(hbaseConfig, config);
-        } catch (IOException e) {
+        } catch (SiteDaoException e) {
             logger.error("can't connect to Hbase", e);
         }
     }
