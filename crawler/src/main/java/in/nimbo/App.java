@@ -36,7 +36,7 @@ public class App {
         try {
             DetectorFactory.loadProfile(Paths.get("./profiles").toAbsolutePath().toFile());
         } catch (LangDetectException e) {
-
+            logger.error("./profiles can't be loaded, lang detection not started", e);
         }
 
         try {
@@ -59,8 +59,7 @@ public class App {
             sc.init(null, trustAllCerts, new java.security.SecureRandom());
             HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
         } catch (NoSuchAlgorithmException | KeyManagementException e) {
-            // TODO: 7/24/19 log instead of printing stacktrace
-            e.printStackTrace();
+            logger.error("SSl can't be established", e);
         }
 
         Config config = ConfigFactory.load("config");
@@ -93,7 +92,7 @@ public class App {
             kafkaConsumerProperties.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("KafkaConsumer.properties"));
             kafkaProducerProperties.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("KafkaProducer.properties"));
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("kafka properties can't be loaded", e);
         }
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(kafkaConsumerProperties);
         LinkConsumer linkConsumer = new LinkConsumer(consumer, config);

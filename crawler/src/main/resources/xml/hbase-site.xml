@@ -1,0 +1,15 @@
+<configuration>
+    <property>
+        <name>hbase.zookeeper.quorum</name>
+        <value>slave1,slave2,slave3</value>
+    </property>
+    <property>
+        <name>hbase.rootdir</name>
+        <value>hdfs://master:9000/hbase</value>
+    </property>
+
+    <property>
+        <name>hbase.cluster.distributed</name>
+        <value>true</value>
+    </property>
+</configuration>
