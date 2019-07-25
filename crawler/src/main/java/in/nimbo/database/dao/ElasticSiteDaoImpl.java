@@ -50,7 +50,8 @@ public class ElasticSiteDaoImpl implements SiteDao, Searchable {
         searchSourceBuilder.query(QueryBuilders.termQuery("text", search));
         searchRequest.source(searchSourceBuilder);
         SearchResponse searchResponse;
-        try (RestHighLevelClient client = getClient()) {
+        try {
+            RestHighLevelClient client = getClient();
             searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
             List<SearchResult> searchResults = new ArrayList<>();
             for (SearchHit searchHit : searchResponse.getHits().getHits()) {

@@ -21,7 +21,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
     private final Config config;
     private String family1;
 
-    public HbaseSiteDaoImpl(Configuration hbaseConfig, Config config) throws SiteDaoException {
+    public HbaseSiteDaoImpl(Configuration hbaseConfig, Config config) {
         TABLE_NAME = config.getString("hbase.table.name");
         family1 = config.getString("hbase.table.column.family.anchors");
         this.hbaseConfig = hbaseConfig;
@@ -30,7 +30,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
             HBaseAdmin.available(hbaseConfig);
             logger.info("connection available to hbase!");
         } catch (IOException e) {
-            throw new SiteDaoException(e);
+            logger.error("connection not available to hbase :(((");
         }
     }
 
