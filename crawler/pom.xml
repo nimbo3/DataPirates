@@ -15,6 +15,7 @@
         <httpclient.version>4.5.9</httpclient.version>
         <caffeine.version>2.7.0</caffeine.version>
         <hbase.version>2.2.0</hbase.version>
+        <hbase-client.version>2.2.0</hbase-client.version>
     </properties>
 
     <artifactId>crawler</artifactId>
@@ -25,13 +26,14 @@
         <dependency>
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-client</artifactId>
-            <version>${hbase.version}</version>
+            <version>${hbase-client.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase</artifactId>
             <version>${hbase.version}</version>
+            <type>pom</type>
         </dependency>
 
         <dependency>

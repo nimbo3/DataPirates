@@ -27,6 +27,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
         this.hbaseConfig = hbaseConfig;
         this.config = config;
         HBaseAdmin.available(hbaseConfig);
+        logger.info("connection available to hbase!");
     }
 
 
