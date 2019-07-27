@@ -3,18 +3,24 @@ package in.nimbo.database.dao;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
+import com.typesafe.config.Config;
 import in.nimbo.database.Searchable;
 import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.SearchResult;
 import in.nimbo.model.Site;
 import org.apache.http.HttpHost;
 import org.apache.log4j.Logger;
+import org.elasticsearch.action.bulk.BackoffPolicy;
+import org.elasticsearch.action.bulk.BulkProcessor;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -24,18 +30,52 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class ElasticSiteDaoImpl implements SiteDao, Searchable {
     private static Logger logger = Logger.getLogger(ElasticSiteDaoImpl.class);
-    private RestHighLevelClient restHighLevelClient;
     private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("elastic-insertion");
     private Meter elasticFailureMeter = SharedMetricRegistries.getDefault().meter("elastic-insertion-failure");
+    private RestHighLevelClient restHighLevelClient;
+    private BulkProcessor bulkProcessor;
+    private String index;
     private String hostname;
     private int port;
 
-    public ElasticSiteDaoImpl(String hostname, int port) {
-        this.hostname = hostname;
-        this.port = port;
+    private BulkProcessor.Listener listener = new BulkProcessor.Listener() {
+        @Override
+        public void beforeBulk(long executionId, BulkRequest request) {
+            logger.info("Sending bulk request ...");
+        }
+
+        @Override
+        public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
+            //Todo : Handle failures in response
+            logger.info("Bulk request sent.");
+        }
+
+        @Override
+        public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
+            logger.error("Bulk request failed !", failure);
+        }
+    };
+
+    public ElasticSiteDaoImpl(Config config) {
+        this.hostname = config.getString("elastic.hostname");
+        this.port = config.getInt("elastic.port");
+        this.index = config.getString("elastic.index");
+        BulkProcessor.Builder bulkProcessorBuilder = BulkProcessor.builder(
+                (bulkRequest, bulkResponseActionListener) ->
+                        getClient().bulkAsync(bulkRequest, RequestOptions.DEFAULT,
+                                bulkResponseActionListener), listener);
+        bulkProcessorBuilder.setBulkActions(config.getInt("elastic.bulk.size"));
+        bulkProcessorBuilder.setConcurrentRequests(config.getInt("elastic.concurrent.requests"));
+        bulkProcessorBuilder.setFlushInterval(
+                TimeValue.timeValueMinutes(config.getInt("elastic.bulk.flush.interval.seconds")));
+        bulkProcessorBuilder.setBackoffPolicy(BackoffPolicy.constantBackoff(
+                TimeValue.timeValueSeconds(config.getLong("elastic.backoff.delay.seconds")),
+                config.getInt("elastic.backoff.retries")));
+        bulkProcessor = bulkProcessorBuilder.build();
     }
 
     private RestHighLevelClient getClient() {
@@ -75,7 +115,6 @@ public class ElasticSiteDaoImpl implements SiteDao, Searchable {
     @Override
     public void insert(Site site) throws SiteDaoException {
         try (Timer.Context time = insertionTimer.time()) {
-            RestHighLevelClient client = getClient();
             XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
             builder.field("title", site.getTitle());
@@ -83,11 +122,16 @@ public class ElasticSiteDaoImpl implements SiteDao, Searchable {
             builder.field("text", site.getPlainText());
             builder.field("keywords", site.getKeywords());
             builder.endObject();
-            IndexRequest indexRequest = new IndexRequest("sites").id(site.getLink()).source(builder);
-            client.index(indexRequest, RequestOptions.DEFAULT);
+            IndexRequest indexRequest = new IndexRequest(index).id(site.getLink()).source(builder);
+            bulkProcessor.add(indexRequest);
         } catch (IOException e) {
             elasticFailureMeter.mark();
+            logger.error("Insertion failure happened in elasticsearch", e);
             throw new SiteDaoException(e);
         }
+    }
+
+    public void stop() throws InterruptedException {
+        bulkProcessor.awaitClose(30, TimeUnit.SECONDS);
     }
 }
