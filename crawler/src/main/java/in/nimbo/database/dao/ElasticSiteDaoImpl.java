@@ -14,6 +14,8 @@ import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -80,7 +82,8 @@ public class ElasticSiteDaoImpl implements SiteDao, Searchable {
 
     private RestHighLevelClient getClient() {
         if (restHighLevelClient == null) {
-            restHighLevelClient = new RestHighLevelClient(RestClient.builder(new HttpHost(hostname, port, "http")));
+            restHighLevelClient = new RestHighLevelClient(
+                    RestClient.builder(new HttpHost(hostname, port, "http")));
         }
         return restHighLevelClient;
     }
@@ -107,7 +110,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Searchable {
             }
             return searchResults;
         } catch (IOException e) {
-            logger.error("can't search in elastic", e);
+            logger.error(String.format("Elastic couldn't search [%s]", search), e);
             return null;
         }
     }
@@ -126,8 +129,25 @@ public class ElasticSiteDaoImpl implements SiteDao, Searchable {
             bulkProcessor.add(indexRequest);
         } catch (IOException e) {
             elasticFailureMeter.mark();
-            logger.error("Insertion failure happened in elasticsearch", e);
+            logger.error(String.format("Elastic couldn't insert [%s]", site.getLink()), e);
             throw new SiteDaoException(e);
+        }
+    }
+
+    public Site get(String url) {
+        GetRequest getRequest = new GetRequest(index, url);
+        try {
+            GetResponse response = getClient().get(getRequest, RequestOptions.DEFAULT);
+            if (response.isExists()) {
+                return new Site(
+                        response.getId(),
+                        response.getSourceAsMap().get("title").toString());
+            } else {
+                return null;
+            }
+        } catch (IOException e) {
+            logger.error(String.format("Elastic couldn't get [%s]", url), e);
+            return null;
         }
     }
 
