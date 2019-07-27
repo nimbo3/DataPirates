@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import java.net.MalformedURLException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Parser {
     private static final Logger logger = LoggerFactory.getLogger(Parser.class);
@@ -57,12 +59,12 @@ public class Parser {
     }
 
     public Map<String, String> extractAnchors() {
-        Elements elements = document.select("a");
+        Elements elements = document.select("a[href]");
         Map<String, String> map = new HashMap<>();
         String href = "";
         for (Element element : elements) {
             try {
-                href = element.absUrl("href");
+                href = element.absUrl("abs:href");
                 String content = element.text();
                 map.put(NormalizeURL.normalize(href), content);
             } catch (MalformedURLException e) {
@@ -91,5 +93,15 @@ public class Parser {
         site.setLink(link);
         site.setHtml(html);
         return site;
+    }
+
+    // TODO: 7/24/19 discover a better place for this function!
+    public static String getDomain(String url) {
+        Pattern regex = Pattern.compile("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
+        Matcher matcher = regex.matcher(url);
+        if (matcher.find()) {
+            return matcher.group(4);
+        }
+        return url;
     }
 }

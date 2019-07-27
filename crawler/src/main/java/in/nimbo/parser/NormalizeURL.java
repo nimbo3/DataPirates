@@ -21,12 +21,7 @@ public class NormalizeURL {
 
     public static String normalize(final String taintedURL) throws MalformedURLException {
         final URL url;
-        try {
-            url = new URI(taintedURL).normalize().toURL();
-        } catch (URISyntaxException e) {
-            throw new MalformedURLException(e.getMessage());
-        }
-
+        url = new URL(taintedURL);
         final String path = url.getPath().replaceAll("/$", "");
         final SortedMap<String, String> params = createParameterMap(url.getQuery());
         final int port = url.getPort();

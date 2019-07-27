@@ -1,6 +1,7 @@
-package in.nimbo.database;
+package in.nimbo.database.dao;
 
-import in.nimbo.database.dao.SiteDao;
+import in.nimbo.database.Searchable;
+import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.SearchResult;
 import in.nimbo.model.Site;
 import org.apache.http.HttpHost;
@@ -21,13 +22,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ElasticDaoImpl implements SiteDao, Searchable {
-    private static Logger logger = Logger.getLogger(ElasticDaoImpl.class);
+public class ElasticSiteDaoImpl implements SiteDao, Searchable {
+    private static Logger logger = Logger.getLogger(ElasticSiteDaoImpl.class);
     private RestHighLevelClient restHighLevelClient;
     private String hostname;
     private int port;
 
-    public ElasticDaoImpl(String hostname, int port) {
+    public ElasticSiteDaoImpl(String hostname, int port) {
         this.hostname = hostname;
         this.port = port;
     }
@@ -49,7 +50,8 @@ public class ElasticDaoImpl implements SiteDao, Searchable {
         searchSourceBuilder.query(QueryBuilders.termQuery("text", search));
         searchRequest.source(searchSourceBuilder);
         SearchResponse searchResponse;
-        try (RestHighLevelClient client = getClient()) {
+        try {
+            RestHighLevelClient client = getClient();
             searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
             List<SearchResult> searchResults = new ArrayList<>();
             for (SearchHit searchHit : searchResponse.getHits().getHits()) {
@@ -60,14 +62,15 @@ public class ElasticDaoImpl implements SiteDao, Searchable {
             }
             return searchResults;
         } catch (IOException e) {
-            logger.error(e);
+            logger.error("can't search in elastic", e);
             return null;
         }
     }
 
     @Override
-    public void insert(Site site) {
-        try (RestHighLevelClient client = getClient()) {
+    public void insert(Site site) throws SiteDaoException {
+        try {
+            RestHighLevelClient client = getClient();
             XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
             builder.field("title", site.getTitle());
@@ -78,7 +81,7 @@ public class ElasticDaoImpl implements SiteDao, Searchable {
             IndexRequest indexRequest = new IndexRequest("sites").id(site.getLink()).source(builder);
             client.index(indexRequest, RequestOptions.DEFAULT);
         } catch (IOException e) {
-            logger.error(e);
+            throw new SiteDaoException(e);
         }
     }
 }
