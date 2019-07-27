@@ -1,5 +1,6 @@
 package in.nimbo.database.dao;
 
+import com.codahale.metrics.Meter;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import in.nimbo.database.Searchable;
@@ -28,6 +29,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Searchable {
     private static Logger logger = Logger.getLogger(ElasticSiteDaoImpl.class);
     private RestHighLevelClient restHighLevelClient;
     private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("elastic-insertion");
+    private Meter elasticFailureMeter = SharedMetricRegistries.getDefault().meter("elastic-insertion-failure");
     private String hostname;
     private int port;
 
@@ -84,6 +86,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Searchable {
             IndexRequest indexRequest = new IndexRequest("sites").id(site.getLink()).source(builder);
             client.index(indexRequest, RequestOptions.DEFAULT);
         } catch (IOException e) {
+            elasticFailureMeter.mark();
             throw new SiteDaoException(e);
         }
     }

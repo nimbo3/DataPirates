@@ -1,5 +1,6 @@
 package in.nimbo.database.dao;
 
+import com.codahale.metrics.Meter;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
@@ -19,6 +20,7 @@ import java.util.Map;
 public class HbaseSiteDaoImpl implements SiteDao {
     private static final Logger logger = LoggerFactory.getLogger(SiteDao.class);
     private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("hbase-insertion");
+    private Meter insertionFailureMeter = SharedMetricRegistries.getDefault().meter("hbase-insertion-failure");
     private final Configuration hbaseConfig;
     private final String TABLE_NAME;
     private final Config config;
@@ -59,6 +61,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
             }
             table.put(put);
         } catch (IOException | IllegalArgumentException e) {
+            insertionFailureMeter.mark();
             throw new SiteDaoException(e);
         }
     }

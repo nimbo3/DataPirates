@@ -67,8 +67,10 @@ class CrawlerThread extends Thread {
                                 logger.info(site.getTitle() + " : " + site.getLink());
                             }
                         }
-                    } catch (IOException | SiteDaoException e) {
+                    } catch (IOException e) {
                         logger.error(String.format("url: %s", url), e);
+                    } catch (SiteDaoException e) {
+                        logger.error(String.format("Failed to save in database(s) : %s", url), e);
                     }
                 } else {
                     kafkaProducer.send(new ProducerRecord("links", url));
