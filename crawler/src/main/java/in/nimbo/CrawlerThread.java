@@ -60,7 +60,7 @@ class CrawlerThread extends Thread {
                             site.getAnchors().keySet().forEach(link -> kafkaProducer.send(new ProducerRecord("links", link)));
                             visitedUrlsCache.put(url);
                             elasitcSiteDao.insert(site);
-                            hbaseSiteDao.insert(site);
+//                            hbaseSiteDao.insert(site);
                             logger.info(site.getTitle() + " : " + site.getLink());
                         }
                     }

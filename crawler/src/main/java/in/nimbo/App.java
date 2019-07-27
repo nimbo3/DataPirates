@@ -37,89 +37,90 @@ public class App {
     private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) {
-        MetricRegistry metricRegistry = SharedMetricRegistries.getOrCreate("data-pirates-crawler");
+        SharedMetricRegistries.setDefault("data-pirates-crawler");
+        MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
         JmxReporter jmxReporter = JmxReporter.forRegistry(metricRegistry).build();
         jmxReporter.start();
         Timer appInitializingMetric = metricRegistry.timer("app initializing");
-        Timer.Context timer = appInitializingMetric.time();
-        try {
-            DetectorFactory.loadProfile("profiles");
-        } catch (LangDetectException e) {
-            logger.error("./profiles can't be loaded, lang detection not started", e);
-        }
-
-        try {
-            TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
-                public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                    return null;
-                }
-
-                public void checkClientTrusted(X509Certificate[] certs, String authType) {
-                }
-
-                public void checkServerTrusted(X509Certificate[] certs, String authType) {
-                }
-            }};
-
-            SSLContext sc = null;
-
-            sc = SSLContext.getInstance("SSL");
-
-            sc.init(null, trustAllCerts, new java.security.SecureRandom());
-            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-        } catch (NoSuchAlgorithmException | KeyManagementException e) {
-            logger.error("SSl can't be es   tablished", e);
-        }
-
-        Config config = ConfigFactory.load("config");
-        Configuration hbaseConfig = HBaseConfiguration.create();
-        HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
-
-        int numberOfFetcherThreads = config.getInt("num.of.fetcher.threads");
-        int elasticPort = config.getInt("elastic.port");
-        String elasticHostname = config.getString("elastic.hostname");
-
-        FetcherImpl fetcher = new FetcherImpl(config);
-        VisitedLinksCache visitedUrlsCache = new VisitedLinksCache() {
-            Map<String, Integer> visitedUrls = new ConcurrentHashMap<>();
-
-            @Override
-            public void put(String normalizedUrl) {
-                visitedUrls.put(normalizedUrl, 0);
+        try (Timer.Context appInitializingTimer = appInitializingMetric.time()) {
+            try {
+                DetectorFactory.loadProfile("profiles");
+            } catch (LangDetectException e) {
+                logger.error("./profiles can't be loaded, lang detection not started", e);
             }
 
-            @Override
-            public boolean hasVisited(String normalizedUrl) {
-                return visitedUrls.keySet().contains(normalizedUrl);
+            try {
+                TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
+                    public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                        return null;
+                    }
+
+                    public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                    }
+
+                    public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                    }
+                }};
+
+                SSLContext sc = null;
+
+                sc = SSLContext.getInstance("SSL");
+
+                sc.init(null, trustAllCerts, new java.security.SecureRandom());
+                HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            } catch (NoSuchAlgorithmException | KeyManagementException e) {
+                logger.error("SSl can't be es   tablished", e);
             }
-        };
-        CaffeineVistedDomainCache vistedDomainCache = new CaffeineVistedDomainCache(config);
-        ElasticSiteDaoImpl elasticDao = new ElasticSiteDaoImpl(elasticHostname, elasticPort);
-        Properties kafkaConsumerProperties = new Properties();
-        Properties kafkaProducerProperties = new Properties();
-        try {
-            kafkaConsumerProperties.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("KafkaConsumer.properties"));
-            kafkaProducerProperties.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("KafkaProducer.properties"));
-        } catch (IOException e) {
-            logger.error("kafka properties can't be loaded", e);
-        }
-        KafkaConsumer<String, String> consumer = new KafkaConsumer<>(kafkaConsumerProperties);
-        LinkConsumer linkConsumer = new LinkConsumer(consumer, config);
-        KafkaProducer<String, String> kafkaProducer = new KafkaProducer<>(kafkaProducerProperties);
-        linkConsumer.start();
-        System.out.println(timer.stop());
-        CrawlerThread[] crawlerThreads = new CrawlerThread[numberOfFetcherThreads];
-        for (int i = 0; i < numberOfFetcherThreads; i++) {
-            crawlerThreads[i] = new CrawlerThread(fetcher,
-                    vistedDomainCache,
-                    visitedUrlsCache,
-                    linkConsumer,
-                    kafkaProducer,
-                    elasticDao,
-                    hbaseDao);
-        }
-        for (int i = 0; i < numberOfFetcherThreads; i++) {
-            crawlerThreads[i].start();
+
+            Config config = ConfigFactory.load("config");
+            Configuration hbaseConfig = HBaseConfiguration.create();
+//            HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
+
+            int numberOfFetcherThreads = config.getInt("num.of.fetcher.threads");
+            int elasticPort = config.getInt("elastic.port");
+            String elasticHostname = config.getString("elastic.hostname");
+
+            FetcherImpl fetcher = new FetcherImpl(config);
+            VisitedLinksCache visitedUrlsCache = new VisitedLinksCache() {
+                Map<String, Integer> visitedUrls = new ConcurrentHashMap<>();
+
+                @Override
+                public void put(String normalizedUrl) {
+                    visitedUrls.put(normalizedUrl, 0);
+                }
+
+                @Override
+                public boolean hasVisited(String normalizedUrl) {
+                    return visitedUrls.keySet().contains(normalizedUrl);
+                }
+            };
+            CaffeineVistedDomainCache vistedDomainCache = new CaffeineVistedDomainCache(config);
+            ElasticSiteDaoImpl elasticDao = new ElasticSiteDaoImpl(elasticHostname, elasticPort);
+            Properties kafkaConsumerProperties = new Properties();
+            Properties kafkaProducerProperties = new Properties();
+            try {
+                kafkaConsumerProperties.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("KafkaConsumer.properties"));
+                kafkaProducerProperties.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("KafkaProducer.properties"));
+            } catch (IOException e) {
+                logger.error("kafka properties can't be loaded", e);
+            }
+            KafkaConsumer<String, String> consumer = new KafkaConsumer<>(kafkaConsumerProperties);
+            LinkConsumer linkConsumer = new LinkConsumer(consumer, config);
+            KafkaProducer<String, String> kafkaProducer = new KafkaProducer<>(kafkaProducerProperties);
+            linkConsumer.start();
+            CrawlerThread[] crawlerThreads = new CrawlerThread[numberOfFetcherThreads];
+            for (int i = 0; i < numberOfFetcherThreads; i++) {
+                crawlerThreads[i] = new CrawlerThread(fetcher,
+                        vistedDomainCache,
+                        visitedUrlsCache,
+                        linkConsumer,
+                        kafkaProducer,
+                        elasticDao,
+                        null);
+            }
+            for (int i = 0; i < numberOfFetcherThreads; i++) {
+                crawlerThreads[i].start();
+            }
         }
     }
 }
