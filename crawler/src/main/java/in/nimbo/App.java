@@ -92,7 +92,7 @@ public class App {
                 }
             };
             CaffeineVistedDomainCache vistedDomainCache = new CaffeineVistedDomainCache(config);
-            ElasticSiteDaoImpl elasticDao = new ElasticSiteDaoImpl(elasticHostname, elasticPort);
+            ElasticSiteDaoImpl elasticDao = new ElasticSiteDaoImpl(config);
 
             LinkConsumer linkConsumer = new LinkConsumer(config);
             linkConsumer.start();
