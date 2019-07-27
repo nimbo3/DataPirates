@@ -29,7 +29,5 @@ public class ElasticSiteDaoImplTest {
             e.printStackTrace();
         }
         assertTrue(elasticDao.get(LINK).equals(site));
-        git commit -m "config elastic for test | add insertTest for elastic"
-
     }
 }
