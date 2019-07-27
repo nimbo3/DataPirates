@@ -5,7 +5,6 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.Properties;
 
 public class LinkProducer implements Closeable {
@@ -27,7 +26,7 @@ public class LinkProducer implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         producer.close();
     }
 }

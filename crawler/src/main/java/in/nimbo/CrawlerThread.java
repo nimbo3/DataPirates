@@ -6,6 +6,7 @@ import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
 import in.nimbo.parser.Parser;
 import in.nimbo.util.LinkConsumer;
+import in.nimbo.util.LinkProducer;
 import in.nimbo.util.UnusableSiteDetector;
 import in.nimbo.util.VisitedLinksCache;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -20,18 +21,18 @@ class CrawlerThread extends Thread {
     private VisitedLinksCache visitedDomainsCache;
     private VisitedLinksCache visitedUrlsCache;
     private LinkConsumer linkConsumer;
-    private KafkaProducer kafkaProducer;
+    private LinkProducer linkProducer;
     private ElasticSiteDaoImpl elasitcSiteDao;
     private HbaseSiteDaoImpl hbaseSiteDao;
     private UnusableSiteDetector unusableSiteDetector;
 
     public CrawlerThread(FetcherImpl fetcher,
                          VisitedLinksCache visitedDomainsCache, VisitedLinksCache visitedUrlsCache,
-                         LinkConsumer linkConsumer, KafkaProducer kafkaProducer, ElasticSiteDaoImpl elasticSiteDao, HbaseSiteDaoImpl hbaseSiteDao) {
+                         LinkConsumer linkConsumer, LinkProducer linkProducer, ElasticSiteDaoImpl elasticSiteDao, HbaseSiteDaoImpl hbaseSiteDao) {
         this.fetcher = fetcher;
         this.visitedDomainsCache = visitedDomainsCache;
         this.linkConsumer = linkConsumer;
-        this.kafkaProducer = kafkaProducer;
+        this.linkProducer = linkProducer;
         this.visitedUrlsCache = visitedUrlsCache;
         this.elasitcSiteDao = elasticSiteDao;
         this.hbaseSiteDao = hbaseSiteDao;
@@ -57,7 +58,7 @@ class CrawlerThread extends Thread {
                         if (new UnusableSiteDetector(site.getPlainText()).hasAcceptableLanguage()) {
                             visitedDomainsCache.put(Parser.getDomain(url));
                             //Todo : Check In redis And Then Put
-                            site.getAnchors().keySet().forEach(link -> kafkaProducer.send(new ProducerRecord("links", link)));
+                            site.getAnchors().keySet().forEach(link -> linkProducer.send(link));
                             visitedUrlsCache.put(url);
                             elasitcSiteDao.insert(site);
                             hbaseSiteDao.insert(site);
@@ -69,7 +70,7 @@ class CrawlerThread extends Thread {
                     logger.error(String.format("url: %s", url), e);
                 }
             } else {
-                kafkaProducer.send(new ProducerRecord("links", url));
+                linkProducer.send(url);
                 logger.info(String.format("New link (%s) pushed to queue", url));
             }
         }
