@@ -20,6 +20,7 @@
         <elasticsearch.version>7.2.0</elasticsearch.version>
         <langdetect.version>1.1-20120112</langdetect.version>
         <dropwizard.version>4.1.0</dropwizard.version>
+        <dropwizard-annotation.version>3.0.2</dropwizard-annotation.version>
     </properties>
 
     <artifactId>crawler</artifactId>
@@ -92,6 +93,12 @@
             <groupId>io.dropwizard.metrics</groupId>
             <artifactId>metrics-jmx</artifactId>
             <version>${dropwizard.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.codahale.metrics</groupId>
+            <artifactId>metrics-annotation</artifactId>
+            <version>${dropwizard-annotation.version}</version>
         </dependency>
 
     </dependencies>
