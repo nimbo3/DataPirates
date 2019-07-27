@@ -61,7 +61,7 @@ class CrawlerThread extends Thread {
                             if (new UnusableSiteDetector(site.getPlainText()).hasAcceptableLanguage()) {
                                 visitedDomainsCache.put(Parser.getDomain(url));
                                 //Todo : Check In redis And Then Put
-                                site.getAnchors().keySet().forEach(link -> linkProducer.send(link)));
+                                site.getAnchors().keySet().forEach(link -> linkProducer.send(link));
                                 visitedUrlsCache.put(url);
                                 elasitcSiteDao.insert(site);
                                 hbaseSiteDao.insert(site);
