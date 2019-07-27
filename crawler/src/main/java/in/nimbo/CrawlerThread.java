@@ -27,14 +27,14 @@ class CrawlerThread extends Thread {
 
     public CrawlerThread(FetcherImpl fetcher,
                          VisitedLinksCache visitedDomainsCache, VisitedLinksCache visitedUrlsCache,
-                         LinkConsumer linkConsumer, KafkaProducer kafkaProducer, ElasticSiteDaoImpl elasticSiteDao) {
+                         LinkConsumer linkConsumer, KafkaProducer kafkaProducer, ElasticSiteDaoImpl elasticSiteDao, HbaseSiteDaoImpl hbaseSiteDao) {
         this.fetcher = fetcher;
         this.visitedDomainsCache = visitedDomainsCache;
         this.linkConsumer = linkConsumer;
         this.kafkaProducer = kafkaProducer;
         this.visitedUrlsCache = visitedUrlsCache;
         this.elasitcSiteDao = elasticSiteDao;
-        this.hbaseSiteDao = hbaseSiteDao;
+        this.hbaseSiteDao = this.hbaseSiteDao;
     }
 
     @Override
@@ -60,7 +60,7 @@ class CrawlerThread extends Thread {
                             site.getAnchors().keySet().forEach(link -> kafkaProducer.send(new ProducerRecord("links", link)));
                             visitedUrlsCache.put(url);
                             elasitcSiteDao.insert(site);
-//                            hbaseSiteDao.insert(site);
+                            hbaseSiteDao.insert(site);
                             logger.info(site.getTitle() + " : " + site.getLink());
                         }
                     }
