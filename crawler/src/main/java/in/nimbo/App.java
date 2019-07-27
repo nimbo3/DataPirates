@@ -10,6 +10,7 @@ import in.nimbo.util.LinkConsumer;
 import in.nimbo.util.VisitedLinksCache;
 import in.nimbo.util.cacheManager.CaffeineVistedDomainCache;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -63,6 +64,12 @@ public class App {
 
         Config config = ConfigFactory.load("config");
         Configuration hbaseConfig = HBaseConfiguration.create();
+        String path = App.class
+                .getClassLoader()
+                .getResource("xml/hbase-site.xml")
+                .getPath();
+        hbaseConfig.addResource(new Path(path));
+
         HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
 
         int numberOfFetcherThreads = config.getInt("num.of.fetcher.threads");

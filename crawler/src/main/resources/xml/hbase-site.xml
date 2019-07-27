@@ -4,12 +4,7 @@
         <value>slave1,slave2,slave3</value>
     </property>
     <property>
-        <name>hbase.rootdir</name>
-        <value>hdfs://master:9000/hbase</value>
-    </property>
-
-    <property>
-        <name>hbase.cluster.distributed</name>
-        <value>true</value>
+        <name>hbase.zookeeper.property.clientPort</name>
+        <value>2181</value>
     </property>
 </configuration>

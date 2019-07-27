@@ -62,6 +62,7 @@ class CrawlerThread extends Thread {
                             elasitcSiteDao.insert(site);
                             hbaseSiteDao.insert(site);
                             logger.info(site.getTitle() + " : " + site.getLink());
+                            System.out.println((site.getTitle() + " : " + site.getLink()));
                         }
                     }
                 } catch (IOException | SiteDaoException e) {
