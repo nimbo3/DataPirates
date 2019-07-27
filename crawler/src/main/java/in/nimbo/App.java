@@ -11,12 +11,11 @@ import com.typesafe.config.ConfigFactory;
 import in.nimbo.database.dao.ElasticSiteDaoImpl;
 import in.nimbo.database.dao.HbaseSiteDaoImpl;
 import in.nimbo.util.LinkConsumer;
+import in.nimbo.util.LinkProducer;
 import in.nimbo.util.VisitedLinksCache;
 import in.nimbo.util.cacheManager.CaffeineVistedDomainCache;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.producer.KafkaProducer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,12 +23,10 @@ import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class App {
@@ -96,19 +93,10 @@ public class App {
             };
             CaffeineVistedDomainCache vistedDomainCache = new CaffeineVistedDomainCache(config);
             ElasticSiteDaoImpl elasticDao = new ElasticSiteDaoImpl(elasticHostname, elasticPort);
-            Properties kafkaConsumerProperties = new Properties();
-            Properties kafkaProducerProperties = new Properties();
-            try {
-                kafkaConsumerProperties.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("KafkaConsumer.properties"));
-                kafkaProducerProperties.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("KafkaProducer.properties"));
-            } catch (IOException e) {
-                logger.error("kafka properties can't be loaded", e);
-            }
-            KafkaConsumer<String, String> consumer = new KafkaConsumer<>(kafkaConsumerProperties);
-            LinkConsumer linkConsumer = new LinkConsumer(consumer, config);
-            KafkaProducer<String, String> kafkaProducer = new KafkaProducer<>(kafkaProducerProperties);
-            linkConsumer.start();
 
+            LinkConsumer linkConsumer = new LinkConsumer(config);
+            linkConsumer.start();
+            LinkProducer linkProducer = new LinkProducer(config);
 
             CrawlerThread[] crawlerThreads = new CrawlerThread[numberOfFetcherThreads];
             for (int i = 0; i < numberOfFetcherThreads; i++) {
@@ -116,7 +104,7 @@ public class App {
                         vistedDomainCache,
                         visitedUrlsCache,
                         linkConsumer,
-                        kafkaProducer,
+                        linkProducer,
                         elasticDao, hbaseDao);
             }
             for (int i = 0; i < numberOfFetcherThreads; i++) {
@@ -125,4 +113,3 @@ public class App {
         }
     }
 }
-
