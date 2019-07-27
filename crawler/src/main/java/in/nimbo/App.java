@@ -64,7 +64,7 @@ public class App {
 
         Config config = ConfigFactory.load("config");
         Configuration hbaseConfig = HBaseConfiguration.create();
-        HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
+//        HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
 
         int numberOfFetcherThreads = config.getInt("num.of.fetcher.threads");
         int elasticPort = config.getInt("elastic.port");
@@ -107,8 +107,7 @@ public class App {
                     visitedUrlsCache,
                     linkConsumer,
                     kafkaProducer,
-                    elasticDao,
-                    hbaseDao);
+                    elasticDao);
         }
         for (int i = 0; i < numberOfFetcherThreads; i++) {
             crawlerThreads[i].start();
