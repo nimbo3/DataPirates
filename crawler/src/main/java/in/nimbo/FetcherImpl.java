@@ -1,5 +1,8 @@
+
 package in.nimbo;
 
+import com.codahale.metrics.SharedMetricRegistries;
+import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
@@ -32,6 +35,7 @@ public class FetcherImpl implements Fetcher {
     private static final String DEFAULT_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
     private static final String DEFAULT_ACCEPT_CHARSET = "utf-8,ISO-8859-1;q=0.7,*;q=0.7";
     private static final String DEFAULT_ACCEPT_ENCODING = "x-gzip, gzip";
+    private Timer fetchTimer = SharedMetricRegistries.getDefault().timer("fetcher");
     private HttpClient client;
     private String rawHtmlDocument;
     private int responseStatusCode;
@@ -94,7 +98,7 @@ public class FetcherImpl implements Fetcher {
 
     @Override
     public String fetch(String url) throws IOException {
-        try {
+        try (Timer.Context time = fetchTimer.time()) {
             HttpClientContext context = HttpClientContext.create();
             HttpGet httpGet = new HttpGet(url);
             CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context);
