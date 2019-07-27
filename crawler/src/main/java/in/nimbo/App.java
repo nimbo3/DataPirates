@@ -12,6 +12,7 @@ import in.nimbo.database.dao.ElasticSiteDaoImpl;
 import in.nimbo.database.dao.HbaseSiteDaoImpl;
 import in.nimbo.util.LinkConsumer;
 import in.nimbo.util.LinkProducer;
+import in.nimbo.util.RedisVisitedLinksCache;
 import in.nimbo.util.VisitedLinksCache;
 import in.nimbo.util.cacheManager.CaffeineVistedDomainCache;
 import org.apache.hadoop.conf.Configuration;
@@ -26,8 +27,6 @@ import javax.net.ssl.X509TrustManager;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class App {
     private static Logger logger = LoggerFactory.getLogger(App.class);
@@ -77,20 +76,7 @@ public class App {
             String elasticHostname = config.getString("elastic.hostname");
 
             FetcherImpl fetcher = new FetcherImpl(config);
-            VisitedLinksCache visitedUrlsCache = new VisitedLinksCache() {
-                Map<String, Integer> visitedUrls = new ConcurrentHashMap<>();
-
-                @Override
-                public void put(String normalizedUrl) {
-                    visitedUrls.put(normalizedUrl, 0);
-                }
-
-
-                @Override
-                public boolean hasVisited(String normalizedUrl) {
-                    return visitedUrls.containsKey(normalizedUrl);
-                }
-            };
+            VisitedLinksCache visitedUrlsCache = new RedisVisitedLinksCache(config);
             CaffeineVistedDomainCache vistedDomainCache = new CaffeineVistedDomainCache(config);
             ElasticSiteDaoImpl elasticDao = new ElasticSiteDaoImpl(elasticHostname, elasticPort);
 
