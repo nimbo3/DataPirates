@@ -1,5 +1,9 @@
 package in.nimbo;
 
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.SharedMetricRegistries;
+import com.codahale.metrics.Timer;
+import com.codahale.metrics.jmx.JmxReporter;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.database.dao.ElasticSiteDaoImpl;
@@ -33,6 +37,11 @@ public class App {
     private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) {
+        MetricRegistry metricRegistry = SharedMetricRegistries.getOrCreate("data-pirates-crawler");
+        JmxReporter jmxReporter = JmxReporter.forRegistry(metricRegistry).build();
+        jmxReporter.start();
+        Timer appInitializingMetric = metricRegistry.timer("app initializing");
+        Timer.Context timer = appInitializingMetric.time();
         try {
             DetectorFactory.loadProfile("profiles");
         } catch (LangDetectException e) {
@@ -59,7 +68,7 @@ public class App {
             sc.init(null, trustAllCerts, new java.security.SecureRandom());
             HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
         } catch (NoSuchAlgorithmException | KeyManagementException e) {
-            logger.error("SSl can't be established", e);
+            logger.error("SSl can't be es   tablished", e);
         }
 
         Config config = ConfigFactory.load("config");
@@ -98,8 +107,7 @@ public class App {
         LinkConsumer linkConsumer = new LinkConsumer(consumer, config);
         KafkaProducer<String, String> kafkaProducer = new KafkaProducer<>(kafkaProducerProperties);
         linkConsumer.start();
-
-
+        System.out.println(timer.stop());
         CrawlerThread[] crawlerThreads = new CrawlerThread[numberOfFetcherThreads];
         for (int i = 0; i < numberOfFetcherThreads; i++) {
             crawlerThreads[i] = new CrawlerThread(fetcher,
