@@ -23,6 +23,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
     private final String TABLE_NAME;
     private final Config config;
     private String family1;
+    private Connection conn;
 
     public HbaseSiteDaoImpl(Configuration hbaseConfig, Config config) {
         TABLE_NAME = config.getString("hbase.table.name");
@@ -30,11 +31,17 @@ public class HbaseSiteDaoImpl implements SiteDao {
         this.hbaseConfig = hbaseConfig;
         this.config = config;
         try {
-            HBaseAdmin.available(hbaseConfig);
+            getConnection();
             logger.info("connection available to hbase!");
         } catch (IOException e) {
             logger.error("connection not available to hbase :(((");
         }
+    }
+
+    private Connection getConnection() throws IOException {
+        if (conn == null)
+            conn = ConnectionFactory.createConnection(hbaseConfig);
+        return conn;
     }
 
 
@@ -51,14 +58,13 @@ public class HbaseSiteDaoImpl implements SiteDao {
                         Bytes.toBytes(qualifier), Bytes.toBytes(value));
             }
             table.put(put);
-        } catch (IOException e) {
+        } catch (IOException | IllegalArgumentException e) {
             throw new SiteDaoException(e);
         }
     }
 
     public Map<byte[], byte[]> get(Site site) throws SiteDaoException {
-        try (Connection connection = ConnectionFactory.createConnection(hbaseConfig);
-             Table table = connection.getTable(TableName.valueOf(TABLE_NAME))) {
+        try (Table table = getConnection().getTable(TableName.valueOf(TABLE_NAME))) {
             Get get = new Get(Bytes.toBytes(site.getLink()));
             Result result = table.get(get);
             return result.getFamilyMap(Bytes.toBytes(family1));
@@ -73,18 +79,6 @@ public class HbaseSiteDaoImpl implements SiteDao {
             Get get = new Get(Bytes.toBytes(site.getLink()));
             Result result = table.get(get);
             return result.size() > 0;
-        } catch (IOException e) {
-            throw new SiteDaoException(e);
-        }
-    }
-
-    public void create() throws SiteDaoException {
-        try (Connection connection = ConnectionFactory.createConnection(hbaseConfig);
-             Admin admin = connection.getAdmin()) {
-            TableDescriptor desc = TableDescriptorBuilder.newBuilder(TableName.valueOf(TABLE_NAME)).setColumnFamily(
-                    ColumnFamilyDescriptorBuilder.newBuilder(Bytes.toBytes(family1)).build()
-            ).build();
-            admin.createTable(desc);
         } catch (IOException e) {
             throw new SiteDaoException(e);
         }

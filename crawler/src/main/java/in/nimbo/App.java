@@ -4,28 +4,27 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.codahale.metrics.jmx.JmxReporter;
+import com.cybozu.labs.langdetect.DetectorFactory;
+import com.cybozu.labs.langdetect.LangDetectException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.database.dao.ElasticSiteDaoImpl;
 import in.nimbo.database.dao.HbaseSiteDaoImpl;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import com.cybozu.labs.langdetect.DetectorFactory;
-import com.cybozu.labs.langdetect.LangDetectException;
 import in.nimbo.util.LinkConsumer;
 import in.nimbo.util.VisitedLinksCache;
 import in.nimbo.util.cacheManager.CaffeineVistedDomainCache;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
-import java.nio.file.Paths;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
@@ -89,9 +88,10 @@ public class App {
                     visitedUrls.put(normalizedUrl, 0);
                 }
 
+
                 @Override
                 public boolean hasVisited(String normalizedUrl) {
-                    return visitedUrls.keySet().contains(normalizedUrl);
+                    return visitedUrls.containsKey(normalizedUrl);
                 }
             };
             CaffeineVistedDomainCache vistedDomainCache = new CaffeineVistedDomainCache(config);
@@ -108,6 +108,8 @@ public class App {
             LinkConsumer linkConsumer = new LinkConsumer(consumer, config);
             KafkaProducer<String, String> kafkaProducer = new KafkaProducer<>(kafkaProducerProperties);
             linkConsumer.start();
+
+
             CrawlerThread[] crawlerThreads = new CrawlerThread[numberOfFetcherThreads];
             for (int i = 0; i < numberOfFetcherThreads; i++) {
                 crawlerThreads[i] = new CrawlerThread(fetcher,
@@ -115,8 +117,7 @@ public class App {
                         visitedUrlsCache,
                         linkConsumer,
                         kafkaProducer,
-                        elasticDao,
-                        hbaseDao);
+                        elasticDao, hbaseDao);
             }
             for (int i = 0; i < numberOfFetcherThreads; i++) {
                 crawlerThreads[i].start();
