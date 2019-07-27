@@ -15,8 +15,7 @@
         <commons-io.version>2.6</commons-io.version>
         <httpclient.version>4.5.9</httpclient.version>
         <caffeine.version>2.7.0</caffeine.version>
-        <hbase.version>2.2.0</hbase.version>
-        <hbase-client.version>2.2.0</hbase-client.version>
+        <hbase-client.version>1.4.10</hbase-client.version>
         <elasticsearch.version>7.2.0</elasticsearch.version>
         <langdetect.version>1.1-20120112</langdetect.version>
     </properties>
@@ -32,13 +31,6 @@
             <version>${hbase-client.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.apache.hbase</groupId>
-            <artifactId>hbase</artifactId>
-            <version>${hbase.version}</version>
-            <type>pom</type>
-            
-        </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
@@ -57,13 +49,13 @@
             <artifactId>jsoup</artifactId>
             <version>${jsoup.version}</version>
         </dependency>
-      
+
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
             <version>${httpclient.version}</version>
         </dependency>
-      
+
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
@@ -80,6 +72,7 @@
             <artifactId>langdetect</artifactId>
             <version>${langdetect.version}</version>
         </dependency>
+
     </dependencies>
 
     <build>
