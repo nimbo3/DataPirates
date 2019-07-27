@@ -34,7 +34,7 @@ class CrawlerThread extends Thread {
         this.kafkaProducer = kafkaProducer;
         this.visitedUrlsCache = visitedUrlsCache;
         this.elasitcSiteDao = elasticSiteDao;
-        this.hbaseSiteDao = this.hbaseSiteDao;
+        this.hbaseSiteDao = hbaseSiteDao;
     }
 
     @Override
