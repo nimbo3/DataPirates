@@ -14,6 +14,8 @@ import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -26,6 +28,7 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
@@ -151,7 +154,17 @@ public class ElasticSiteDaoImpl implements SiteDao, Searchable {
         }
     }
 
-    public void stop() throws InterruptedException {
+    public void delete(String url) {
+        DeleteRequest deleteRequest = new DeleteRequest(index, url);
+        try {
+            getClient().delete(deleteRequest, RequestOptions.DEFAULT);
+        } catch (IOException e) {
+            logger.error(String.format("Elastic couldn't delete [%s]", url), e);
+        }
+    }
+
+    public void stop() throws Exception {
         bulkProcessor.awaitClose(30, TimeUnit.SECONDS);
+        getClient().close();
     }
 }
