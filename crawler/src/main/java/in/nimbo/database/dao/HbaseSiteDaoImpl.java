@@ -1,5 +1,8 @@
 package in.nimbo.database.dao;
 
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.SharedMetricRegistries;
+import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
 import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
@@ -16,6 +19,8 @@ import java.util.Map;
 
 public class HbaseSiteDaoImpl implements SiteDao {
     private static final Logger logger = LoggerFactory.getLogger(SiteDao.class);
+    private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("hbase-insertion");
+    private Meter insertionFailureMeter = SharedMetricRegistries.getDefault().meter("hbase-insertion-failure");
     private final Configuration hbaseConfig;
     private final String TABLE_NAME;
     private final Config config;
@@ -44,7 +49,10 @@ public class HbaseSiteDaoImpl implements SiteDao {
 
     @Override
     public void insert(Site site) throws SiteDaoException {
-        try (Table table = getConnection().getTable(TableName.valueOf(TABLE_NAME))) {
+        try (Connection connection = ConnectionFactory.createConnection(hbaseConfig);
+             Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
+             Timer.Context time = insertionTimer.time()) {
+
             Put put = new Put(Bytes.toBytes(site.getLink()));
             for (String qualifier : site.getAnchors().keySet()) {
                 String value = site.getAnchors().get(qualifier);
@@ -53,8 +61,15 @@ public class HbaseSiteDaoImpl implements SiteDao {
             }
             table.put(put);
         } catch (IOException | IllegalArgumentException e) {
+            logger.error(String.format("Hbase couldn't insert [%s]", site.getLink()), e);
+            insertionFailureMeter.mark();
             throw new SiteDaoException(e);
         }
+    }
+
+    @Override
+    public void delete(String url) {
+
     }
 
     public Map<byte[], byte[]> get(Site site) throws SiteDaoException {

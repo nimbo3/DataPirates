@@ -1,5 +1,8 @@
 package in.nimbo.parser;
 
+import com.codahale.metrics.SharedMetricRegistries;
+import com.codahale.metrics.Timer;
+import com.codahale.metrics.annotation.Timed;
 import in.nimbo.model.Site;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -17,6 +20,7 @@ import java.util.regex.Pattern;
 
 public class Parser {
     private static final Logger logger = LoggerFactory.getLogger(Parser.class);
+    private static Timer parseTimer = SharedMetricRegistries.getDefault().timer("parser");
     private String link;
     private Document document;
     private String html;
@@ -87,17 +91,18 @@ public class Parser {
         }
         return sb.toString();
     }
-
     public Site parse() {
-        Site site = new Site();
-        site.setTitle(extractTitle());
-        site.setKeywords(extractKeywords());
-        site.setMetadata(extractMetadata());
-        site.setAnchors(extractAnchors());
-        site.setPlainText(extractPlainText());
-        site.setLink(link);
-        site.setHtml(html);
-        return site;
+        try (Timer.Context time = parseTimer.time()) {
+            Site site = new Site();
+            site.setTitle(extractTitle());
+            site.setKeywords(extractKeywords());
+            site.setMetadata(extractMetadata());
+            site.setAnchors(extractAnchors());
+            site.setPlainText(extractPlainText());
+            site.setLink(link);
+            site.setHtml(html);
+            return site;
+        }
     }
 
     // TODO: 7/24/19 discover a better place for this function!
