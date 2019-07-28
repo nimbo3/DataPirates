@@ -11,8 +11,6 @@ import in.nimbo.util.LinkConsumer;
 import in.nimbo.util.LinkProducer;
 import in.nimbo.util.UnusableSiteDetector;
 import in.nimbo.util.VisitedLinksCache;
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -27,6 +25,7 @@ class CrawlerThread extends Thread {
     private LinkProducer linkProducer;
     private ElasticSiteDaoImpl elasitcSiteDao;
     private HbaseSiteDaoImpl hbaseSiteDao;
+    private UnusableSiteDetector unusableSiteDetector;
 
     public CrawlerThread(FetcherImpl fetcher,
                          VisitedLinksCache visitedDomainsCache, VisitedLinksCache visitedUrlsCache,
@@ -50,9 +49,10 @@ class CrawlerThread extends Thread {
                 } catch (InterruptedException e) {
                     logger.error("InterruptedException happened while consuming from Kafka", e);
                 }
+                if (visitedUrlsCache.hasVisited(url))
+                    continue;
                 logger.info(String.format("New link (%s) poped from queue", url));
-                if (!visitedDomainsCache.hasVisited(Parser.getDomain(url)) &&
-                        !visitedUrlsCache.hasVisited(url)) {
+                if (!visitedDomainsCache.hasVisited(Parser.getDomain(url))) {
                     try {
                         fetcher.fetch(url);
                         if (fetcher.isContentTypeTextHtml()) {
@@ -60,8 +60,10 @@ class CrawlerThread extends Thread {
                             Site site = parser.parse();
                             if (new UnusableSiteDetector(site.getPlainText()).hasAcceptableLanguage()) {
                                 visitedDomainsCache.put(Parser.getDomain(url));
-                                //Todo : Check In redis And Then Put
-                                site.getAnchors().keySet().forEach(link -> linkProducer.send(link));
+                                site.getAnchors().keySet().forEach(link -> {
+                                    if (!visitedUrlsCache.hasVisited(link))
+                                        linkProducer.send(link);
+                                });
                                 visitedUrlsCache.put(url);
                                 elasitcSiteDao.insert(site);
                                 hbaseSiteDao.insert(site);
