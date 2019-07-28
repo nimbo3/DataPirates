@@ -30,6 +30,7 @@ public class ElasticSiteDaoImpl implements SiteDao {
     private static Logger logger = Logger.getLogger(ElasticSiteDaoImpl.class);
     private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("elastic-insertion");
     private Meter elasticFailureMeter = SharedMetricRegistries.getDefault().meter("elastic-insertion-failure");
+    private Timer deleteTimer = SharedMetricRegistries.getDefault().timer("elastic-delete");
     private RestHighLevelClient restHighLevelClient;
     private BulkProcessor bulkProcessor;
     private String index;
@@ -119,7 +120,7 @@ public class ElasticSiteDaoImpl implements SiteDao {
     @Override
     public void delete(String url) {
         DeleteRequest deleteRequest = new DeleteRequest(index, url);
-        try {
+        try (Timer.Context time = deleteTimer.time()) {
             getClient().delete(deleteRequest, RequestOptions.DEFAULT);
         } catch (IOException e) {
             logger.error(String.format("Elastic couldn't delete [%s]", url), e);

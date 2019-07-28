@@ -24,6 +24,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
     private final Config config;
     private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("hbase-insertion");
     private Meter insertionFailureMeter = SharedMetricRegistries.getDefault().meter("hbase-insertion-failure");
+    private Timer deleteTimer = SharedMetricRegistries.getDefault().timer("hbase-delete");
     private String family1;
     private Connection conn;
 
@@ -72,7 +73,8 @@ public class HbaseSiteDaoImpl implements SiteDao {
 
     @Override
     public void delete(String url) {
-        try (Table table = getConnection().getTable(TableName.valueOf(TABLE_NAME))) {
+        try (Table table = getConnection().getTable(TableName.valueOf(TABLE_NAME));
+             Timer.Context time = deleteTimer.time()) {
             Delete del = new Delete(Bytes.toBytes(url));
             table.delete(del);
         } catch (IOException e) {
