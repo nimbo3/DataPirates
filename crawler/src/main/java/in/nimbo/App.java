@@ -1,5 +1,9 @@
 package in.nimbo;
 
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.SharedMetricRegistries;
+import com.codahale.metrics.Timer;
+import com.codahale.metrics.jmx.JmxReporter;
 import com.cybozu.labs.langdetect.DetectorFactory;
 import com.cybozu.labs.langdetect.LangDetectException;
 import com.typesafe.config.Config;
@@ -7,6 +11,7 @@ import com.typesafe.config.ConfigFactory;
 import in.nimbo.database.dao.ElasticSiteDaoImpl;
 import in.nimbo.database.dao.HbaseSiteDaoImpl;
 import in.nimbo.util.LinkConsumer;
+import in.nimbo.util.LinkProducer;
 import in.nimbo.util.VisitedLinksCache;
 import in.nimbo.util.cacheManager.CaffeineVistedDomainCache;
 import org.apache.hadoop.conf.Configuration;
@@ -66,10 +71,6 @@ public class App {
             Config config = ConfigFactory.load("config");
             Configuration hbaseConfig = HBaseConfiguration.create();
             HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
-
-        Config config = ConfigFactory.load("config");
-        Configuration hbaseConfig = HBaseConfiguration.create();
-        HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
 
             int numberOfFetcherThreads = config.getInt("num.of.fetcher.threads");
 

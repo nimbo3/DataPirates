@@ -2,7 +2,6 @@ package in.nimbo.parser;
 
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
-import com.codahale.metrics.annotation.Timed;
 import in.nimbo.model.Site;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -29,6 +28,16 @@ public class Parser {
         this.html = html;
         this.link = link;
         document = Jsoup.parse(html, link);
+    }
+
+    // TODO: 7/24/19 discover a better place for this function!
+    public static String getDomain(String url) {
+        Pattern regex = Pattern.compile("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
+        Matcher matcher = regex.matcher(url);
+        if (matcher.find()) {
+            return matcher.group(4);
+        }
+        return url;
     }
 
     /**
@@ -72,7 +81,7 @@ public class Parser {
                 href = element.absUrl("abs:href");
                 String content = element.text();
                 href = NormalizeURL.normalize(href);
-                if(validateProtocol(href))
+                if (validateProtocol(href))
                     map.put(href, content);
                 else
                     logger.debug("protocol is not supported for:" + href + ". Only http/https are supported");
@@ -91,6 +100,7 @@ public class Parser {
         }
         return sb.toString();
     }
+
     public Site parse() {
         try (Timer.Context time = parseTimer.time()) {
             Site site = new Site();
@@ -105,15 +115,6 @@ public class Parser {
         }
     }
 
-    // TODO: 7/24/19 discover a better place for this function!
-    public static String getDomain(String url) {
-        Pattern regex = Pattern.compile("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
-        Matcher matcher = regex.matcher(url);
-        if (matcher.find()) {
-            return matcher.group(4);
-        }
-        return url;
-    }
     private boolean validateProtocol(String urlString) throws MalformedURLException {
         URL url = new URL(urlString);
         return url.getProtocol().equals("http") || url.getProtocol().equals("https");
