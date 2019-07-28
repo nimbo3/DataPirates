@@ -152,6 +152,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Searchable {
         }
     }
 
+    @Override
     public void delete(String url) {
         DeleteRequest deleteRequest = new DeleteRequest(index, url);
         try {

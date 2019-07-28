@@ -61,10 +61,15 @@ public class HbaseSiteDaoImpl implements SiteDao {
             }
             table.put(put);
         } catch (IOException | IllegalArgumentException e) {
-            logger.error(String.format("Hbase couldn't insert [%s]", site.getLink()));
+            logger.error(String.format("Hbase couldn't insert [%s]", site.getLink()), e);
             insertionFailureMeter.mark();
             throw new SiteDaoException(e);
         }
+    }
+
+    @Override
+    public void delete(String url) {
+
     }
 
     public Map<byte[], byte[]> get(Site site) throws SiteDaoException {

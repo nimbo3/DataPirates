@@ -72,6 +72,8 @@ class CrawlerThread extends Thread {
                         logger.error(String.format("url: %s", url), e);
                     } catch (SiteDaoException e) {
                         logger.error(String.format("Failed to save in database(s) : %s", url), e);
+                        hbaseSiteDao.delete(url);
+                        elasitcSiteDao.delete(url);
                     }
                 } else {
                     linkProducer.send(url);
