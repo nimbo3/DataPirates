@@ -19,11 +19,11 @@ import java.util.Map;
 
 public class HbaseSiteDaoImpl implements SiteDao {
     private static final Logger logger = LoggerFactory.getLogger(SiteDao.class);
-    private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("hbase-insertion");
-    private Meter insertionFailureMeter = SharedMetricRegistries.getDefault().meter("hbase-insertion-failure");
     private final Configuration hbaseConfig;
     private final String TABLE_NAME;
     private final Config config;
+    private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("hbase-insertion");
+    private Meter insertionFailureMeter = SharedMetricRegistries.getDefault().meter("hbase-insertion-failure");
     private String family1;
     private Connection conn;
 
@@ -52,16 +52,19 @@ public class HbaseSiteDaoImpl implements SiteDao {
         try (Connection connection = ConnectionFactory.createConnection(hbaseConfig);
              Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
              Timer.Context time = insertionTimer.time()) {
-
-            Put put = new Put(Bytes.toBytes(site.getLink()));
+            Put put = new Put(Bytes.toBytes(site.getReverseLink()));
             for (String qualifier : site.getAnchors().keySet()) {
                 String value = site.getAnchors().get(qualifier);
                 put.addColumn(Bytes.toBytes(family1),
                         Bytes.toBytes(qualifier), Bytes.toBytes(value));
             }
             table.put(put);
-        } catch (IOException | IllegalArgumentException e) {
-            logger.error(String.format("Hbase couldn't insert [%s]", site.getLink()), e);
+        } catch (IOException e) {
+            logger.error("Hbase couldn't insert: " + site.getReverseLink(), e);
+            insertionFailureMeter.mark();
+            throw new SiteDaoException(e);
+        } catch (IllegalArgumentException e) {
+            logger.error("Hbase can't insert: " + site.getReverseLink() + " with these anchors: " + site.getAnchors(), e);
             insertionFailureMeter.mark();
             throw new SiteDaoException(e);
         }
@@ -69,7 +72,12 @@ public class HbaseSiteDaoImpl implements SiteDao {
 
     @Override
     public void delete(String url) {
-
+        try (Table table = getConnection().getTable(TableName.valueOf(TABLE_NAME))) {
+            Delete del = new Delete(Bytes.toBytes(url));
+            table.delete(del);
+        } catch (IOException e) {
+            logger.error("can't delete this link: " + url + "from hbase", e);
+        }
     }
 
     public Map<byte[], byte[]> get(Site site) throws SiteDaoException {

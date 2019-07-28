@@ -1,5 +1,6 @@
 package in.nimbo.parser;
 
+import com.codahale.metrics.SharedMetricRegistries;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.model.Site;
@@ -10,8 +11,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -25,6 +24,7 @@ public class ParserTest {
 
     @BeforeClass
     public static void init() throws IOException {
+        SharedMetricRegistries.setDefault("data-pirates-crawler");
         for (int i = 0; i < NUM_OF_TESTS; i++) {
             try (InputStream inputStream =
                          ParserTest.class.getClassLoader().getResourceAsStream(
@@ -157,6 +157,7 @@ public class ParserTest {
             Assert.assertTrue(percentage >= CONFIDENCE);
         }
     }
+
     @Test
     public void extractTest() throws IOException {
         String h;
@@ -169,5 +170,25 @@ public class ParserTest {
         Parser parser = new Parser("https://stackoverflow.com/company/management", h);
         Map<String, String> actualList = parser.extractAnchors();
         System.out.println(actualList);
+    }
+
+    @Test
+    public void test() throws IOException {
+        Parser parser = new Parser(links[0], htmls[0]);
+        String url = "https://www.geeksforgeeks.org:80/url-samefile-method-in-java-with-examples/";
+        String expected = "org.geeksforgeeks.www";
+        Assert.assertEquals(expected, parser.reverse(url));
+        expected = "org.apache.spark.www";
+        url = "http://www.spark.apache.org/documentation.html";
+        Assert.assertEquals(expected, parser.reverse(url));
+        expected = "com.stackoverflow";
+        url = "https://stackoverflow.com/questions/7569335/reverse-a-string-in-java";
+        Assert.assertEquals(expected, parser.reverse(url));
+        expected = "master";
+        url = "http://master:16010/table.jsp?name=wc";
+        Assert.assertEquals(expected, parser.reverse(url));
+        expected = "ir.ac.sbu.znu.samp";
+        url = "https://samp.znu.sbu.ac.ir";
+        Assert.assertEquals(expected, parser.reverse(url));
     }
 }

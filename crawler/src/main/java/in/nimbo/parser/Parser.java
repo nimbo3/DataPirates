@@ -110,9 +110,33 @@ public class Parser {
             site.setAnchors(extractAnchors());
             site.setPlainText(extractPlainText());
             site.setLink(link);
+            site.setReverseLink(reverse(link));
             site.setHtml(html);
             return site;
+        } catch (MalformedURLException e) {
+            logger.error("can't make reverse link for key in pareser.", e);
         }
+        return null;
+    }
+
+    public String reverse(String link) throws MalformedURLException {
+        URL url = new URL(link);
+        String domain = url.getHost();
+        domain = domain.replaceAll(" ", "");
+        StringBuilder sb = new StringBuilder(domain).reverse();
+        StringBuilder reverse = new StringBuilder();
+        int index = -1;
+        do {
+            int startIndex = index + 1;
+            index = sb.indexOf(".", index + 1);
+            if (index != -1) {
+                reverse.append(new StringBuilder(sb.substring(startIndex, index)).reverse());
+                reverse.append(".");
+            } else {
+                reverse.append(new StringBuilder(sb.substring(startIndex)).reverse());
+            }
+        } while (index != -1);
+        return reverse.toString();
     }
 
     private boolean validateProtocol(String urlString) throws MalformedURLException {

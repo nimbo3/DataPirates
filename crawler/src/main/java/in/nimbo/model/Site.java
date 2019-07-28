@@ -4,6 +4,7 @@ import java.util.Map;
 
 public class Site {
     private String link;
+    private String reverseLink;
     private String title;
     private String keywords;
     private String plainText;
@@ -11,13 +12,20 @@ public class Site {
     private String html;
     //TODO it should be a map from string to list of strings to store different texts for the same link
     private Map<String, String> anchors;
-
     public Site() {
     }
 
     public Site(String link, String title) {
         this.link = link;
         this.title = title;
+    }
+
+    public String getReverseLink() {
+        return reverseLink;
+    }
+
+    public void setReverseLink(String reverseLink) {
+        this.reverseLink = reverseLink;
     }
 
     public String getHtml() {

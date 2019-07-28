@@ -53,11 +53,12 @@ class CrawlerThread extends Thread {
                     continue;
                 logger.info(String.format("New link (%s) poped from queue", url));
                 if (!visitedDomainsCache.hasVisited(Parser.getDomain(url))) {
+                    Site site = null;
                     try {
                         fetcher.fetch(url);
                         if (fetcher.isContentTypeTextHtml()) {
                             Parser parser = new Parser(url, fetcher.getRawHtmlDocument());
-                            Site site = parser.parse();
+                            site = parser.parse();
                             if (new UnusableSiteDetector(site.getPlainText()).hasAcceptableLanguage()) {
                                 visitedDomainsCache.put(Parser.getDomain(url));
                                 site.getAnchors().keySet().forEach(link -> {
@@ -65,16 +66,20 @@ class CrawlerThread extends Thread {
                                         linkProducer.send(link);
                                 });
                                 visitedUrlsCache.put(url);
-                                elasitcSiteDao.insert(site);
-                                hbaseSiteDao.insert(site);
-                                logger.info(site.getTitle() + " : " + site.getLink());
+                                if (!site.getAnchors().isEmpty()) {
+                                    elasitcSiteDao.insert(site);
+                                    hbaseSiteDao.insert(site);
+                                    logger.info(site.getTitle() + " : " + site.getLink());
+                                } else {
+                                    logger.debug("site with link: " + site.getLink() + " anchor map is empty. refused to add in hbase and elastic.");
+                                }
                             }
                         }
                     } catch (IOException e) {
                         logger.error(String.format("url: %s", url), e);
                     } catch (SiteDaoException e) {
                         logger.error(String.format("Failed to save in database(s) : %s", url), e);
-                        hbaseSiteDao.delete(url);
+                        hbaseSiteDao.delete(site.getReverseLink());
                         elasitcSiteDao.delete(url);
                     }
                 } else {
