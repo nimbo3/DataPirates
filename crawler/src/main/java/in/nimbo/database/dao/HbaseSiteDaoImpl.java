@@ -61,6 +61,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
             }
             table.put(put);
         } catch (IOException | IllegalArgumentException e) {
+            logger.error(String.format("Hbase couldn't insert [%s]", site.getLink()));
             insertionFailureMeter.mark();
             throw new SiteDaoException(e);
         }

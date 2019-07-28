@@ -73,8 +73,6 @@ public class App {
             HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
 
             int numberOfFetcherThreads = config.getInt("num.of.fetcher.threads");
-            int elasticPort = config.getInt("elastic.port");
-            String elasticHostname = config.getString("elastic.hostname");
 
             FetcherImpl fetcher = new FetcherImpl(config);
             VisitedLinksCache visitedUrlsCache = new VisitedLinksCache() {
@@ -84,7 +82,6 @@ public class App {
                 public void put(String normalizedUrl) {
                     visitedUrls.put(normalizedUrl, 0);
                 }
-
 
                 @Override
                 public boolean hasVisited(String normalizedUrl) {
