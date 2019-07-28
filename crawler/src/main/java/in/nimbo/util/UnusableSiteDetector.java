@@ -23,7 +23,8 @@ public class UnusableSiteDetector {
         try (Timer.Context time = acceptableLanguageDetecterTimer.time()) {
             Detector detector = DetectorFactory.create();
             detector.append(plainText);
-            return detector.detect().equals("en");
+            String detect = detector.detect();
+            return detect.equals("en");
         } catch (LangDetectException e) {
             logger.error("Failed To Detect Language",e);
             return false;

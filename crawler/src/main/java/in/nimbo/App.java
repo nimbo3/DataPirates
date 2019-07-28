@@ -72,13 +72,11 @@ public class App {
             HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
 
             int numberOfFetcherThreads = config.getInt("num.of.fetcher.threads");
-            int elasticPort = config.getInt("elastic.port");
-            String elasticHostname = config.getString("elastic.hostname");
 
             FetcherImpl fetcher = new FetcherImpl(config);
             VisitedLinksCache visitedUrlsCache = new RedisVisitedLinksCache(config);
             CaffeineVistedDomainCache vistedDomainCache = new CaffeineVistedDomainCache(config);
-            ElasticSiteDaoImpl elasticDao = new ElasticSiteDaoImpl(elasticHostname, elasticPort);
+            ElasticSiteDaoImpl elasticDao = new ElasticSiteDaoImpl(config);
 
             LinkConsumer linkConsumer = new LinkConsumer(config);
             linkConsumer.start();
@@ -99,3 +97,4 @@ public class App {
         }
     }
 }
+
