@@ -35,7 +35,7 @@ public class App {
     public static void main(String[] args) {
         SharedMetricRegistries.setDefault("data-pirates-crawler");
         MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
-        JmxReporter jmxReporter = JmxReporter.forRegistry(metricRegistry).build();
+        JmxReporter jmxReporter = JmxReporter.forRegistry(metricRegistry).inDomain("crawler").build();
         jmxReporter.start();
         Timer appInitializingMetric = metricRegistry.timer("app initializing");
         try (Timer.Context appInitializingTimer = appInitializingMetric.time()) {

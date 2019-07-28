@@ -4,9 +4,7 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
-import in.nimbo.database.Searchable;
 import in.nimbo.exception.SiteDaoException;
-import in.nimbo.model.SearchResult;
 import in.nimbo.model.Site;
 import org.apache.http.HttpHost;
 import org.apache.log4j.Logger;
@@ -18,24 +16,17 @@ import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-public class ElasticSiteDaoImpl implements SiteDao, Searchable {
+public class ElasticSiteDaoImpl implements SiteDao {
     private static Logger logger = Logger.getLogger(ElasticSiteDaoImpl.class);
     private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("elastic-insertion");
     private Meter elasticFailureMeter = SharedMetricRegistries.getDefault().meter("elastic-insertion-failure");
@@ -87,33 +78,6 @@ public class ElasticSiteDaoImpl implements SiteDao, Searchable {
                     RestClient.builder(new HttpHost(hostname, port, "http")));
         }
         return restHighLevelClient;
-    }
-
-    @Override
-    public List<SearchResult> search(String search) {
-        SearchRequest searchRequest = new SearchRequest("sites");
-        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        searchSourceBuilder.query(QueryBuilders.termQuery("metadata", search));
-        searchSourceBuilder.query(QueryBuilders.termQuery("keywords", search));
-        searchSourceBuilder.query(QueryBuilders.termQuery("title", search));
-        searchSourceBuilder.query(QueryBuilders.termQuery("text", search));
-        searchRequest.source(searchSourceBuilder);
-        SearchResponse searchResponse;
-        try {
-            RestHighLevelClient client = getClient();
-            searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
-            List<SearchResult> searchResults = new ArrayList<>();
-            for (SearchHit searchHit : searchResponse.getHits().getHits()) {
-                SearchResult searchResult = new SearchResult();
-                searchResult.setLink(searchHit.getId());
-                searchResult.setTitle(searchHit.getSourceAsMap().get("title").toString());
-                searchResults.add(searchResult);
-            }
-            return searchResults;
-        } catch (IOException e) {
-            logger.error(String.format("Elastic couldn't search [%s]", search), e);
-            return null;
-        }
     }
 
     @Override
