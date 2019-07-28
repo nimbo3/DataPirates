@@ -1,5 +1,7 @@
 package in.nimbo;
 
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.SharedMetricRegistries;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.apache.http.client.RedirectException;
@@ -15,6 +17,7 @@ public class FetcherImplTest {
 
     @BeforeClass
     public static void init() {
+        SharedMetricRegistries.setDefault("data-pirates-crawler");
         config = ConfigFactory.load("config.properties");
     }
 
