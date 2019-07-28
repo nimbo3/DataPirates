@@ -73,6 +73,14 @@
             <version>${langdetect.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-shaded-client</artifactId>
+            <version>${hbase-client.version}</version>
+        </dependency>
+
+
+
     </dependencies>
 
     <build>
