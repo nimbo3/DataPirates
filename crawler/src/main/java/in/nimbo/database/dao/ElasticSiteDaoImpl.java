@@ -31,11 +31,9 @@ public class ElasticSiteDaoImpl implements SiteDao {
     private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("elastic-insertion");
     private Meter elasticFailureMeter = SharedMetricRegistries.getDefault().meter("elastic-insertion-failure");
     private Timer deleteTimer = SharedMetricRegistries.getDefault().timer("elastic-delete");
-    private RestHighLevelClient restHighLevelClient;
+    private RestHighLevelClient client;
     private BulkProcessor bulkProcessor;
     private String index;
-    private String hostname;
-    private int port;
 
     private BulkProcessor.Listener listener = new BulkProcessor.Listener() {
         @Override
@@ -56,12 +54,10 @@ public class ElasticSiteDaoImpl implements SiteDao {
     };
 
     public ElasticSiteDaoImpl(Config config) {
-        this.hostname = config.getString("elastic.hostname");
-        this.port = config.getInt("elastic.port");
         this.index = config.getString("elastic.index");
         BulkProcessor.Builder bulkProcessorBuilder = BulkProcessor.builder(
                 (bulkRequest, bulkResponseActionListener) ->
-                        getClient().bulkAsync(bulkRequest, RequestOptions.DEFAULT,
+                        client.bulkAsync(bulkRequest, RequestOptions.DEFAULT,
                                 bulkResponseActionListener), listener);
         bulkProcessorBuilder.setBulkActions(config.getInt("elastic.bulk.size"));
         bulkProcessorBuilder.setConcurrentRequests(config.getInt("elastic.concurrent.requests"));
@@ -71,14 +67,10 @@ public class ElasticSiteDaoImpl implements SiteDao {
                 TimeValue.timeValueSeconds(config.getLong("elastic.backoff.delay.seconds")),
                 config.getInt("elastic.backoff.retries")));
         bulkProcessor = bulkProcessorBuilder.build();
-    }
-
-    private RestHighLevelClient getClient() {
-        if (restHighLevelClient == null) {
-            restHighLevelClient = new RestHighLevelClient(
-                    RestClient.builder(new HttpHost(hostname, port, "http")));
-        }
-        return restHighLevelClient;
+        client = new RestHighLevelClient(
+                RestClient.builder(new HttpHost(
+                        config.getString("elastic.hostname"),
+                        config.getInt("elastic.port"), "http")));
     }
 
     @Override
@@ -103,7 +95,7 @@ public class ElasticSiteDaoImpl implements SiteDao {
     public Site get(String url) {
         GetRequest getRequest = new GetRequest(index, url);
         try {
-            GetResponse response = getClient().get(getRequest, RequestOptions.DEFAULT);
+            GetResponse response = client.get(getRequest, RequestOptions.DEFAULT);
             if (response.isExists()) {
                 return new Site(
                         response.getId(),
@@ -121,7 +113,8 @@ public class ElasticSiteDaoImpl implements SiteDao {
     public void delete(String url) {
         DeleteRequest deleteRequest = new DeleteRequest(index, url);
         try (Timer.Context time = deleteTimer.time()) {
-            getClient().delete(deleteRequest, RequestOptions.DEFAULT);
+            client.delete(deleteRequest, RequestOptions.DEFAULT);
+            logger.info(String.format("Link [%s] deleted from hbase", url));
         } catch (IOException e) {
             logger.error(String.format("Elastic couldn't delete [%s]", url), e);
         }
@@ -129,6 +122,6 @@ public class ElasticSiteDaoImpl implements SiteDao {
 
     public void stop() throws Exception {
         bulkProcessor.awaitClose(30, TimeUnit.SECONDS);
-        getClient().close();
+        client.close();
     }
 }

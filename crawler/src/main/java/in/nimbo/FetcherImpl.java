@@ -127,8 +127,4 @@ public class FetcherImpl implements Fetcher {
     public boolean isContentTypeTextHtml() {
         return contentType.getMimeType().equals(ContentType.TEXT_HTML.getMimeType());
     }
-
-    public String getRawHtmlDocument() {
-        return rawHtmlDocument;
-    }
 }
