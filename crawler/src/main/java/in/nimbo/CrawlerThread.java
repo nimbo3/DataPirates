@@ -7,6 +7,7 @@ import in.nimbo.dao.HbaseSiteDaoImpl;
 import in.nimbo.exception.FetchException;
 import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
+import in.nimbo.parser.NormalizeURL;
 import in.nimbo.parser.Parser;
 import in.nimbo.util.LinkConsumer;
 import in.nimbo.util.LinkProducer;
@@ -53,14 +54,17 @@ class CrawlerThread extends Thread implements Closeable {
                     logger.error("InterruptedException happened while consuming from Kafka", e);
                     Thread.currentThread().interrupt();
                 }
-                if (visitedUrlsCache.hasVisited(url))
-                    continue;
+//                if (visitedUrlsCache.hasVisited(url))
+//                    continue;
                 logger.debug(String.format("New link (%s) poped from queue", url));
                 if (!visitedDomainsCache.hasVisited(Parser.getDomain(url))) {
                     Site site = null;
                     try {
                         logger.debug(String.format("Fetching (%s)", url));
+                        // any url fetching here already exists in reddis
+                        // warn: when initializing, be aware of this assumption
                         String html = fetcher.fetch(url);
+                        String redirectUrl = fetcher.getRedirectUrl();
                         logger.debug(String.format("(%s) Fetched", url));
                         if (fetcher.isContentTypeTextHtml()) {
                             logger.debug(String.format("Parsing (%s)", url));
@@ -69,13 +73,20 @@ class CrawlerThread extends Thread implements Closeable {
                             logger.debug(String.format("(%s) Parsed", url));
                             if (UnusableSiteDetector.hasAcceptableLanguage(site.getPlainText())) {
                                 visitedDomainsCache.put(Parser.getDomain(url));
+
+                                // is normalizing really needed?
+                                visitedUrlsCache.put(NormalizeURL.normalize(url));
+                                if (!url.equals(redirectUrl))
+                                    visitedUrlsCache.put(NormalizeURL.normalize(redirectUrl));
+
                                 logger.debug(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
                                 site.getAnchors().keySet().parallelStream().forEach(link -> {
-                                    if (!visitedUrlsCache.hasVisited(link))
+                                    if (!visitedUrlsCache.hasVisited(link)) {
+                                        visitedUrlsCache.put(link);
                                         linkProducer.send(link);
+                                    }
                                 });
                                 logger.debug(String.format("anchors in Kafka putted(%s)", url));
-                                visitedUrlsCache.put(url);
                                 logger.debug(String.format("(%s) Inserting into elastic", url));
                                 elasitcSiteDao.insert(site);
                                 logger.debug(String.format("(%s) Inserting into hbase", url));
