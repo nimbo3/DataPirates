@@ -43,6 +43,7 @@ public class ElasticSearch implements Searchable {
             searchSourceBuilder.query(QueryBuilders.termQuery("keywords", input));
             searchSourceBuilder.query(QueryBuilders.termQuery("title", input));
             searchSourceBuilder.query(QueryBuilders.termQuery("text", input));
+            searchSourceBuilder.size(15);
             searchRequest.source(searchSourceBuilder);
             SearchResponse searchResponse;
             try {

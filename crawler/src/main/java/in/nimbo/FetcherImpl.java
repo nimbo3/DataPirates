@@ -4,6 +4,8 @@ package in.nimbo;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
+import in.nimbo.exception.FetchException;
+import org.apache.commons.httpclient.RedirectException;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
@@ -97,12 +99,11 @@ public class FetcherImpl implements Fetcher {
     }
 
     @Override
-    public String fetch(String url) throws IOException {
+    public String fetch(String url) throws IOException, FetchException {
         try (Timer.Context time = fetchTimer.time()) {
             HttpClientContext context = HttpClientContext.create();
             HttpGet httpGet = new HttpGet(url);
-            CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context);
-            try {
+            try (CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context)){
                 HttpHost target = context.getTargetHost();
                 List<URI> redirectLocations = context.getRedirectLocations();
                 URI location = URIUtils.resolve(httpGet.getURI(), target, redirectLocations);
@@ -111,14 +112,14 @@ public class FetcherImpl implements Fetcher {
                 rawHtmlDocument = EntityUtils.toString(response.getEntity());
                 contentType = ContentType.getOrDefault(response.getEntity());
             } catch (URISyntaxException e) {
-                logger.error(String.format("uri syntax exception in fetching %s", url), e);
+                throw new FetchException(String.format("uri syntax exception in fetching %s", url), e);
+            } catch (RedirectException e) {
+                throw new FetchException(String.format("Redirect exception in fetching %s", url), e);
             } catch (ClientProtocolException e) {
-                logger.error(String.format("ClientProtocolException in fetching %s", url), e);
-            } finally {
-                response.close();
+                throw new FetchException(String.format("ClientProtocolException in fetching %s", url), e);
             }
         } catch (IllegalArgumentException e) {
-            logger.error("IllegalArgumentException ", e);
+            throw new FetchException(String.format("IllegalArgumentException in fetching %s", url), e);
         }
         return rawHtmlDocument;
     }
@@ -126,9 +127,5 @@ public class FetcherImpl implements Fetcher {
     public boolean isContentTypeTextHtml() {
         return contentType != null &&
                 contentType.getMimeType().equals(ContentType.TEXT_HTML.getMimeType());
-    }
-
-    public String getRawHtmlDocument() {
-        return rawHtmlDocument;
     }
 }

@@ -4,6 +4,7 @@ import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import in.nimbo.dao.ElasticSiteDaoImpl;
 import in.nimbo.dao.HbaseSiteDaoImpl;
+import in.nimbo.exception.FetchException;
 import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
 import in.nimbo.parser.Parser;
@@ -56,9 +57,9 @@ class CrawlerThread extends Thread {
                 if (!visitedDomainsCache.hasVisited(Parser.getDomain(url))) {
                     Site site = null;
                     try {
-                        fetcher.fetch(url);
+                        String html = fetcher.fetch(url);
                         if (fetcher.isContentTypeTextHtml()) {
-                            Parser parser = new Parser(url, fetcher.getRawHtmlDocument());
+                            Parser parser = new Parser(url, html);
                             site = parser.parse();
                             if (new UnusableSiteDetector(site.getPlainText()).hasAcceptableLanguage()) {
                                 visitedDomainsCache.put(Parser.getDomain(url));
@@ -72,8 +73,8 @@ class CrawlerThread extends Thread {
                                 logger.info(site.getTitle() + " : " + site.getLink());
                             }
                         }
-                    } catch (IOException e) {
-                        logger.error(String.format("url: %s", url), e);
+                    } catch (IOException | FetchException e) {
+                        logger.error(e.getMessage(), e);
                     } catch (SiteDaoException e) {
                         logger.error(String.format("Failed to save in database(s) : %s", url), e);
                         hbaseSiteDao.delete(site.getReverseLink());

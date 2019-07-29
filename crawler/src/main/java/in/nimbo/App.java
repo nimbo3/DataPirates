@@ -33,15 +33,14 @@ public class App {
     private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) {
-        Config config = ConfigFactory.load("config");
-        SharedMetricRegistries.setDefault(config.getString("metric.registery.name"));
+        SharedMetricRegistries.setDefault("data-pirates-crawler");
         MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
         JmxReporter jmxReporter = JmxReporter.forRegistry(metricRegistry).inDomain("crawler").build();
         jmxReporter.start();
         Timer appInitializingMetric = metricRegistry.timer("app initializing");
         try (Timer.Context appInitializingTimer = appInitializingMetric.time()) {
             try {
-                DetectorFactory.loadProfile(config.getString("langDetector.profile"));
+                DetectorFactory.loadProfile("profiles");
             } catch (LangDetectException e) {
                 logger.error("./profiles can't be loaded, lang detection not started", e);
             }
@@ -69,6 +68,7 @@ public class App {
                 logger.error("SSl can't be es   tablished", e);
             }
 
+            Config config = ConfigFactory.load("config");
             Configuration hbaseConfig = HBaseConfiguration.create();
             HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
 
