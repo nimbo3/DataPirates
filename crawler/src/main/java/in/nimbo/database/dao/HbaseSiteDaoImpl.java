@@ -65,7 +65,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
             insertionFailureMeter.mark();
             throw new SiteDaoException(e);
         } catch (IllegalArgumentException e) {
-            logger.error("Hbase can't insert: " + site.getReverseLink() + " with these anchors: " + site.getAnchors(), e);
+            logger.error("Hbase couldn't insert: " + site.getReverseLink() + " with these anchors: " + site.getAnchors(), e);
             insertionFailureMeter.mark();
             throw new SiteDaoException(e);
         }

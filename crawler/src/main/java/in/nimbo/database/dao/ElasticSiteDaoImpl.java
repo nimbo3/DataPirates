@@ -19,6 +19,8 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.unit.ByteSizeUnit;
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -59,7 +61,9 @@ public class ElasticSiteDaoImpl implements SiteDao {
                 (bulkRequest, bulkResponseActionListener) ->
                         client.bulkAsync(bulkRequest, RequestOptions.DEFAULT,
                                 bulkResponseActionListener), listener);
-        bulkProcessorBuilder.setBulkActions(config.getInt("elastic.bulk.size"));
+        bulkProcessorBuilder.setBulkActions(config.getInt("elastic.bulk.actions.size"));
+        bulkProcessorBuilder.setBulkSize(new ByteSizeValue(
+                config.getInt("elastic.bulk.size"), ByteSizeUnit.MB));
         bulkProcessorBuilder.setConcurrentRequests(config.getInt("elastic.concurrent.requests"));
         bulkProcessorBuilder.setFlushInterval(
                 TimeValue.timeValueMinutes(config.getInt("elastic.bulk.flush.interval.seconds")));
