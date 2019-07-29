@@ -110,4 +110,9 @@ public class HbaseSiteDaoImpl implements SiteDao {
             throw new HbaseSiteDaoException(e);
         }
     }
+
+    @Override
+    public void close() throws IOException {
+
+    }
 }

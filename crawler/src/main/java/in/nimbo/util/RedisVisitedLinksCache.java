@@ -13,7 +13,7 @@ import io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands;
 import java.io.Closeable;
 import java.util.ArrayList;
 
-public class RedisVisitedLinksCache implements VisitedLinksCache, Closeable {
+public class RedisVisitedLinksCache implements VisitedLinksCache {
     private Timer visitingCheckTimer = SharedMetricRegistries.getDefault().timer("redis-visited-check");
     private RedisClusterClient redisClusterClient;
     private StatefulRedisClusterConnection<String, String> connection;

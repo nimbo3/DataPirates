@@ -124,4 +124,9 @@ public class ElasticSiteDaoImpl implements SiteDao {
         bulkProcessor.awaitClose(30, TimeUnit.SECONDS);
         client.close();
     }
+
+    @Override
+    public void close() throws IOException {
+
+    }
 }

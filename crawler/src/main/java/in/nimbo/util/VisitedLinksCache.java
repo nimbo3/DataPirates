@@ -1,6 +1,8 @@
 package in.nimbo.util;
 
-public interface VisitedLinksCache {
+import java.io.Closeable;
+
+public interface VisitedLinksCache extends Closeable {
     void put(String normalizedUrl);
     boolean hasVisited(String normalizedUrl);
 }

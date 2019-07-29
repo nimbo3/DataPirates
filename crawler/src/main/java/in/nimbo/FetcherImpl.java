@@ -26,13 +26,14 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashSet;
 import java.util.List;
 
-public class FetcherImpl implements Fetcher {
+public class FetcherImpl implements Fetcher, Closeable {
     private static final Logger logger = LoggerFactory.getLogger(FetcherImpl.class);
     private static final String DEFAULT_ACCEPT_LANGUAGE = "en-us,en-gb,en;q=0.7,*;q=0.3";
     private static final String DEFAULT_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
@@ -132,5 +133,10 @@ public class FetcherImpl implements Fetcher {
     public boolean isContentTypeTextHtml() {
         return contentType != null &&
                 contentType.getMimeType().equals(ContentType.TEXT_HTML.getMimeType());
+    }
+
+    @Override
+    public void close() throws IOException {
+
     }
 }

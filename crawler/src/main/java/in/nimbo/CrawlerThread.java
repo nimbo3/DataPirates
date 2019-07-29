@@ -14,10 +14,11 @@ import in.nimbo.util.UnusableSiteDetector;
 import in.nimbo.util.VisitedLinksCache;
 import org.apache.log4j.Logger;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.MalformedURLException;
 
-class CrawlerThread extends Thread {
+class CrawlerThread extends Thread implements Closeable {
     private static Logger logger = Logger.getLogger(CrawlerThread.class);
     private static Timer crawlTimer = SharedMetricRegistries.getDefault().timer("crawler");
     private FetcherImpl fetcher;
@@ -27,7 +28,7 @@ class CrawlerThread extends Thread {
     private LinkProducer linkProducer;
     private ElasticSiteDaoImpl elasitcSiteDao;
     private HbaseSiteDaoImpl hbaseSiteDao;
-    private UnusableSiteDetector unusableSiteDetector;
+    private boolean closed = false;
 
     public CrawlerThread(FetcherImpl fetcher,
                          VisitedLinksCache visitedDomainsCache, VisitedLinksCache visitedUrlsCache,
@@ -43,7 +44,7 @@ class CrawlerThread extends Thread {
 
     @Override
     public void run() {
-        while (!interrupted()) {
+        while (!closed) {
             String url = null;
             try (Timer.Context time = crawlTimer.time()) {
                 try {
@@ -65,7 +66,7 @@ class CrawlerThread extends Thread {
                             Parser parser = new Parser(url, html);
                             site = parser.parse();
                             logger.debug(String.format("(%s) Parsed", url));
-                            if (new UnusableSiteDetector(site.getPlainText()).hasAcceptableLanguage()) {
+                            if (UnusableSiteDetector.hasAcceptableLanguage(site.getPlainText())) {
                                 visitedDomainsCache.put(Parser.getDomain(url));
                                 logger.debug(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
                                 site.getAnchors().keySet().parallelStream().forEach(link -> {
@@ -96,5 +97,10 @@ class CrawlerThread extends Thread {
                 logger.error("can't get domain for link: " + url, e);
             }
         }
+    }
+
+    @Override
+    public void close() {
+        closed = true;
     }
 }
