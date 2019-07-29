@@ -9,6 +9,7 @@ import org.apache.commons.httpclient.RedirectException;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
+import org.apache.http.ParseException;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
@@ -70,7 +71,7 @@ public class FetcherImpl implements Fetcher {
 
         HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
         httpClientBuilder.setRedirectStrategy(new LaxRedirectStrategy());
-
+        //Todo Timeout doesn't works
         RequestConfig requestConfig = RequestConfig.custom()
                 .setConnectTimeout(connectionTimeout)
                 .setConnectionRequestTimeout(connectionTimeout)
@@ -99,7 +100,7 @@ public class FetcherImpl implements Fetcher {
     }
 
     @Override
-    public String fetch(String url) throws IOException, FetchException {
+    public String fetch(String url) throws FetchException {
         try (Timer.Context time = fetchTimer.time()) {
             HttpClientContext context = HttpClientContext.create();
             HttpGet httpGet = new HttpGet(url);
@@ -117,6 +118,10 @@ public class FetcherImpl implements Fetcher {
                 throw new FetchException(String.format("Redirect exception in fetching %s", url), e);
             } catch (ClientProtocolException e) {
                 throw new FetchException(String.format("ClientProtocolException in fetching %s", url), e);
+            } catch (ParseException e) {
+                throw new FetchException(String.format("Parse Exception in fetching %s", url), e);
+            } catch (IOException e) {
+                throw new FetchException(String.format("IO Exception in fetching %s", url), e);
             }
         } catch (IllegalArgumentException e) {
             throw new FetchException(String.format("IllegalArgumentException in fetching %s", url), e);

@@ -38,15 +38,11 @@ public class FetcherImplTest {
 
     }
 
-    @Test(expected = IOException.class)
-    public void fetcherMaxRedirectionTest() throws IOException {
+    @Test(expected = FetchException.class)
+    public void fetcherMaxRedirectionTest() throws FetchException {
         FetcherImpl fetcher = new FetcherImpl(config);
         int maxRedirects = config.getInt("fetcher.max.redirects");
-        try {
-            fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects + 1));
-        } catch (FetchException e) {
-            e.printStackTrace();
-        }
+        fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects + 1));
     }
 
 }
