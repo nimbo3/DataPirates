@@ -51,10 +51,11 @@ class CrawlerThread extends Thread implements Closeable {
                     url = linkConsumer.pop();
                 } catch (InterruptedException e) {
                     logger.error("InterruptedException happened while consuming from Kafka", e);
+                    Thread.currentThread().interrupt();
                 }
                 if (visitedUrlsCache.hasVisited(url))
                     continue;
-                logger.info(String.format("New link (%s) poped from queue", url));
+                logger.debug(String.format("New link (%s) poped from queue", url));
                 if (!visitedDomainsCache.hasVisited(Parser.getDomain(url))) {
                     Site site = null;
                     try {
@@ -79,7 +80,7 @@ class CrawlerThread extends Thread implements Closeable {
                                 elasitcSiteDao.insert(site);
                                 logger.debug(String.format("(%s) Inserting into hbase", url));
                                 hbaseSiteDao.insert(site);
-                                logger.info("Inserted : " + site.getTitle() + " : " + site.getLink());
+                                logger.debug("Inserted : " + site.getTitle() + " : " + site.getLink());
                             }
                         }
                     } catch (IOException | FetchException e) {
@@ -91,7 +92,7 @@ class CrawlerThread extends Thread implements Closeable {
                     }
                 } else {
                     linkProducer.send(url);
-                    logger.info(String.format("New link (%s) pushed to queue", url));
+                    logger.debug(String.format("New link (%s) pushed to queue", url));
                 }
             } catch (MalformedURLException e) {
                 logger.error("can't get domain for link: " + url, e);

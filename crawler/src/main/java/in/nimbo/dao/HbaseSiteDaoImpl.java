@@ -9,7 +9,13 @@ import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.Delete;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,6 +84,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
                  Timer.Context time = deleteTimer.time()) {
                 Delete del = new Delete(Bytes.toBytes(reverseLink));
                 table.delete(del);
+                logger.debug(String.format("Link [%s] deleted from hbase", reverseLink));
             }
         } catch (IOException e) {
             logger.error("can't delete this link: " + reverseLink + "from hbase", e);
