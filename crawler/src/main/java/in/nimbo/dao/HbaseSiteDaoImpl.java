@@ -15,8 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
 
@@ -30,8 +28,6 @@ public class HbaseSiteDaoImpl implements SiteDao {
     private Timer deleteTimer = SharedMetricRegistries.getDefault().timer("hbase-delete");
     private String family1;
     private Connection conn;
-    private List<Put> addBulk = new LinkedList<>();
-    private List<Get> getBulk = new LinkedList<>();
 
     public HbaseSiteDaoImpl(Configuration hbaseConfig, Config config) throws HbaseSiteDaoException {
         TABLE_NAME = config.getString("hbase.table.name");
@@ -65,12 +61,8 @@ public class HbaseSiteDaoImpl implements SiteDao {
                     String text = anchorEntry.getValue();
                     put.addColumn(Bytes.toBytes(family1),
                             Bytes.toBytes(link), Bytes.toBytes(text));
-                    addBulk.add(put);
                 }
-                if (addBulk.size() > config.getInt("hbase.bulk.size")) {
-                    table.put(addBulk);
-                    addBulk.clear();
-                }
+                table.put(put);
             }
         } catch (IOException | IllegalArgumentException e) {
             insertionFailureMeter.mark();
@@ -92,18 +84,13 @@ public class HbaseSiteDaoImpl implements SiteDao {
         }
     }
 
-    public Result[] get(String reverseLink) throws SiteDaoException {
+    public Result get(String reverseLink) throws SiteDaoException {
         try {
             Connection connection = getConnection();
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                  Timer.Context time = deleteTimer.time()) {
                 Get get = new Get(Bytes.toBytes(reverseLink));
-                getBulk.add(get);
-                Result[] results = null;
-                if (getBulk.size() > config.getInt("hbase.bulk.size")) {
-                    results = table.get(getBulk);
-                }
-                return results;
+                return table.get(get);
             }
         } catch (IOException e) {
             throw new HbaseSiteDaoException("can't bulk get from Hbase", e);
