@@ -3,7 +3,6 @@ package in.nimbo.dao;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
-import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import in.nimbo.exception.HbaseSiteDaoException;
 import in.nimbo.exception.SiteDaoException;
@@ -16,10 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 
 public class HbaseSiteDaoImpl implements SiteDao {
@@ -32,8 +28,6 @@ public class HbaseSiteDaoImpl implements SiteDao {
     private Timer deleteTimer = SharedMetricRegistries.getDefault().timer("hbase-delete");
     private String family1;
     private Connection conn;
-    private ConcurrentLinkedQueue<Put> addBulk = new ConcurrentLinkedQueue<>();
-    private ConcurrentLinkedQueue<Get> getBulk = new ConcurrentLinkedQueue<>();
 
     public HbaseSiteDaoImpl(Configuration hbaseConfig, Config config) throws HbaseSiteDaoException {
         TABLE_NAME = config.getString("hbase.table.name");
@@ -67,12 +61,8 @@ public class HbaseSiteDaoImpl implements SiteDao {
                     String text = anchorEntry.getValue();
                     put.addColumn(Bytes.toBytes(family1),
                             Bytes.toBytes(link), Bytes.toBytes(text));
-                    addBulk.add(put);
                 }
-                if (addBulk.size() > config.getInt("hbase.bulk.size")) {
-                    table.put(Lists.newArrayList(addBulk.iterator()));
-                    addBulk.clear();
-                }
+                table.put(put);
             }
         } catch (IOException | IllegalArgumentException e) {
             insertionFailureMeter.mark();
@@ -94,18 +84,13 @@ public class HbaseSiteDaoImpl implements SiteDao {
         }
     }
 
-    public Result[] get(String reverseLink) throws SiteDaoException {
+    public Result get(String reverseLink) throws SiteDaoException {
         try {
             Connection connection = getConnection();
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                  Timer.Context time = deleteTimer.time()) {
                 Get get = new Get(Bytes.toBytes(reverseLink));
-                getBulk.add(get);
-                Result[] results = null;
-                if (getBulk.size() > config.getInt("hbase.bulk.size")) {
-                    results = table.get(Lists.newArrayList(getBulk.iterator()));
-                }
-                return results;
+                return table.get(get);
             }
         } catch (IOException e) {
             throw new HbaseSiteDaoException("can't bulk get from Hbase", e);
