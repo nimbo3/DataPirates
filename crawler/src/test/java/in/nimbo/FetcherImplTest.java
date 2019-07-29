@@ -3,6 +3,7 @@ package in.nimbo;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import in.nimbo.exception.FetchException;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -22,9 +23,17 @@ public class FetcherImplTest {
     public void fetcherRedirectionTest() throws IOException {
         FetcherImpl fetcher = new FetcherImpl(config);
         int maxRedirects = config.getInt("fetcher.max.redirects");
-        fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects));
+        try {
+            fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects));
+        } catch (FetchException e) {
+            e.printStackTrace();
+        }
         Assert.assertEquals("http://httpbin.org/get", fetcher.getRedirectUrl());
-        fetcher.fetch("http://bit.ly/2Y0QwLF");
+        try {
+            fetcher.fetch("http://bit.ly/2Y0QwLF");
+        } catch (FetchException e) {
+            e.printStackTrace();
+        }
         Assert.assertEquals("https://git-scm.com/docs/git-credential-store", fetcher.getRedirectUrl());
 
     }
@@ -33,7 +42,11 @@ public class FetcherImplTest {
     public void fetcherMaxRedirectionTest() throws IOException {
         FetcherImpl fetcher = new FetcherImpl(config);
         int maxRedirects = config.getInt("fetcher.max.redirects");
-        fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects + 1));
+        try {
+            fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects + 1));
+        } catch (FetchException e) {
+            e.printStackTrace();
+        }
     }
 
 }

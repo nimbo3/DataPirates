@@ -119,7 +119,7 @@ public class FetcherImpl implements Fetcher {
                 throw new FetchException(String.format("ClientProtocolException in fetching %s", url), e);
             }
         } catch (IllegalArgumentException e) {
-            logger.error("IllegalArgumentException In Fetcher", e);
+            throw new FetchException(String.format("IllegalArgumentException in fetching %s", url), e);
         }
         return rawHtmlDocument;
     }

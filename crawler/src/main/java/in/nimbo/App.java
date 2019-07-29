@@ -10,6 +10,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.database.dao.ElasticSiteDaoImpl;
 import in.nimbo.database.dao.HbaseSiteDaoImpl;
+import in.nimbo.parser.Parser;
 import in.nimbo.util.LinkConsumer;
 import in.nimbo.util.LinkProducer;
 import in.nimbo.util.RedisVisitedLinksCache;
@@ -89,7 +90,8 @@ public class App {
                         visitedUrlsCache,
                         linkConsumer,
                         linkProducer,
-                        elasticDao, hbaseDao);
+                        elasticDao,
+                        hbaseDao);
             }
             for (int i = 0; i < numberOfFetcherThreads; i++) {
                 crawlerThreads[i].start();
