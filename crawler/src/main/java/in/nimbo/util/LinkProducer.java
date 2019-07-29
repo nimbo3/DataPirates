@@ -1,5 +1,7 @@
 package in.nimbo.util;
 
+import com.codahale.metrics.SharedMetricRegistries;
+import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -8,6 +10,7 @@ import java.io.Closeable;
 import java.util.Properties;
 
 public class LinkProducer implements Closeable {
+    private Timer sendTimer = SharedMetricRegistries.getDefault().timer("kafka-sending");
     private KafkaProducer<String, String> producer;
     private String topicName;
 
@@ -22,7 +25,9 @@ public class LinkProducer implements Closeable {
     }
 
     public void send(String link) {
-        producer.send(new ProducerRecord<>(topicName, link));
+        try (Timer.Context time = sendTimer.time()) {
+            producer.send(new ProducerRecord<>(topicName, link));
+        }
     }
 
     @Override

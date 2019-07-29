@@ -3,6 +3,7 @@ package in.nimbo.dao;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
+import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import in.nimbo.exception.HbaseSiteDaoException;
 import in.nimbo.exception.SiteDaoException;
@@ -18,6 +19,7 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 
 public class HbaseSiteDaoImpl implements SiteDao {
@@ -30,8 +32,8 @@ public class HbaseSiteDaoImpl implements SiteDao {
     private Timer deleteTimer = SharedMetricRegistries.getDefault().timer("hbase-delete");
     private String family1;
     private Connection conn;
-    private List<Put> addBulk = new LinkedList<>();
-    private List<Get> getBulk = new LinkedList<>();
+    private ConcurrentLinkedQueue<Put> addBulk = new ConcurrentLinkedQueue<>();
+    private ConcurrentLinkedQueue<Get> getBulk = new ConcurrentLinkedQueue<>();
 
     public HbaseSiteDaoImpl(Configuration hbaseConfig, Config config) throws HbaseSiteDaoException {
         TABLE_NAME = config.getString("hbase.table.name");
@@ -58,7 +60,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
         try {
             Connection connection = getConnection();
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
-                 Timer.Context time = deleteTimer.time()) {
+                 Timer.Context time = insertionTimer.time()) {
                 Put put = new Put(Bytes.toBytes(site.getReverseLink()));
                 for (Map.Entry<String, String> anchorEntry : site.getAnchors().entrySet()) {
                     String link = anchorEntry.getKey();
@@ -68,7 +70,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
                     addBulk.add(put);
                 }
                 if (addBulk.size() > config.getInt("hbase.bulk.size")) {
-                    table.put(addBulk);
+                    table.put(Lists.newArrayList(addBulk.iterator()));
                     addBulk.clear();
                 }
             }
@@ -101,7 +103,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
                 getBulk.add(get);
                 Result[] results = null;
                 if (getBulk.size() > config.getInt("hbase.bulk.size")) {
-                    results = table.get(getBulk);
+                    results = table.get(Lists.newArrayList(getBulk.iterator()));
                 }
                 return results;
             }

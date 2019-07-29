@@ -57,20 +57,28 @@ class CrawlerThread extends Thread {
                 if (!visitedDomainsCache.hasVisited(Parser.getDomain(url))) {
                     Site site = null;
                     try {
+                        logger.debug(String.format("Fetching (%s)", url));
                         String html = fetcher.fetch(url);
+                        logger.debug(String.format("(%s) Fetched", url));
                         if (fetcher.isContentTypeTextHtml()) {
+                            logger.debug(String.format("Parsing (%s)", url));
                             Parser parser = new Parser(url, html);
                             site = parser.parse();
+                            logger.debug(String.format("(%s) Parsed", url));
                             if (new UnusableSiteDetector(site.getPlainText()).hasAcceptableLanguage()) {
                                 visitedDomainsCache.put(Parser.getDomain(url));
-                                site.getAnchors().keySet().forEach(link -> {
+                                logger.debug(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
+                                site.getAnchors().keySet().parallelStream().forEach(link -> {
                                     if (!visitedUrlsCache.hasVisited(link))
                                         linkProducer.send(link);
                                 });
+                                logger.debug(String.format("anchors in Kafka putted(%s)", url));
                                 visitedUrlsCache.put(url);
+                                logger.debug(String.format("(%s) Inserting into elastic", url));
                                 elasitcSiteDao.insert(site);
+                                logger.debug(String.format("(%s) Inserting into hbase", url));
                                 hbaseSiteDao.insert(site);
-                                logger.info(site.getTitle() + " : " + site.getLink());
+                                logger.info("Inserted : " + site.getTitle() + " : " + site.getLink());
                             }
                         }
                     } catch (IOException | FetchException e) {

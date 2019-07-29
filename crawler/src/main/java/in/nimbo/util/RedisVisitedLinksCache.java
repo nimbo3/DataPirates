@@ -1,5 +1,7 @@
 package in.nimbo.util;
 
+import com.codahale.metrics.SharedMetricRegistries;
+import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import io.lettuce.core.RedisURI;
@@ -12,6 +14,7 @@ import java.io.Closeable;
 import java.util.ArrayList;
 
 public class RedisVisitedLinksCache implements VisitedLinksCache, Closeable {
+    private Timer visitingCheckTimer = SharedMetricRegistries.getDefault().timer("redis-visited-check");
     private RedisClusterClient redisClusterClient;
     private StatefulRedisClusterConnection<String, String> connection;
     private RedisAdvancedClusterAsyncCommands<String, String> async;
@@ -34,7 +37,9 @@ public class RedisVisitedLinksCache implements VisitedLinksCache, Closeable {
 
     @Override
     public boolean hasVisited(String normalizedUrl) {
-        return sync.get(normalizedUrl) != null;
+        try (Timer.Context time = visitingCheckTimer.time()) {
+            return sync.get(normalizedUrl) != null;
+        }
     }
 
     @Override

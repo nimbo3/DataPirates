@@ -63,7 +63,7 @@ public class ElasticSiteDaoImpl implements SiteDao {
                                 bulkResponseActionListener), listener);
         bulkProcessorBuilder.setBulkActions(config.getInt("elastic.bulk.actions.size"));
         bulkProcessorBuilder.setBulkSize(new ByteSizeValue(
-                config.getInt("elastic.bulk.size"), ByteSizeUnit.MB));
+                config.getInt("elastic.bulk.size.inMB"), ByteSizeUnit.MB));
         bulkProcessorBuilder.setConcurrentRequests(config.getInt("elastic.concurrent.requests"));
         bulkProcessorBuilder.setFlushInterval(
                 TimeValue.timeValueMinutes(config.getInt("elastic.bulk.flush.interval.seconds")));
