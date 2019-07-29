@@ -1,7 +1,6 @@
 package in.nimbo.model;
 
 import java.io.Serializable;
-import javafx.beans.NamedArg;
 
 /**
  * <p>A convenience class to represent name-value pairs.</p>
@@ -36,7 +35,7 @@ public class Pair<K,V> implements Serializable{
      * @param key The key for this pair
      * @param value The value to use for this pair
      */
-    public Pair(@NamedArg("key") K key, @NamedArg("value") V value) {
+    public Pair(K key, V value) {
         this.key = key;
         this.value = value;
     }
@@ -94,8 +93,7 @@ public class Pair<K,V> implements Serializable{
         if (o instanceof Pair) {
             Pair pair = (Pair) o;
             if (key != null ? !key.equals(pair.key) : pair.key != null) return false;
-            if (value != null ? !value.equals(pair.value) : pair.value != null) return false;
-            return true;
+            return value != null ? value.equals(pair.value) : pair.value == null;
         }
         return false;
     }
