@@ -11,12 +11,16 @@ import org.junit.Test;
 import java.io.IOException;
 
 public class FetcherImplTest {
-    private static Config config;
+    private static final Config config = ConfigFactory.load("config");
 
     @BeforeClass
     public static void init() {
-        SharedMetricRegistries.setDefault("data-pirates-crawler");
-        config = ConfigFactory.load("config.properties");
+        try {
+            SharedMetricRegistries.getDefault();
+        } catch (IllegalStateException e) {
+            SharedMetricRegistries.setDefault(config.getString("metric.registry.name"));
+        }
+
     }
 
     @Test

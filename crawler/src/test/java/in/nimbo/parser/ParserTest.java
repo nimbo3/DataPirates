@@ -24,7 +24,11 @@ public class ParserTest {
 
     @BeforeClass
     public static void init() throws IOException {
-        SharedMetricRegistries.setDefault("data-pirates-crawler");
+        try {
+            SharedMetricRegistries.getDefault();
+        } catch (IllegalStateException e) {
+            SharedMetricRegistries.setDefault(config.getString("metric.registry.name"));
+        }
         for (int i = 0; i < NUM_OF_TESTS; i++) {
             try (InputStream inputStream =
                          ParserTest.class.getClassLoader().getResourceAsStream(
@@ -169,7 +173,6 @@ public class ParserTest {
         }
         Parser parser = new Parser("https://stackoverflow.com/company/management", h);
         Map<String, String> actualList = parser.extractAnchors();
-        System.out.println(actualList);
     }
 
     @Test
