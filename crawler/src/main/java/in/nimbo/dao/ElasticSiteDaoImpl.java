@@ -5,6 +5,7 @@ import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
 import in.nimbo.dao.SiteDao;
+import in.nimbo.exception.ElasticLongIdException;
 import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
 import org.apache.http.HttpHost;
@@ -106,6 +107,8 @@ public class ElasticSiteDaoImpl implements SiteDao {
     @Override
     public void insert(Site site) throws SiteDaoException {
         try (Timer.Context time = insertionTimer.time()) {
+            if (site.getLink().getBytes().length >= 512)
+                throw new ElasticLongIdException("Elastic Long Id Exception (bytes of id must be lower than 512 bytes)");
             XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
             builder.field("title", site.getTitle());
@@ -115,9 +118,9 @@ public class ElasticSiteDaoImpl implements SiteDao {
             builder.endObject();
             IndexRequest indexRequest = new IndexRequest(index).id(site.getLink()).source(builder);
             bulkProcessor.add(indexRequest);
-        } catch (IOException e) {
+        } catch (IOException | ElasticLongIdException e) {
             elasticFailureMeter.mark();
-            logger.error(String.format("Elastic couldn't insert [%s]", site.getLink()), e);
+            logger.error(String.format("Elastic couldn't insert [%s] - Message : %s", site.getLink(), e.getMessage()), e);
             throw new SiteDaoException(e);
         }
     }
