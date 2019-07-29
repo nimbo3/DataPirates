@@ -78,6 +78,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
                  Timer.Context time = deleteTimer.time()) {
                 Delete del = new Delete(Bytes.toBytes(reverseLink));
                 table.delete(del);
+                logger.debug(String.format("Link [%s] deleted from hbase", reverseLink));
             }
         } catch (IOException e) {
             logger.error("can't delete this link: " + reverseLink + "from hbase", e);
