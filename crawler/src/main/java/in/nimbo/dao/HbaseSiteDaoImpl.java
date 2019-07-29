@@ -58,7 +58,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
         try {
             Connection connection = getConnection();
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
-                 Timer.Context time = deleteTimer.time()) {
+                 Timer.Context time = insertionTimer.time()) {
                 Put put = new Put(Bytes.toBytes(site.getReverseLink()));
                 for (Map.Entry<String, String> anchorEntry : site.getAnchors().entrySet()) {
                     String link = anchorEntry.getKey();
