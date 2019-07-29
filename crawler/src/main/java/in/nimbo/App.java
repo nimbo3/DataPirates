@@ -11,6 +11,7 @@ import com.typesafe.config.ConfigFactory;
 import in.nimbo.dao.ElasticSiteDaoImpl;
 import in.nimbo.dao.HbaseSiteDaoImpl;
 import in.nimbo.exception.HbaseSiteDaoException;
+import in.nimbo.model.Pair;
 import in.nimbo.util.LinkConsumer;
 import in.nimbo.util.LinkProducer;
 import in.nimbo.util.RedisVisitedLinksCache;
@@ -28,6 +29,7 @@ import javax.net.ssl.X509TrustManager;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class App {
     private static Logger logger = LoggerFactory.getLogger(App.class);
@@ -73,6 +75,7 @@ public class App {
             HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
 
             int numberOfFetcherThreads = config.getInt("num.of.fetcher.threads");
+            int numberOfProcessorThreads = config.getInt("num.of.processor.threads");
 
             FetcherImpl fetcher = new FetcherImpl(config);
             VisitedLinksCache visitedUrlsCache = new RedisVisitedLinksCache(config);
@@ -83,17 +86,33 @@ public class App {
             linkConsumer.start();
             LinkProducer linkProducer = new LinkProducer(config);
 
-            CrawlerThread[] crawlerThreads = new CrawlerThread[numberOfFetcherThreads];
+            LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue = new LinkedBlockingQueue<>();
+
+            FetcherThread[] fetcherThreads = new FetcherThread[numberOfFetcherThreads];
             for (int i = 0; i < numberOfFetcherThreads; i++) {
-                crawlerThreads[i] = new CrawlerThread(fetcher,
+                fetcherThreads[i] = new FetcherThread(
+                        fetcher,
                         vistedDomainCache,
                         visitedUrlsCache,
                         linkConsumer,
                         linkProducer,
-                        elasticDao, hbaseDao);
+                        linkPairHtmlQueue);
             }
             for (int i = 0; i < numberOfFetcherThreads; i++) {
-                crawlerThreads[i].start();
+                fetcherThreads[i].start();
+            }
+
+            ProcessorThread[] processorThreads = new ProcessorThread[numberOfProcessorThreads];
+            for (int i = 0; i < numberOfProcessorThreads; i++) {
+                processorThreads[i] = new ProcessorThread(
+                        linkProducer,
+                        elasticDao,
+                        hbaseDao,
+                        visitedUrlsCache,
+                        linkPairHtmlQueue);
+            }
+            for (int i = 0; i < numberOfProcessorThreads; i++) {
+                processorThreads[i].start();
             }
         } catch (HbaseSiteDaoException e) {
             logger.error(e.getMessage(), e);
