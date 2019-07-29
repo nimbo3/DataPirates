@@ -30,14 +30,9 @@ public class Parser {
         document = Jsoup.parse(html, link);
     }
 
-    // TODO: 7/24/19 discover a better place for this function!
-    public static String getDomain(String url) {
-        Pattern regex = Pattern.compile("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
-        Matcher matcher = regex.matcher(url);
-        if (matcher.find()) {
-            return matcher.group(4);
-        }
-        return url;
+    public static String getDomain(String link) throws MalformedURLException {
+        URL url = new URL(link);
+        return url.getHost();
     }
 
     /**
@@ -80,6 +75,8 @@ public class Parser {
             try {
                 href = element.absUrl("abs:href");
                 String content = element.text();
+                if (content.length() == 0)
+                    content = "empty";
                 href = NormalizeURL.normalize(href);
                 if (validateProtocol(href))
                     map.put(href, content);
@@ -89,6 +86,8 @@ public class Parser {
                 logger.debug("normalizer can't add link: " + href + " to the anchors list for this page: " + link, e);
             }
         }
+        if (map.size() == 0)
+            map.put(href, "empty");
         return map;
     }
 
@@ -136,7 +135,7 @@ public class Parser {
                 reverse.append(new StringBuilder(sb.substring(startIndex)).reverse());
             }
         } while (index != -1);
-        return reverse.toString();
+        return link.replace(domain, reverse).replaceAll("https?://", "").replace(".www", "");
     }
 
     private boolean validateProtocol(String urlString) throws MalformedURLException {

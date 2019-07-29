@@ -8,8 +8,9 @@ import com.cybozu.labs.langdetect.DetectorFactory;
 import com.cybozu.labs.langdetect.LangDetectException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import in.nimbo.database.dao.ElasticSiteDaoImpl;
-import in.nimbo.database.dao.HbaseSiteDaoImpl;
+import in.nimbo.dao.ElasticSiteDaoImpl;
+import in.nimbo.dao.HbaseSiteDaoImpl;
+import in.nimbo.exception.HbaseSiteDaoException;
 import in.nimbo.util.LinkConsumer;
 import in.nimbo.util.LinkProducer;
 import in.nimbo.util.RedisVisitedLinksCache;
@@ -32,14 +33,15 @@ public class App {
     private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) {
-        SharedMetricRegistries.setDefault("data-pirates-crawler");
+        Config config = ConfigFactory.load("config");
+        SharedMetricRegistries.setDefault(config.getString("metric.registery.name"));
         MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
         JmxReporter jmxReporter = JmxReporter.forRegistry(metricRegistry).inDomain("crawler").build();
         jmxReporter.start();
         Timer appInitializingMetric = metricRegistry.timer("app initializing");
         try (Timer.Context appInitializingTimer = appInitializingMetric.time()) {
             try {
-                DetectorFactory.loadProfile("profiles");
+                DetectorFactory.loadProfile(config.getString("langDetector.profile"));
             } catch (LangDetectException e) {
                 logger.error("./profiles can't be loaded, lang detection not started", e);
             }
@@ -67,7 +69,6 @@ public class App {
                 logger.error("SSl can't be es   tablished", e);
             }
 
-            Config config = ConfigFactory.load("config");
             Configuration hbaseConfig = HBaseConfiguration.create();
             HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
 
@@ -94,6 +95,8 @@ public class App {
             for (int i = 0; i < numberOfFetcherThreads; i++) {
                 crawlerThreads[i].start();
             }
+        } catch (HbaseSiteDaoException e) {
+            logger.error(e.getMessage(), e);
         }
     }
 }

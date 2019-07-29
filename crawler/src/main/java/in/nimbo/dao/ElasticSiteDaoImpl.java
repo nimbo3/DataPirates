@@ -1,4 +1,4 @@
-package in.nimbo.database.dao;
+package in.nimbo.dao;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.SharedMetricRegistries;

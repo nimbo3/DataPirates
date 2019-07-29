@@ -1,4 +1,4 @@
-package in.nimbo.database.dao;
+package in.nimbo.dao;
 
 import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;

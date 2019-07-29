@@ -176,15 +176,15 @@ public class ParserTest {
     public void test() throws IOException {
         Parser parser = new Parser(links[0], htmls[0]);
         String url = "https://www.geeksforgeeks.org:80/url-samefile-method-in-java-with-examples/";
-        String expected = "org.geeksforgeeks.www";
+        String expected = "org.geeksforgeeks:80/url-samefile-method-in-java-with-examples/";
         Assert.assertEquals(expected, parser.reverse(url));
-        expected = "org.apache.spark.www";
+        expected = "org.apache.spark/documentation.html";
         url = "http://www.spark.apache.org/documentation.html";
         Assert.assertEquals(expected, parser.reverse(url));
-        expected = "com.stackoverflow";
+        expected = "com.stackoverflow/questions/7569335/reverse-a-string-in-java";
         url = "https://stackoverflow.com/questions/7569335/reverse-a-string-in-java";
         Assert.assertEquals(expected, parser.reverse(url));
-        expected = "master";
+        expected = "master:16010/table.jsp?name=wc";
         url = "http://master:16010/table.jsp?name=wc";
         Assert.assertEquals(expected, parser.reverse(url));
         expected = "ir.ac.sbu.znu.samp";

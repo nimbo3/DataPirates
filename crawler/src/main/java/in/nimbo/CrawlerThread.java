@@ -2,8 +2,8 @@ package in.nimbo;
 
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
-import in.nimbo.database.dao.ElasticSiteDaoImpl;
-import in.nimbo.database.dao.HbaseSiteDaoImpl;
+import in.nimbo.dao.ElasticSiteDaoImpl;
+import in.nimbo.dao.HbaseSiteDaoImpl;
 import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
 import in.nimbo.parser.Parser;
@@ -14,6 +14,7 @@ import in.nimbo.util.VisitedLinksCache;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 
 class CrawlerThread extends Thread {
     private static Logger logger = Logger.getLogger(CrawlerThread.class);
@@ -42,8 +43,8 @@ class CrawlerThread extends Thread {
     @Override
     public void run() {
         while (!interrupted()) {
+            String url = null;
             try (Timer.Context time = crawlTimer.time()) {
-                String url = null;
                 try {
                     url = linkConsumer.pop();
                 } catch (InterruptedException e) {
@@ -66,13 +67,9 @@ class CrawlerThread extends Thread {
                                         linkProducer.send(link);
                                 });
                                 visitedUrlsCache.put(url);
-                                if (!site.getAnchors().isEmpty()) {
-                                    elasitcSiteDao.insert(site);
-                                    hbaseSiteDao.insert(site);
-                                    logger.info(site.getTitle() + " : " + site.getLink());
-                                } else {
-                                    logger.debug("site with link: " + site.getLink() + " anchor map is empty. refused to add in hbase and elastic.");
-                                }
+                                elasitcSiteDao.insert(site);
+                                hbaseSiteDao.insert(site);
+                                logger.info(site.getTitle() + " : " + site.getLink());
                             }
                         }
                     } catch (IOException e) {
@@ -86,6 +83,8 @@ class CrawlerThread extends Thread {
                     linkProducer.send(url);
                     logger.info(String.format("New link (%s) pushed to queue", url));
                 }
+            } catch (MalformedURLException e) {
+                logger.error("can't get domain for link: " + url, e);
             }
         }
     }

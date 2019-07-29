@@ -2,7 +2,7 @@ package in.nimbo.database;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import in.nimbo.database.dao.ElasticSiteDaoImpl;
+import in.nimbo.dao.ElasticSiteDaoImpl;
 import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
 import org.junit.BeforeClass;
