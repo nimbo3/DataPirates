@@ -28,9 +28,10 @@ import java.util.concurrent.TimeUnit;
 
 public class ElasticSiteDaoImpl implements SiteDao {
     private static Logger logger = Logger.getLogger(ElasticSiteDaoImpl.class);
-    private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("elastic-insertion");
-    private Meter elasticFailureMeter = SharedMetricRegistries.getDefault().meter("elastic-insertion-failure");
-    private Timer deleteTimer = SharedMetricRegistries.getDefault().timer("elastic-delete");
+    private final Config config;
+    private final Timer insertionTimer;
+    private final Meter elasticFailureMeter;
+    private final Timer deleteTimer;
     private RestHighLevelClient restHighLevelClient;
     private BulkProcessor bulkProcessor;
     private String index;
@@ -56,6 +57,10 @@ public class ElasticSiteDaoImpl implements SiteDao {
     };
 
     public ElasticSiteDaoImpl(Config config) {
+        this.config = config;
+        insertionTimer = SharedMetricRegistries.getDefault().timer(config.getString("elastic.insertion.metric.name"));
+        elasticFailureMeter = SharedMetricRegistries.getDefault().meter(config.getString("elastic.insertion.failure.metric.name"));
+        deleteTimer = SharedMetricRegistries.getDefault().timer(config.getString("elastic.delete.metric.name"));
         this.hostname = config.getString("elastic.hostname");
         this.port = config.getInt("elastic.port");
         this.index = config.getString("elastic.index");
@@ -76,7 +81,7 @@ public class ElasticSiteDaoImpl implements SiteDao {
     private RestHighLevelClient getClient() {
         if (restHighLevelClient == null) {
             restHighLevelClient = new RestHighLevelClient(
-                    RestClient.builder(new HttpHost(hostname, port, "http")));
+                    RestClient.builder(new HttpHost(hostname, port)));
         }
         return restHighLevelClient;
     }
@@ -89,7 +94,7 @@ public class ElasticSiteDaoImpl implements SiteDao {
             if (response.isExists()) {
                 return new Site(
                         response.getId(),
-                        response.getSourceAsMap().get("title").toString());
+                        response.getSourceAsMap().get(config.getString("elastic.title.name")).toString());
             } else {
                 return null;
             }
@@ -104,10 +109,10 @@ public class ElasticSiteDaoImpl implements SiteDao {
         try (Timer.Context time = insertionTimer.time()) {
             XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
-            builder.field("title", site.getTitle());
-            builder.field("metadata", site.getMetadata());
-            builder.field("text", site.getPlainText());
-            builder.field("keywords", site.getKeywords());
+            builder.field(config.getString("elastic.title.name"), site.getTitle());
+            builder.field(config.getString("elastic.metadata.name"), site.getMetadata());
+            builder.field(config.getString("elastic.text.name"), site.getPlainText());
+            builder.field(config.getString("elastic.keywords.name"), site.getKeywords());
             builder.endObject();
             IndexRequest indexRequest = new IndexRequest(index).id(site.getLink()).source(builder);
             bulkProcessor.add(indexRequest);
@@ -130,12 +135,12 @@ public class ElasticSiteDaoImpl implements SiteDao {
     }
 
     public void stop() throws Exception {
-        bulkProcessor.awaitClose(30, TimeUnit.SECONDS);
+        bulkProcessor.awaitClose(config.getInt("elastic.bulk.timeout"), TimeUnit.SECONDS);
         getClient().close();
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
 
     }
 }

@@ -2,6 +2,7 @@ package in.nimbo;
 
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
+import com.typesafe.config.Config;
 import in.nimbo.dao.ElasticSiteDaoImpl;
 import in.nimbo.dao.HbaseSiteDaoImpl;
 import in.nimbo.exception.FetchException;
@@ -20,7 +21,8 @@ import java.net.MalformedURLException;
 
 class CrawlerThread extends Thread implements Closeable {
     private static Logger logger = Logger.getLogger(CrawlerThread.class);
-    private static Timer crawlTimer = SharedMetricRegistries.getDefault().timer("crawler");
+    private final Config config;
+    private static Timer crawlTimer;
     private FetcherImpl fetcher;
     private VisitedLinksCache visitedDomainsCache;
     private VisitedLinksCache visitedUrlsCache;
@@ -32,7 +34,9 @@ class CrawlerThread extends Thread implements Closeable {
 
     public CrawlerThread(FetcherImpl fetcher,
                          VisitedLinksCache visitedDomainsCache, VisitedLinksCache visitedUrlsCache,
-                         LinkConsumer linkConsumer, LinkProducer linkProducer, ElasticSiteDaoImpl elasticSiteDao, HbaseSiteDaoImpl hbaseSiteDao) {
+                         LinkConsumer linkConsumer, LinkProducer linkProducer, ElasticSiteDaoImpl elasticSiteDao, HbaseSiteDaoImpl hbaseSiteDao, Config config) {
+        this.config = config;
+        crawlTimer = SharedMetricRegistries.getDefault().timer(config.getString("crawlerThread.registry.name"));
         this.fetcher = fetcher;
         this.visitedDomainsCache = visitedDomainsCache;
         this.linkConsumer = linkConsumer;

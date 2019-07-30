@@ -73,7 +73,7 @@ public class App {
                 sc.init(null, trustAllCerts, new java.security.SecureRandom());
                 HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
             } catch (NoSuchAlgorithmException | KeyManagementException e) {
-                logger.error("SSl can't be es   tablished", e);
+                logger.error("SSl can't be established", e);
             }
 
             Configuration hbaseConfig = HBaseConfiguration.create();
@@ -102,7 +102,8 @@ public class App {
                         linkConsumer,
                         linkProducer,
                         elasticDao,
-                        hbaseDao);
+                        hbaseDao,
+                        config);
                 closeables.add(crawlerThreads[i]);
                 crawlerThreads[i].start();
             }
