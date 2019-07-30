@@ -64,6 +64,7 @@ class CrawlerThread extends Thread implements Closeable {
 
     @Override
     public void run() {
+        int maxUrlLength = config.getInt("max.url.length");
         while (!closed) {
             String url = null;
             try (Timer.Context time = crawlTimer.time()) {
@@ -94,7 +95,7 @@ class CrawlerThread extends Thread implements Closeable {
 
                                 logger.debug(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
                                 site.getAnchors().keySet().parallelStream().forEach(link -> {
-                                    if (!visitedUrlsCache.hasVisited(link)) {
+                                    if (!visitedUrlsCache.hasVisited(link) && link.length() <= maxUrlLength) {
                                         visitedUrlsCache.put(link);
                                         linkProducer.send(link);
                                     }
