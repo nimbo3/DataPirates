@@ -29,17 +29,20 @@ public class HbaseSiteDaoImpl implements SiteDao {
     private final Configuration hbaseConfig;
     private final String TABLE_NAME;
     private final Config config;
-    private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("hbase-insertion");
-    private Meter insertionFailureMeter = SharedMetricRegistries.getDefault().meter("hbase-insertion-failure");
-    private Timer deleteTimer = SharedMetricRegistries.getDefault().timer("hbase-delete");
-    private String family1;
+    private Timer insertionTimer;
+    private Meter insertionFailureMeter;
+    private Timer deleteTimer;
+    private String anchorsFamily;
     private Connection conn;
 
     public HbaseSiteDaoImpl(Configuration hbaseConfig, Config config) throws HbaseSiteDaoException {
-        TABLE_NAME = config.getString("hbase.table.name");
-        family1 = config.getString("hbase.table.column.family.anchors");
-        this.hbaseConfig = hbaseConfig;
         this.config = config;
+        insertionTimer = SharedMetricRegistries.getDefault().timer(config.getString("hbase.insertion.metric.name"));
+        insertionFailureMeter = SharedMetricRegistries.getDefault().meter(config.getString("hbase.insertion.failure.metric.name"));
+        deleteTimer = SharedMetricRegistries.getDefault().timer(config.getString("hbase.delete.metric.name"));
+        TABLE_NAME = config.getString("hbase.table.name");
+        anchorsFamily = config.getString("hbase.table.column.family.anchors");
+        this.hbaseConfig = hbaseConfig;
         try {
             getConnection();
             logger.info("connection available to hbase!");
@@ -65,7 +68,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
                 for (Map.Entry<String, String> anchorEntry : site.getAnchors().entrySet()) {
                     String link = anchorEntry.getKey();
                     String text = anchorEntry.getValue();
-                    put.addColumn(Bytes.toBytes(family1),
+                    put.addColumn(Bytes.toBytes(anchorsFamily),
                             Bytes.toBytes(link), Bytes.toBytes(text));
                 }
                 table.put(put);
@@ -119,7 +122,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
 
     }
 }

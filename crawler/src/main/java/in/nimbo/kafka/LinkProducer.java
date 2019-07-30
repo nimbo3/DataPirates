@@ -1,4 +1,4 @@
-package in.nimbo.util;
+package in.nimbo.kafka;
 
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
@@ -10,11 +10,14 @@ import java.io.Closeable;
 import java.util.Properties;
 
 public class LinkProducer implements Closeable {
-    private Timer sendTimer = SharedMetricRegistries.getDefault().timer("kafka-sending");
+    private final Config config;
+    private Timer sendTimer;
     private KafkaProducer<String, String> producer;
     private String topicName;
 
     public LinkProducer(Config config) {
+        this.config = config;
+        sendTimer = SharedMetricRegistries.getDefault().timer(config.getString("metric.name.linkProducer"));
         Properties properties = new Properties();
         properties.put("bootstrap.servers", config.getString("kafka.bootstrap.servers"));
         properties.put("acks", config.getString("kafka.acks"));

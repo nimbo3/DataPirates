@@ -9,10 +9,10 @@ import in.nimbo.exception.FetchException;
 import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
 import in.nimbo.parser.Parser;
-import in.nimbo.util.LinkConsumer;
-import in.nimbo.util.LinkProducer;
+import in.nimbo.kafka.LinkConsumer;
+import in.nimbo.kafka.LinkProducer;
 import in.nimbo.util.UnusableSiteDetector;
-import in.nimbo.util.VisitedLinksCache;
+import in.nimbo.cache.VisitedLinksCache;
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
@@ -34,7 +34,8 @@ class CrawlerThread extends Thread implements Closeable {
 
     public CrawlerThread(FetcherImpl fetcher,
                          VisitedLinksCache visitedDomainsCache, VisitedLinksCache visitedUrlsCache,
-                         LinkConsumer linkConsumer, LinkProducer linkProducer, ElasticSiteDaoImpl elasticSiteDao, HbaseSiteDaoImpl hbaseSiteDao, Config config) {
+                         LinkConsumer linkConsumer, LinkProducer linkProducer, ElasticSiteDaoImpl elasticSiteDao,
+                         HbaseSiteDaoImpl hbaseSiteDao, Config config) {
         this.config = config;
         crawlTimer = SharedMetricRegistries.getDefault().timer(config.getString("crawlerThread.registry.name"));
         this.fetcher = fetcher;
@@ -83,7 +84,7 @@ class CrawlerThread extends Thread implements Closeable {
                         logger.debug(String.format("(%s) Fetched", url));
                         if (fetcher.isContentTypeTextHtml()) {
                             logger.debug(String.format("Parsing (%s)", url));
-                            Parser parser = new Parser(url, html);
+                            Parser parser = new Parser(url, html, config);
                             site = parser.parse();
                             logger.debug(String.format("(%s) Parsed", url));
                             if (UnusableSiteDetector.hasAcceptableLanguage(site.getPlainText())) {

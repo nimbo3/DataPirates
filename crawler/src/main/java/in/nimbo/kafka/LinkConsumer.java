@@ -1,5 +1,7 @@
-package in.nimbo.util;
+package in.nimbo.kafka;
 
+import com.codahale.metrics.SharedMetricRegistries;
+import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -12,6 +14,8 @@ import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 
 public class LinkConsumer implements Closeable {
+    private final Config config;
+    private Timer receiveTimer;
     private ArrayBlockingQueue<String> buffer;
     private KafkaConsumer<String, String> consumer;
     private String topicName;
@@ -19,6 +23,8 @@ public class LinkConsumer implements Closeable {
     private Thread kafkaReaderThread;
 
     public LinkConsumer(Config config) {
+        this.config = config;
+        receiveTimer = SharedMetricRegistries.getDefault().timer(config.getString("metric.name.linkConsumer"));
         Properties properties = new Properties();
         properties.setProperty("bootstrap.servers", config.getString("kafka.bootstrap.servers"));
         properties.setProperty("group.id", config.getString("kafka.group.id"));
@@ -50,10 +56,11 @@ public class LinkConsumer implements Closeable {
     private class KafkaReaderThread extends Thread {
         @Override
         public void run() {
+            final int KAFKA_CONSUME_POLL_TIMEOUT = config.getInt("kafka.consume.poll.timeout");
             consumer.subscribe(Arrays.asList(topicName));
             while (!closed) {
                 try {
-                    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+                    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(KAFKA_CONSUME_POLL_TIMEOUT));
                     for (ConsumerRecord<String, String> record : records)
                         buffer.put(record.value());
                     consumer.commitAsync();

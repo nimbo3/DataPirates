@@ -2,6 +2,7 @@ package in.nimbo.parser;
 
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
+import com.typesafe.config.Config;
 import in.nimbo.model.Site;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -17,12 +18,15 @@ import java.util.Map;
 
 public class Parser {
     private static final Logger logger = LoggerFactory.getLogger(Parser.class);
-    private static Timer parseTimer = SharedMetricRegistries.getDefault().timer("parser");
+    private final Config config;
+    private static Timer parseTimer;
     private String link;
     private Document document;
     private String html;
 
-    public Parser(String link, String html) {
+    public Parser(String link, String html, Config config) {
+        this.config = config;
+        parseTimer = SharedMetricRegistries.getDefault().timer(config.getString("metric.name.parser"));
         this.html = html;
         this.link = link;
         document = Jsoup.parse(html, link);

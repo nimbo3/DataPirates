@@ -11,11 +11,11 @@ import com.typesafe.config.ConfigFactory;
 import in.nimbo.dao.ElasticSiteDaoImpl;
 import in.nimbo.dao.HbaseSiteDaoImpl;
 import in.nimbo.exception.HbaseSiteDaoException;
-import in.nimbo.util.LinkConsumer;
-import in.nimbo.util.LinkProducer;
-import in.nimbo.util.RedisVisitedLinksCache;
-import in.nimbo.util.VisitedLinksCache;
-import in.nimbo.util.cacheManager.CaffeineVistedDomainCache;
+import in.nimbo.kafka.LinkConsumer;
+import in.nimbo.kafka.LinkProducer;
+import in.nimbo.cache.RedisVisitedLinksCache;
+import in.nimbo.cache.VisitedLinksCache;
+import in.nimbo.cache.CaffeineVistedDomainCache;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.slf4j.Logger;
@@ -26,7 +26,6 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.Closeable;
-import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
@@ -39,7 +38,7 @@ public class App {
 
     public static void main(String[] args) {
         List<Closeable> closeables = new LinkedList<>();
-        ShutdownHook shutdownHook = new ShutdownHook(closeables);
+        ShutdownHook shutdownHook = new ShutdownHook(closeables, config);
         Runtime.getRuntime().addShutdownHook(shutdownHook);
         SharedMetricRegistries.setDefault(config.getString("metric.registry.name"));
         MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
@@ -79,7 +78,7 @@ public class App {
             Configuration hbaseConfig = HBaseConfiguration.create();
             HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
             closeables.add(hbaseDao);
-            int numberOfFetcherThreads = config.getInt("num.of.fetcher.threads");
+            int numberOfFetcherThreads = config.getInt("fetcher.threads.num");
             FetcherImpl fetcher = new FetcherImpl(config);
             closeables.add(fetcher);
             VisitedLinksCache visitedUrlsCache = new RedisVisitedLinksCache(config);
@@ -88,11 +87,14 @@ public class App {
             closeables.add(vistedDomainCache);
             ElasticSiteDaoImpl elasticDao = new ElasticSiteDaoImpl(config);
             closeables.add(elasticDao);
+
+
             LinkConsumer linkConsumer = new LinkConsumer(config);
-            //TODO linkConsumer shutdown hook should be added
             linkConsumer.start();
             LinkProducer linkProducer = new LinkProducer(config);
-            //TODO linkProducer shutdown hook should be added
+            //this shutdown hook is only for kafka
+            KafkaShutdownHook kafkaShutdownHook = new KafkaShutdownHook(linkConsumer, linkProducer, config);
+            Runtime.getRuntime().addShutdownHook(kafkaShutdownHook);
 
             CrawlerThread[] crawlerThreads = new CrawlerThread[numberOfFetcherThreads];
             for (int i = 0; i < numberOfFetcherThreads; i++) {
@@ -109,26 +111,6 @@ public class App {
             }
         } catch (HbaseSiteDaoException e) {
             logger.error(e.getMessage(), e);
-        }
-    }
-}
-
-class ShutdownHook extends Thread {
-    private static Logger logger = LoggerFactory.getLogger(ShutdownHook.class);
-    private List<Closeable> closeables;
-
-    public ShutdownHook(List<Closeable> closeables) {
-        this.closeables = closeables;
-    }
-
-    public void run() {
-        logger.info("Shutdown hook thread initiated.");
-        for (Closeable closeable : closeables) {
-            try {
-                closeable.close();
-            } catch (IOException e) {
-                logger.error("Shutdown hook can't close object with name: " + closeable.getClass().getSimpleName(), e);
-            }
         }
     }
 }

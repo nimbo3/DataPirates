@@ -4,7 +4,7 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
-import in.nimbo.exception.SiteDaoException;
+import in.nimbo.exception.ElasticSiteDaoException;
 import in.nimbo.model.Site;
 import org.apache.http.HttpHost;
 import org.apache.log4j.Logger;
@@ -105,7 +105,7 @@ public class ElasticSiteDaoImpl implements SiteDao {
     }
 
     @Override
-    public void insert(Site site) throws SiteDaoException {
+    public void insert(Site site) throws ElasticSiteDaoException {
         try (Timer.Context time = insertionTimer.time()) {
             XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
@@ -118,8 +118,7 @@ public class ElasticSiteDaoImpl implements SiteDao {
             bulkProcessor.add(indexRequest);
         } catch (IOException e) {
             elasticFailureMeter.mark();
-            logger.error(String.format("Elastic couldn't insert [%s]", site.getLink()), e);
-            throw new SiteDaoException(e);
+            throw new ElasticSiteDaoException(String.format("Elastic couldn't insert [%s]", site.getLink()), e);
         }
     }
 
