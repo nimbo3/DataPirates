@@ -20,7 +20,7 @@ class ShutdownHook extends Thread {
 
     public ShutdownHook(List<Closeable> closeables, Config config) {
         this.config = config;
-        shutDownTimer = SharedMetricRegistries.getDefault().timer("metric.name.shutdown");
+        shutDownTimer = SharedMetricRegistries.getDefault().timer(config.getString("metric.name.shutdown"));
         this.closeables = closeables;
     }
 

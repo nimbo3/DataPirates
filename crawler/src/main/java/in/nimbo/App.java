@@ -37,11 +37,11 @@ public class App {
     private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) {
+        SharedMetricRegistries.setDefault(config.getString("metric.registry.name"));
+        MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
         List<Closeable> closeables = new LinkedList<>();
         ShutdownHook shutdownHook = new ShutdownHook(closeables, config);
         Runtime.getRuntime().addShutdownHook(shutdownHook);
-        SharedMetricRegistries.setDefault(config.getString("metric.registry.name"));
-        MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
         JmxReporter jmxReporter = JmxReporter.forRegistry(metricRegistry).inDomain(config.getString("metric.domain.name")).build();
         jmxReporter.start();
         Timer appInitializingMetric = metricRegistry.timer(config.getString("metric.registry.timer.name"));
