@@ -5,6 +5,7 @@ import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
 import in.nimbo.exception.FetchException;
+import in.nimbo.parser.NormalizeURL;
 import org.apache.commons.httpclient.RedirectException;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
@@ -59,10 +60,8 @@ public class FetcherImpl implements Fetcher, Closeable {
     void init() {
         /*
          TODO: 7/22/19
-         - handle or deactivate redirects
          - disable ssl
          - handle status codes (for example too many requests)
-         - test redirects
          */
 
         int connectionTimeout = config.getInt("fetcher.connection.timeout.milliseconds");
@@ -109,7 +108,7 @@ public class FetcherImpl implements Fetcher, Closeable {
                 HttpHost target = context.getTargetHost();
                 List<URI> redirectLocations = context.getRedirectLocations();
                 URI location = URIUtils.resolve(httpGet.getURI(), target, redirectLocations);
-                redirectUrl = location.toASCIIString();
+                redirectUrl = NormalizeURL.normalize(location.toASCIIString());
                 responseStatusCode = response.getStatusLine().getStatusCode();
                 rawHtmlDocument = EntityUtils.toString(response.getEntity());
                 contentType = ContentType.getOrDefault(response.getEntity());

@@ -8,8 +8,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.IOException;
-
 public class FetcherImplTest {
     private static final Config config = ConfigFactory.load("config");
 
@@ -24,22 +22,13 @@ public class FetcherImplTest {
     }
 
     @Test
-    public void fetcherRedirectionTest() throws IOException {
+    public void fetcherRedirectionTest() throws FetchException {
         FetcherImpl fetcher = new FetcherImpl(config);
         int maxRedirects = config.getInt("fetcher.max.redirects");
-        try {
-            fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects));
-        } catch (FetchException e) {
-            e.printStackTrace();
-        }
+        fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects));
         Assert.assertEquals("http://httpbin.org/get", fetcher.getRedirectUrl());
-        try {
-            fetcher.fetch("http://bit.ly/2Y0QwLF");
-        } catch (FetchException e) {
-            e.printStackTrace();
-        }
+        fetcher.fetch("http://bit.ly/2Y0QwLF");
         Assert.assertEquals("https://git-scm.com/docs/git-credential-store", fetcher.getRedirectUrl());
-
     }
 
     @Test(expected = FetchException.class)

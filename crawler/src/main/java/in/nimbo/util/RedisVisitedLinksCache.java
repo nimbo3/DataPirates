@@ -3,21 +3,17 @@ package in.nimbo.util;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
-import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands;
 import io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands;
 
-import java.io.Closeable;
 import java.util.ArrayList;
 
 public class RedisVisitedLinksCache implements VisitedLinksCache {
     private Timer visitingCheckTimer = SharedMetricRegistries.getDefault().timer("redis-visited-check");
     private RedisClusterClient redisClusterClient;
     private StatefulRedisClusterConnection<String, String> connection;
-    private RedisAdvancedClusterAsyncCommands<String, String> async;
     private final RedisAdvancedClusterCommands<String, String> sync;
 
     public RedisVisitedLinksCache(Config config) {
@@ -26,13 +22,12 @@ public class RedisVisitedLinksCache implements VisitedLinksCache {
             redisServers.add(RedisURI.create("redis://"+string));
         redisClusterClient = RedisClusterClient.create(redisServers);
         connection = redisClusterClient.connect();
-        async = connection.async();
         sync = connection.sync();
     }
 
     @Override
     public void put(String normalizedUrl) {
-        async.set(normalizedUrl, "");
+        sync.set(normalizedUrl, "");
     }
 
     @Override
