@@ -1,18 +1,23 @@
 package in.nimbo;
 
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.SharedMetricRegistries;
+import com.codahale.metrics.Timer;
+import com.codahale.metrics.jmx.JmxReporter;
 import com.cybozu.labs.langdetect.DetectorFactory;
 import com.cybozu.labs.langdetect.LangDetectException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import in.nimbo.database.dao.ElasticSiteDaoImpl;
-import in.nimbo.database.dao.HbaseSiteDaoImpl;
-import in.nimbo.util.LinkConsumer;
-import in.nimbo.util.VisitedLinksCache;
-import in.nimbo.util.cacheManager.CaffeineVistedDomainCache;
+import in.nimbo.dao.ElasticSiteDaoImpl;
+import in.nimbo.dao.HbaseSiteDaoImpl;
+import in.nimbo.exception.HbaseSiteDaoException;
+import in.nimbo.kafka.LinkConsumer;
+import in.nimbo.kafka.LinkProducer;
+import in.nimbo.cache.RedisVisitedLinksCache;
+import in.nimbo.cache.VisitedLinksCache;
+import in.nimbo.cache.CaffeineVistedDomainCache;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.producer.KafkaProducer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,96 +25,92 @@ import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-import java.io.IOException;
+import java.io.Closeable;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.LinkedList;
+import java.util.List;
 
 public class App {
+    private static final Config config = ConfigFactory.load("config");
     private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) {
-        try {
-            DetectorFactory.loadProfile("profiles");
-        } catch (LangDetectException e) {
-            logger.error("./profiles can't be loaded, lang detection not started", e);
-        }
-
-        try {
-            TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
-                public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                    return null;
-                }
-
-                public void checkClientTrusted(X509Certificate[] certs, String authType) {
-                }
-
-                public void checkServerTrusted(X509Certificate[] certs, String authType) {
-                }
-            }};
-
-            SSLContext sc = null;
-
-            sc = SSLContext.getInstance("SSL");
-
-            sc.init(null, trustAllCerts, new java.security.SecureRandom());
-            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-        } catch (NoSuchAlgorithmException | KeyManagementException e) {
-            logger.error("SSl can't be established", e);
-        }
-
-        Config config = ConfigFactory.load("config");
-        Configuration hbaseConfig = HBaseConfiguration.create();
-        HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
-
-        int numberOfFetcherThreads = config.getInt("num.of.fetcher.threads");
-        int elasticPort = config.getInt("elastic.port");
-        String elasticHostname = config.getString("elastic.hostname");
-
-        FetcherImpl fetcher = new FetcherImpl(config);
-        VisitedLinksCache visitedUrlsCache = new VisitedLinksCache() {
-            Map<String, Integer> visitedUrls = new ConcurrentHashMap<>();
-
-            @Override
-            public void put(String normalizedUrl) {
-                visitedUrls.put(normalizedUrl, 0);
+        SharedMetricRegistries.setDefault(config.getString("metric.registry.name"));
+        MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
+        List<Closeable> closeables = new LinkedList<>();
+        ShutdownHook shutdownHook = new ShutdownHook(closeables, config);
+        Runtime.getRuntime().addShutdownHook(shutdownHook);
+        JmxReporter jmxReporter = JmxReporter.forRegistry(metricRegistry).inDomain(config.getString("metric.domain.name")).build();
+        jmxReporter.start();
+        Timer appInitializingMetric = metricRegistry.timer(config.getString("metric.registry.timer.name"));
+        try (Timer.Context appInitializingTimer = appInitializingMetric.time()) {
+            try {
+                DetectorFactory.loadProfile(config.getString("langDetect.profile.dir"));
+            } catch (LangDetectException e) {
+                logger.error("langDetector profile can't be loaded, lang detection not started", e);
             }
 
-            @Override
-            public boolean hasVisited(String normalizedUrl) {
-                return visitedUrls.containsKey(normalizedUrl);
+            try {
+                TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
+                    public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                        return null;
+                    }
+
+                    public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                    }
+
+                    public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                    }
+                }};
+
+                SSLContext sc = null;
+
+                sc = SSLContext.getInstance("SSL");
+
+                sc.init(null, trustAllCerts, new java.security.SecureRandom());
+                HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            } catch (NoSuchAlgorithmException | KeyManagementException e) {
+                logger.error("SSl can't be established", e);
             }
-        };
-        CaffeineVistedDomainCache vistedDomainCache = new CaffeineVistedDomainCache(config);
-        ElasticSiteDaoImpl elasticDao = new ElasticSiteDaoImpl(elasticHostname, elasticPort);
-        Properties kafkaConsumerProperties = new Properties();
-        Properties kafkaProducerProperties = new Properties();
-        try {
-            kafkaConsumerProperties.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("KafkaConsumer.properties"));
-            kafkaProducerProperties.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("KafkaProducer.properties"));
-        } catch (IOException e) {
-            logger.error("kafka properties can't be loaded", e);
-        }
-        KafkaConsumer<String, String> consumer = new KafkaConsumer<>(kafkaConsumerProperties);
-        LinkConsumer linkConsumer = new LinkConsumer(consumer, config);
-        KafkaProducer<String, String> kafkaProducer = new KafkaProducer<>(kafkaProducerProperties);
-        linkConsumer.start();
+
+            Configuration hbaseConfig = HBaseConfiguration.create();
+            HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
+            closeables.add(hbaseDao);
+            int numberOfFetcherThreads = config.getInt("fetcher.threads.num");
+            FetcherImpl fetcher = new FetcherImpl(config);
+            closeables.add(fetcher);
+            VisitedLinksCache visitedUrlsCache = new RedisVisitedLinksCache(config);
+            closeables.add(visitedUrlsCache);
+            CaffeineVistedDomainCache vistedDomainCache = new CaffeineVistedDomainCache(config);
+            closeables.add(vistedDomainCache);
+            ElasticSiteDaoImpl elasticDao = new ElasticSiteDaoImpl(config);
+            closeables.add(elasticDao);
 
 
-        CrawlerThread[] crawlerThreads = new CrawlerThread[numberOfFetcherThreads];
-        for (int i = 0; i < numberOfFetcherThreads; i++) {
-            crawlerThreads[i] = new CrawlerThread(fetcher,
-                    vistedDomainCache,
-                    visitedUrlsCache,
-                    linkConsumer,
-                    kafkaProducer,
-                    elasticDao, hbaseDao);
-        }
-        for (int i = 0; i < numberOfFetcherThreads; i++) {
-            crawlerThreads[i].start();
+            LinkConsumer linkConsumer = new LinkConsumer(config);
+            linkConsumer.start();
+            LinkProducer linkProducer = new LinkProducer(config);
+            //this shutdown hook is only for kafka
+            KafkaShutdownHook kafkaShutdownHook = new KafkaShutdownHook(linkConsumer, linkProducer, config);
+            Runtime.getRuntime().addShutdownHook(kafkaShutdownHook);
+
+            CrawlerThread[] crawlerThreads = new CrawlerThread[numberOfFetcherThreads];
+            for (int i = 0; i < numberOfFetcherThreads; i++) {
+                crawlerThreads[i] = new CrawlerThread(fetcher,
+                        vistedDomainCache,
+                        visitedUrlsCache,
+                        linkConsumer,
+                        linkProducer,
+                        elasticDao,
+                        hbaseDao,
+                        config);
+                closeables.add(crawlerThreads[i]);
+                crawlerThreads[i].start();
+            }
+        } catch (HbaseSiteDaoException e) {
+            logger.error(e.getMessage(), e);
         }
     }
 }

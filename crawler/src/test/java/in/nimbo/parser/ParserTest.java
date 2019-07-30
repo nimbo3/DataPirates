@@ -1,5 +1,6 @@
 package in.nimbo.parser;
 
+import com.codahale.metrics.SharedMetricRegistries;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.model.Site;
@@ -23,6 +24,11 @@ public class ParserTest {
 
     @BeforeClass
     public static void init() throws IOException {
+        try {
+            SharedMetricRegistries.getDefault();
+        } catch (IllegalStateException e) {
+            SharedMetricRegistries.setDefault(config.getString("metric.registry.name"));
+        }
         for (int i = 0; i < NUM_OF_TESTS; i++) {
             try (InputStream inputStream =
                          ParserTest.class.getClassLoader().getResourceAsStream(
@@ -86,7 +92,7 @@ public class ParserTest {
     @Test
     public void extractMetadataTest() {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i]);
+            Parser parser = new Parser(links[i], htmls[i], config);
             String actual = parser.extractMetadata();
             String expected = sites[i].getMetadata();
             double percentage = getPercentage(expected, actual);
@@ -96,7 +102,7 @@ public class ParserTest {
     @Test
     public void extractTitleTest() {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i]);
+            Parser parser = new Parser(links[i], htmls[i], config);
             String actual = parser.extractTitle();
             String expected = sites[i].getTitle();
             double percentage = getPercentage(expected, actual);
@@ -107,7 +113,7 @@ public class ParserTest {
     @Test
     public void extractPlainTextTest() {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i]);
+            Parser parser = new Parser(links[i], htmls[i], config);
             String actual = parser.extractPlainText();
             String expected = sites[i].getPlainText();
             double percentage = getPercentage(expected, actual);
@@ -118,7 +124,7 @@ public class ParserTest {
     @Test
     public void extractKeywordsTest() {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i]);
+            Parser parser = new Parser(links[i], htmls[i], config);
             String actual = parser.extractKeywords();
             String expected = sites[i].getKeywords();
             double percentage = getPercentage(expected, actual);
@@ -129,7 +135,7 @@ public class ParserTest {
     @Test
     public void extractAnchorsTest() {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i]);
+            Parser parser = new Parser(links[i], htmls[i], config);
             Map<String, String> actualList = parser.extractAnchors();
             Map<String, String> expectedList = sites[i].getAnchors();
             StringBuilder actual = new StringBuilder(), expected = new StringBuilder();
@@ -155,6 +161,7 @@ public class ParserTest {
             Assert.assertTrue(percentage >= CONFIDENCE);
         }
     }
+
     @Test
     public void extractTest() throws IOException {
         String h;
@@ -164,8 +171,27 @@ public class ParserTest {
             assert inputStream != null;
             h = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
         }
-        Parser parser = new Parser("https://stackoverflow.com/company/management", h);
+        Parser parser = new Parser("https://stackoverflow.com/company/management", h, config);
         Map<String, String> actualList = parser.extractAnchors();
-        System.out.println(actualList);
+    }
+
+    @Test
+    public void test() throws IOException {
+        Parser parser = new Parser(links[0], htmls[0], config);
+        String url = "https://www.geeksforgeeks.org:80/url-samefile-method-in-java-with-examples/";
+        String expected = "org.geeksforgeeks:80/url-samefile-method-in-java-with-examples/";
+        Assert.assertEquals(expected, parser.reverse(url));
+        expected = "org.apache.spark/documentation.html";
+        url = "http://www.spark.apache.org/documentation.html";
+        Assert.assertEquals(expected, parser.reverse(url));
+        expected = "com.stackoverflow/questions/7569335/reverse-a-string-in-java";
+        url = "https://stackoverflow.com/questions/7569335/reverse-a-string-in-java";
+        Assert.assertEquals(expected, parser.reverse(url));
+        expected = "master:16010/table.jsp?name=wc";
+        url = "http://master:16010/table.jsp?name=wc";
+        Assert.assertEquals(expected, parser.reverse(url));
+        expected = "ir.ac.sbu.znu.samp";
+        url = "https://samp.znu.sbu.ac.ir";
+        Assert.assertEquals(expected, parser.reverse(url));
     }
 }

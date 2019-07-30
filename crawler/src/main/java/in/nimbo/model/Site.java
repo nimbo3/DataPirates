@@ -4,6 +4,7 @@ import java.util.Map;
 
 public class Site {
     private String link;
+    private String reverseLink;
     private String title;
     private String keywords;
     private String plainText;
@@ -20,6 +21,14 @@ public class Site {
         this.title = title;
     }
 
+    public String getReverseLink() {
+        return reverseLink;
+    }
+
+    public void setReverseLink(String reverseLink) {
+        this.reverseLink = reverseLink;
+    }
+
     public String getHtml() {
         return html;
     }
@@ -27,7 +36,7 @@ public class Site {
     public void setHtml(String html) {
         this.html = html;
     }
-    
+
     public String getLink() {
         return link;
     }

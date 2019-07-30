@@ -1,5 +1,7 @@
-package in.nimbo.util;
+package in.nimbo.kafka;
 
+import com.codahale.metrics.SharedMetricRegistries;
+import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -8,19 +10,31 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import java.io.Closeable;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 
 public class LinkConsumer implements Closeable {
+    private final Config config;
+    private Timer receiveTimer;
     private ArrayBlockingQueue<String> buffer;
     private KafkaConsumer<String, String> consumer;
     private String topicName;
     private boolean closed = false;
     private Thread kafkaReaderThread;
 
-    public LinkConsumer(KafkaConsumer<String, String> consumer, Config config) {
-        this.consumer = consumer;
-        topicName = config.getString("topic.Name");
-        buffer = new ArrayBlockingQueue<>(config.getInt("buffer.size"));
+    public LinkConsumer(Config config) {
+        this.config = config;
+        receiveTimer = SharedMetricRegistries.getDefault().timer(config.getString("metric.name.linkConsumer"));
+        Properties properties = new Properties();
+        properties.setProperty("bootstrap.servers", config.getString("kafka.bootstrap.servers"));
+        properties.setProperty("group.id", config.getString("kafka.group.id"));
+        properties.setProperty("enable.auto.commit", config.getString("kafka.enable.auto.commit"));
+        properties.setProperty("auto.commit.interval.ms", config.getString("kafka.auto.commit.interval.ms"));
+        properties.setProperty("key.deserializer", config.getString("kafka.key.deserializer"));
+        properties.setProperty("value.deserializer", config.getString("kafka.value.deserializer"));
+        this.consumer = new KafkaConsumer<>(properties);
+        topicName = config.getString("kafka.topic.name");
+        buffer = new ArrayBlockingQueue<>(config.getInt("kafka.buffer.size"));
     }
 
     public void start() {
@@ -42,10 +56,11 @@ public class LinkConsumer implements Closeable {
     private class KafkaReaderThread extends Thread {
         @Override
         public void run() {
+            final int KAFKA_CONSUME_POLL_TIMEOUT = config.getInt("kafka.consume.poll.timeout");
             consumer.subscribe(Arrays.asList(topicName));
             while (!closed) {
                 try {
-                    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+                    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(KAFKA_CONSUME_POLL_TIMEOUT));
                     for (ConsumerRecord<String, String> record : records)
                         buffer.put(record.value());
                     consumer.commitAsync();

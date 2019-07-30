@@ -1,9 +1,16 @@
+
 package in.nimbo;
 
+import com.codahale.metrics.SharedMetricRegistries;
+import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
+import in.nimbo.exception.FetchException;
+import in.nimbo.parser.NormalizeURL;
+import org.apache.commons.httpclient.RedirectException;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
+import org.apache.http.ParseException;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
@@ -20,18 +27,20 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashSet;
 import java.util.List;
 
-public class FetcherImpl implements Fetcher {
+public class FetcherImpl implements Fetcher, Closeable {
     private static final Logger logger = LoggerFactory.getLogger(FetcherImpl.class);
     private static final String DEFAULT_ACCEPT_LANGUAGE = "en-us,en-gb,en;q=0.7,*;q=0.3";
     private static final String DEFAULT_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
     private static final String DEFAULT_ACCEPT_CHARSET = "utf-8,ISO-8859-1;q=0.7,*;q=0.7";
     private static final String DEFAULT_ACCEPT_ENCODING = "x-gzip, gzip";
+    private Timer fetchTimer = SharedMetricRegistries.getDefault().timer("fetcher");
     private HttpClient client;
     private String rawHtmlDocument;
     private int responseStatusCode;
@@ -51,10 +60,8 @@ public class FetcherImpl implements Fetcher {
     void init() {
         /*
          TODO: 7/22/19
-         - handle or deactivate redirects
          - disable ssl
          - handle status codes (for example too many requests)
-         - test redirects
          */
 
         int connectionTimeout = config.getInt("fetcher.connection.timeout.milliseconds");
@@ -64,7 +71,7 @@ public class FetcherImpl implements Fetcher {
 
         HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
         httpClientBuilder.setRedirectStrategy(new LaxRedirectStrategy());
-
+        //Todo Timeout doesn't works
         RequestConfig requestConfig = RequestConfig.custom()
                 .setConnectTimeout(connectionTimeout)
                 .setConnectionRequestTimeout(connectionTimeout)
@@ -93,37 +100,42 @@ public class FetcherImpl implements Fetcher {
     }
 
     @Override
-    public String fetch(String url) throws IOException {
-        try {
+    public String fetch(String url) throws FetchException {
+        try (Timer.Context time = fetchTimer.time()) {
             HttpClientContext context = HttpClientContext.create();
             HttpGet httpGet = new HttpGet(url);
-            CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context);
-            try {
+            try (CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context)){
                 HttpHost target = context.getTargetHost();
                 List<URI> redirectLocations = context.getRedirectLocations();
                 URI location = URIUtils.resolve(httpGet.getURI(), target, redirectLocations);
-                redirectUrl = location.toASCIIString();
+                redirectUrl = NormalizeURL.normalize(location.toASCIIString());
                 responseStatusCode = response.getStatusLine().getStatusCode();
                 rawHtmlDocument = EntityUtils.toString(response.getEntity());
                 contentType = ContentType.getOrDefault(response.getEntity());
             } catch (URISyntaxException e) {
-                logger.error(String.format("uri syntax exception in fetching %s", url), e);
+                throw new FetchException(String.format("uri syntax exception in fetching %s", url), e);
+            } catch (RedirectException e) {
+                throw new FetchException(String.format("Redirect exception in fetching %s", url), e);
             } catch (ClientProtocolException e) {
-                logger.error(String.format("ClientProtocolException in fetching %s", url), e);
-            } finally {
-                response.close();
+                throw new FetchException(String.format("ClientProtocolException in fetching %s", url), e);
+            } catch (ParseException e) {
+                throw new FetchException(String.format("Parse Exception in fetching %s", url), e);
+            } catch (IOException e) {
+                throw new FetchException(String.format("IO Exception in fetching %s", url), e);
             }
         } catch (IllegalArgumentException e) {
-            logger.error("IllegalArgumentException ", e);
+            throw new FetchException(String.format("IllegalArgumentException in fetching %s", url), e);
         }
         return rawHtmlDocument;
     }
 
     public boolean isContentTypeTextHtml() {
-        return contentType.getMimeType().equals(ContentType.TEXT_HTML.getMimeType());
+        return contentType != null &&
+                contentType.getMimeType().equals(ContentType.TEXT_HTML.getMimeType());
     }
 
-    public String getRawHtmlDocument() {
-        return rawHtmlDocument;
+    @Override
+    public void close() throws IOException {
+
     }
 }

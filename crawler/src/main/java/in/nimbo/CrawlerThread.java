@@ -1,77 +1,133 @@
 package in.nimbo;
 
-import in.nimbo.database.dao.ElasticSiteDaoImpl;
-import in.nimbo.database.dao.HbaseSiteDaoImpl;
+import com.codahale.metrics.SharedMetricRegistries;
+import com.codahale.metrics.Timer;
+import com.typesafe.config.Config;
+import in.nimbo.dao.ElasticSiteDaoImpl;
+import in.nimbo.dao.HbaseSiteDaoImpl;
+import in.nimbo.exception.FetchException;
 import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
 import in.nimbo.parser.Parser;
-import in.nimbo.util.LinkConsumer;
+import in.nimbo.kafka.LinkConsumer;
+import in.nimbo.kafka.LinkProducer;
 import in.nimbo.util.UnusableSiteDetector;
-import in.nimbo.util.VisitedLinksCache;
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerRecord;
+import in.nimbo.cache.VisitedLinksCache;
 import org.apache.log4j.Logger;
 
+import java.io.Closeable;
 import java.io.IOException;
+import java.net.MalformedURLException;
 
-class CrawlerThread extends Thread {
+class CrawlerThread extends Thread implements Closeable {
     private static Logger logger = Logger.getLogger(CrawlerThread.class);
+    private final Config config;
+    private static Timer crawlTimer;
     private FetcherImpl fetcher;
     private VisitedLinksCache visitedDomainsCache;
     private VisitedLinksCache visitedUrlsCache;
     private LinkConsumer linkConsumer;
-    private KafkaProducer kafkaProducer;
+    private LinkProducer linkProducer;
     private ElasticSiteDaoImpl elasitcSiteDao;
     private HbaseSiteDaoImpl hbaseSiteDao;
-    private UnusableSiteDetector unusableSiteDetector;
+    private boolean closed = false;
 
     public CrawlerThread(FetcherImpl fetcher,
                          VisitedLinksCache visitedDomainsCache, VisitedLinksCache visitedUrlsCache,
-                         LinkConsumer linkConsumer, KafkaProducer kafkaProducer, ElasticSiteDaoImpl elasticSiteDao, HbaseSiteDaoImpl hbaseSiteDao) {
+                         LinkConsumer linkConsumer, LinkProducer linkProducer, ElasticSiteDaoImpl elasticSiteDao,
+                         HbaseSiteDaoImpl hbaseSiteDao, Config config) {
+        this.config = config;
+        crawlTimer = SharedMetricRegistries.getDefault().timer(config.getString("crawlerThread.registry.name"));
         this.fetcher = fetcher;
         this.visitedDomainsCache = visitedDomainsCache;
         this.linkConsumer = linkConsumer;
-        this.kafkaProducer = kafkaProducer;
+        this.linkProducer = linkProducer;
         this.visitedUrlsCache = visitedUrlsCache;
         this.elasitcSiteDao = elasticSiteDao;
         this.hbaseSiteDao = hbaseSiteDao;
     }
 
+    /**
+     * Note:
+     * before starting the crawler there are some links in Queue
+     * these links are not necessarily normalized neither added to redis
+     * and in the code below these links are not taken care of
+     *
+     * if you want this code to work correctly,
+     * these links should be normalized and then put into redis.
+     * then you're good to go :))
+     *
+     * assumption:
+     * all the links in kafka are unique and normalized
+     * (as a result we won't check links before fetching them and we will check them before adding them to kafka
+     * and consequently we won't add fetching url to redis because it already exists there)
+     */
+
     @Override
     public void run() {
-        while (!interrupted()) {
+        int maxUrlLength = config.getInt("max.url.length");
+        while (!closed) {
             String url = null;
-            try {
-                url = linkConsumer.pop();
-            } catch (InterruptedException e) {
-                logger.error("InterruptedException happened while consuming from Kafka", e);
-            }
-            logger.info(String.format("New link (%s) poped from queue", url));
-            if (!visitedDomainsCache.hasVisited(Parser.getDomain(url)) &&
-                    !visitedUrlsCache.hasVisited(url)) {
+            try (Timer.Context time = crawlTimer.time()) {
                 try {
-                    fetcher.fetch(url);
-                    if (fetcher.isContentTypeTextHtml()) {
-                        Parser parser = new Parser(url, fetcher.getRawHtmlDocument());
-                        Site site = parser.parse();
-                        if (new UnusableSiteDetector(site.getPlainText()).hasAcceptableLanguage()) {
-                            visitedDomainsCache.put(Parser.getDomain(url));
-                            //Todo : Check In redis And Then Put
-                            site.getAnchors().keySet().forEach(link -> kafkaProducer.send(new ProducerRecord("links", link)));
-                            visitedUrlsCache.put(url);
-                            elasitcSiteDao.insert(site);
-                            hbaseSiteDao.insert(site);
-                            logger.info(site.getTitle() + " : " + site.getLink());
-                        }
-                    }
-                } catch (IOException | SiteDaoException e) {
-                    e.printStackTrace();
-                    logger.error(String.format("url: %s", url), e);
+                    url = linkConsumer.pop();
+                } catch (InterruptedException e) {
+                    logger.error("InterruptedException happened while consuming from Kafka", e);
+                    Thread.currentThread().interrupt();
                 }
-            } else {
-                kafkaProducer.send(new ProducerRecord("links", url));
-                logger.info(String.format("New link (%s) pushed to queue", url));
+                logger.debug(String.format("New link (%s) poped from queue", url));
+                if (!visitedDomainsCache.hasVisited(Parser.getDomain(url))) {
+                    Site site = null;
+                    try {
+                        logger.debug(String.format("Fetching (%s)", url));
+                        String html = fetcher.fetch(url);
+                        String redirectNormalizedUrl = fetcher.getRedirectUrl();
+                        logger.debug(String.format("(%s) Fetched", url));
+                        if (fetcher.isContentTypeTextHtml()) {
+                            logger.debug(String.format("Parsing (%s)", url));
+                            Parser parser = new Parser(url, html, config);
+                            site = parser.parse();
+                            logger.debug(String.format("(%s) Parsed", url));
+                            if (UnusableSiteDetector.hasAcceptableLanguage(site.getPlainText())) {
+                                visitedDomainsCache.put(Parser.getDomain(url));
+
+                                if (!url.equals(redirectNormalizedUrl))
+                                    visitedUrlsCache.put(redirectNormalizedUrl);
+
+                                logger.debug(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
+                                site.getAnchors().keySet().parallelStream().forEach(link -> {
+                                    if (!visitedUrlsCache.hasVisited(link) && link.length() <= maxUrlLength) {
+                                        visitedUrlsCache.put(link);
+                                        linkProducer.send(link);
+                                    }
+                                });
+                                logger.debug(String.format("anchors in Kafka putted(%s)", url));
+                                logger.debug(String.format("(%s) Inserting into elastic", url));
+                                elasitcSiteDao.insert(site);
+                                logger.debug(String.format("(%s) Inserting into hbase", url));
+                                hbaseSiteDao.insert(site);
+                                logger.debug("Inserted : " + site.getTitle() + " : " + site.getLink());
+                            }
+                        }
+                    } catch (IOException | FetchException e) {
+                        logger.error(e.getMessage(), e);
+                    } catch (SiteDaoException e) {
+                        logger.error(String.format("Failed to save in database(s) : %s", url), e);
+                        hbaseSiteDao.delete(site.getReverseLink());
+                        elasitcSiteDao.delete(url);
+                    }
+                } else {
+                    linkProducer.send(url);
+                    logger.debug(String.format("New link (%s) pushed to queue", url));
+                }
+            } catch (MalformedURLException e) {
+                logger.error("can't get domain for link: " + url, e);
             }
         }
+    }
+
+    @Override
+    public void close() {
+        closed = true;
     }
 }
