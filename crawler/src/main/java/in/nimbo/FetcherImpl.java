@@ -19,6 +19,7 @@ import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIUtils;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHeader;
@@ -85,6 +86,7 @@ public class FetcherImpl implements Fetcher {
         PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
         connectionManager.setDefaultMaxPerRoute(maxConnectionsPerRoute);
         connectionManager.setMaxTotal(maxTotalConnections);
+        connectionManager.setValidateAfterInactivity(-1);
         httpClientBuilder.setConnectionManager(connectionManager);
 
 
@@ -100,11 +102,12 @@ public class FetcherImpl implements Fetcher {
     }
 
     @Override
-    public String fetch(String url) throws FetchException {
+    public String fetch(String url) throws FetchException, IOException {
         try (Timer.Context time = fetchTimer.time()) {
             HttpClientContext context = HttpClientContext.create();
             HttpGet httpGet = new HttpGet(url);
-            try (CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context)){
+            CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context);
+            try {
                 HttpHost target = context.getTargetHost();
                 List<URI> redirectLocations = context.getRedirectLocations();
                 URI location = URIUtils.resolve(httpGet.getURI(), target, redirectLocations);
@@ -112,6 +115,7 @@ public class FetcherImpl implements Fetcher {
                 responseStatusCode = response.getStatusLine().getStatusCode();
                 rawHtmlDocument = EntityUtils.toString(response.getEntity());
                 contentType = ContentType.getOrDefault(response.getEntity());
+                response.close();
             } catch (URISyntaxException e) {
                 throw new FetchException(String.format("uri syntax exception in fetching %s", url), e);
             } catch (RedirectException e) {
@@ -122,6 +126,8 @@ public class FetcherImpl implements Fetcher {
                 throw new FetchException(String.format("Parse Exception in fetching %s", url), e);
             } catch (IOException e) {
                 throw new FetchException(String.format("IO Exception in fetching %s", url), e);
+            } finally {
+                response.close();
             }
         } catch (IllegalArgumentException e) {
             throw new FetchException(String.format("IllegalArgumentException in fetching %s", url), e);

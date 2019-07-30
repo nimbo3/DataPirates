@@ -39,45 +39,50 @@ public class FetcherThread extends Thread {
 
     @Override
     public void run() {
-        while (!interrupted()) {
-            String url = null;
-            try (Timer.Context time = fetcherTimer.time()) {
-                try {
-                    url = linkConsumer.pop();
-                } catch (InterruptedException e) {
-                    logger.error("InterruptedException happened while consuming from Kafka", e);
-                    Thread.currentThread().interrupt();
-                }
-                if (visitedUrlsCache.hasVisited(url))
-                    continue;
-                logger.debug(String.format("New link (%s) poped from queue", url));
-                if (!visitedDomainsCache.hasVisited(Parser.getDomain(url))) {
-                    Site site = null;
+        try {
+            while (!interrupted()) {
+                String url = null;
+                try (Timer.Context time = fetcherTimer.time()) {
                     try {
-                        logger.debug(String.format("Fetching (%s)", url));
-                        String html = fetcher.fetch(url);
-                        logger.debug(String.format("(%s) Fetched", url));
-                        if (fetcher.isContentTypeTextHtml()) {
-                            Pair<String, String> pair = new Pair<>(url, html);
-                            try {
-                                linkPairHtmlQueue.put(pair);
-                                visitedUrlsCache.put(url);
-                                visitedDomainsCache.put(Parser.getDomain(url));
-                            } catch (InterruptedException e) {
-                                logger.error("Interrupted Exception when putting in linkPairHtmlQueue", e);
-                            }
-                        }
-                    } catch (FetchException e) {
-                        logger.error(e.getMessage(), e);
+                        url = linkConsumer.pop();
+                    } catch (InterruptedException e) {
+                        logger.error("InterruptedException happened while consuming from Kafka", e);
+                        Thread.currentThread().interrupt();
                     }
-                } else {
-                    linkProducer.send(url);
-                    logger.debug(String.format("New link (%s) pushed to queue", url));
+                    if (visitedUrlsCache.hasVisited(url))
+                        continue;
+                    logger.trace(String.format("New link (%s) poped from queue", url));
+                    if (!visitedDomainsCache.hasVisited(Parser.getDomain(url))) {
+                        Site site = null;
+                        logger.trace(String.format("Fetching (%s)", url));
+                        try {
+                            String html = fetcher.fetch(url);
+                            logger.trace(String.format("(%s) Fetched", url));
+                            if (fetcher.isContentTypeTextHtml()) {
+                                Pair<String, String> pair = new Pair<>(url, html);
+                                try {
+                                    linkPairHtmlQueue.put(pair);
+                                    visitedUrlsCache.put(url);
+                                    visitedDomainsCache.put(Parser.getDomain(url));
+                                } catch (InterruptedException e) {
+                                    logger.error("Interrupted Exception when putting in linkPairHtmlQueue", e);
+                                }
+                            }
+                        } catch (FetchException e) {
+                            logger.error(e.getMessage(), e);
+                        } catch (Exception e) {
+                            logger.error("Exception In Fetching ", e);
+                        }
+                    } else {
+                        linkProducer.send(url);
+                        logger.trace(String.format("New link (%s) pushed to queue", url));
+                    }
+                } catch (MalformedURLException e) {
+                    logger.error("can't get domain for link: " + url, e);
                 }
-            } catch (MalformedURLException e) {
-                logger.error("can't get domain for link: " + url, e);
             }
+        } catch (Exception e) {
+            logger.error("Fetcher Thread Shut Down", e);
         }
-
     }
 }

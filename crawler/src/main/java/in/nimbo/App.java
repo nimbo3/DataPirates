@@ -1,5 +1,6 @@
 package in.nimbo;
 
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
@@ -77,7 +78,6 @@ public class App {
             int numberOfFetcherThreads = config.getInt("num.of.fetcher.threads");
             int numberOfProcessorThreads = config.getInt("num.of.processor.threads");
 
-            FetcherImpl fetcher = new FetcherImpl(config);
             VisitedLinksCache visitedUrlsCache = new RedisVisitedLinksCache(config);
             CaffeineVistedDomainCache vistedDomainCache = new CaffeineVistedDomainCache(config);
             ElasticSiteDaoImpl elasticDao = new ElasticSiteDaoImpl(config);
@@ -85,8 +85,8 @@ public class App {
             LinkConsumer linkConsumer = new LinkConsumer(config);
             linkConsumer.start();
             LinkProducer linkProducer = new LinkProducer(config);
-
             LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue = new LinkedBlockingQueue<>();
+            FetcherImpl fetcher = new FetcherImpl(config);
 
             FetcherThread[] fetcherThreads = new FetcherThread[numberOfFetcherThreads];
             for (int i = 0; i < numberOfFetcherThreads; i++) {
