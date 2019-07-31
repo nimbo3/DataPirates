@@ -1,5 +1,7 @@
 package in.nimbo;
 
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import in.nimbo.exception.FetchException;
@@ -17,7 +19,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class FetcherThread extends Thread {
     private static Logger logger = Logger.getLogger(FetcherThread.class);
     private static Timer fetcherTimer = SharedMetricRegistries.getDefault().timer("fetcher thread");
-
     private FetcherImpl fetcher;
     private VisitedLinksCache visitedDomainsCache;
     private VisitedLinksCache visitedUrlsCache;
