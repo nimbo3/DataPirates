@@ -18,6 +18,8 @@ import in.nimbo.cache.VisitedLinksCache;
 import in.nimbo.cache.CaffeineVistedDomainCache;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +28,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.Closeable;
+import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
@@ -75,9 +78,13 @@ public class App {
                 logger.error("SSl can't be established", e);
             }
 
+
             Configuration hbaseConfig = HBaseConfiguration.create();
-            HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
+            Connection conn = ConnectionFactory.createConnection(hbaseConfig);
+            logger.info("connection available to hbase!");
+            HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(conn, hbaseConfig, config);
             closeables.add(hbaseDao);
+
             int numberOfFetcherThreads = config.getInt("fetcher.threads.num");
             FetcherImpl fetcher = new FetcherImpl(config);
             closeables.add(fetcher);
@@ -111,6 +118,8 @@ public class App {
             }
         } catch (HbaseSiteDaoException e) {
             logger.error(e.getMessage(), e);
+        } catch (IOException e) {
+            logger.error("connection not available to hbase!", e);
         }
     }
 }

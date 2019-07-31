@@ -25,7 +25,7 @@ import java.util.Map;
 
 
 public class HbaseSiteDaoImpl implements SiteDao {
-    private static final Logger logger = LoggerFactory.getLogger(SiteDao.class);
+    private static final Logger logger = LoggerFactory.getLogger(HbaseSiteDaoImpl.class);
     private final Configuration hbaseConfig;
     private final String TABLE_NAME;
     private final Config config;
@@ -35,20 +35,15 @@ public class HbaseSiteDaoImpl implements SiteDao {
     private String anchorsFamily;
     private Connection conn;
 
-    public HbaseSiteDaoImpl(Configuration hbaseConfig, Config config) throws HbaseSiteDaoException {
+    public HbaseSiteDaoImpl(Connection conn, Configuration hbaseConfig, Config config) {
         this.config = config;
-        insertionTimer = SharedMetricRegistries.getDefault().timer(config.getString("hbase.insertion.metric.name"));
-        insertionFailureMeter = SharedMetricRegistries.getDefault().meter(config.getString("hbase.insertion.failure.metric.name"));
-        deleteTimer = SharedMetricRegistries.getDefault().timer(config.getString("hbase.delete.metric.name"));
+        this.conn = conn;
+        insertionTimer = SharedMetricRegistries.getDefault().timer(config.getString("metric.name.hbase.insertion"));
+        insertionFailureMeter = SharedMetricRegistries.getDefault().meter(config.getString("metric.name.hbase.insertion.failure"));
+        deleteTimer = SharedMetricRegistries.getDefault().timer(config.getString("metric.name.hbase.delete"));
         TABLE_NAME = config.getString("hbase.table.name");
         anchorsFamily = config.getString("hbase.table.column.family.anchors");
         this.hbaseConfig = hbaseConfig;
-        try {
-            getConnection();
-            logger.info("connection available to hbase!");
-        } catch (IOException e) {
-            throw new HbaseSiteDaoException("connection not available to hbase!", e);
-        }
     }
 
     private Connection getConnection() throws IOException {
@@ -75,7 +70,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
             }
         } catch (IOException | IllegalArgumentException e) {
             insertionFailureMeter.mark();
-            throw new HbaseSiteDaoException("Hbase can't bulk insert: " + site.getReverseLink(), e);
+            throw new HbaseSiteDaoException("Hbase can't insert: " + site.getReverseLink(), e);
         }
     }
 
@@ -120,6 +115,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
             throw new HbaseSiteDaoException(e);
         }
     }
+
 
     @Override
     public void close() {
