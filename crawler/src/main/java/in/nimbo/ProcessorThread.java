@@ -63,8 +63,10 @@ class ProcessorThread extends Thread implements Closeable {
                         if (UnusableSiteDetector.hasAcceptableLanguage(site.getPlainText())) {
                             logger.trace(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
                             site.getAnchors().keySet().forEach(link -> {
-                                if (!visitedUrlsCache.hasVisited(link))
+                                if (!visitedUrlsCache.hasVisited(link)) {
+                                    visitedUrlsCache.put(link);
                                     linkProducer.send(link);
+                                }
                             });
                             logger.trace(String.format("anchors in Kafka putted(%s)", url));
                             logger.trace(String.format("(%s) Inserting into elastic", url));
