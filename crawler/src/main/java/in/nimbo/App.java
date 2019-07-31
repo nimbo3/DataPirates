@@ -87,7 +87,7 @@ public class App {
             LinkProducer linkProducer = new LinkProducer(config);
             LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue = new LinkedBlockingQueue<>();
             SharedMetricRegistries.getDefault().register(
-                    MetricRegistry.name(FetcherThread.class, "linkPairHtmlQueue", "size"),
+                    MetricRegistry.name(FetcherThread.class, "fetch queue size"),
                     (Gauge<Integer>) linkPairHtmlQueue::size);
             FetcherImpl fetcher = new FetcherImpl(config);
             JsoupFetcher jsoupFetcher = new JsoupFetcher();
