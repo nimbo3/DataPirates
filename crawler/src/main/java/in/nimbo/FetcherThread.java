@@ -18,14 +18,14 @@ public class FetcherThread extends Thread {
     private static Logger logger = Logger.getLogger(FetcherThread.class);
     private static Timer fetcherTimer = SharedMetricRegistries.getDefault().timer("fetcher thread");
 
-    private FetcherImpl fetcher;
+    private Fetcher fetcher;
     private VisitedLinksCache visitedDomainsCache;
     private VisitedLinksCache visitedUrlsCache;
     private LinkConsumer linkConsumer;
     private LinkProducer linkProducer;
     private LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue;
 
-    public FetcherThread(FetcherImpl fetcher,
+    public FetcherThread(Fetcher fetcher,
                          VisitedLinksCache visitedDomainsCache, VisitedLinksCache visitedUrlsCache,
                          LinkConsumer linkConsumer, LinkProducer linkProducer,
                          LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue) {

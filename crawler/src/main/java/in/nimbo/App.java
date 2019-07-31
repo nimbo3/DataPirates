@@ -87,11 +87,12 @@ public class App {
             LinkProducer linkProducer = new LinkProducer(config);
             LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue = new LinkedBlockingQueue<>();
             FetcherImpl fetcher = new FetcherImpl(config);
+            JsoupFetcher jsoupFetcher = new JsoupFetcher();
 
             FetcherThread[] fetcherThreads = new FetcherThread[numberOfFetcherThreads];
             for (int i = 0; i < numberOfFetcherThreads; i++) {
                 fetcherThreads[i] = new FetcherThread(
-                        fetcher,
+                        jsoupFetcher,
                         vistedDomainCache,
                         visitedUrlsCache,
                         linkConsumer,
