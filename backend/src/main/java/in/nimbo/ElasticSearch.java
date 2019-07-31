@@ -30,7 +30,7 @@ public class ElasticSearch implements Searchable {
     public ElasticSearch(Config config) {
         this.config = config;
         searchTimer = SharedMetricRegistries.getDefault().timer(config.getString("elastic.insertion.metric.name"));
-        this.index = config.getString("elastic.index");
+        this.index = "sites";
         client = new RestHighLevelClient(
                 RestClient.builder(new HttpHost(
                         config.getString("elastic.hostname"),
@@ -40,13 +40,13 @@ public class ElasticSearch implements Searchable {
     @Override
     public List<SearchResult> search(String input) {
         try (Timer.Context searchTime = searchTimer.time()) {
-            SearchRequest searchRequest = new SearchRequest(config.getString("elastic.index"));
+            SearchRequest searchRequest = new SearchRequest("sites");
             SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-            searchSourceBuilder.query(QueryBuilders.termQuery(config.getString("elastic.metadata.name"), input));
-            searchSourceBuilder.query(QueryBuilders.termQuery(config.getString("elastic.keywords.name"), input));
-            searchSourceBuilder.query(QueryBuilders.termQuery(config.getString("elastic.title.name"), input));
-            searchSourceBuilder.query(QueryBuilders.termQuery(config.getString("elastic.text.name"), input));
-            searchSourceBuilder.size(config.getInt("elastic.search.source.size"));
+            searchSourceBuilder.query(QueryBuilders.termQuery("metadata", input));
+            searchSourceBuilder.query(QueryBuilders.termQuery("keywords", input));
+            searchSourceBuilder.query(QueryBuilders.termQuery("title", input));
+            searchSourceBuilder.query(QueryBuilders.termQuery("text", input));
+            searchSourceBuilder.size(15);
             searchRequest.source(searchSourceBuilder);
             SearchResponse searchResponse;
             try {
@@ -55,7 +55,7 @@ public class ElasticSearch implements Searchable {
                 for (SearchHit searchHit : searchResponse.getHits().getHits()) {
                     SearchResult searchResult = new SearchResult();
                     searchResult.setLink(searchHit.getId());
-                    searchResult.setTitle(searchHit.getSourceAsMap().get(config.getString("elastic.title.name")).toString());
+                    searchResult.setTitle(searchHit.getSourceAsMap().get("title").toString());
                     searchResults.add(searchResult);
                 }
                 return searchResults;

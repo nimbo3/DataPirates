@@ -25,7 +25,7 @@ import java.util.Map;
 
 
 public class HbaseSiteDaoImpl implements SiteDao {
-    private static final Logger logger = LoggerFactory.getLogger(SiteDao.class);
+    private static final Logger logger = LoggerFactory.getLogger(HbaseSiteDaoImpl.class);
     private final Configuration hbaseConfig;
     private final String TABLE_NAME;
     private final Config config;
@@ -40,8 +40,8 @@ public class HbaseSiteDaoImpl implements SiteDao {
         insertionTimer = SharedMetricRegistries.getDefault().timer(config.getString("hbase.insertion.metric.name"));
         insertionFailureMeter = SharedMetricRegistries.getDefault().meter(config.getString("hbase.insertion.failure.metric.name"));
         deleteTimer = SharedMetricRegistries.getDefault().timer(config.getString("hbase.delete.metric.name"));
-        TABLE_NAME = config.getString("hbase.table.name");
-        anchorsFamily = config.getString("hbase.table.column.family.anchors");
+        TABLE_NAME = "sites";
+        anchorsFamily = "links";
         this.hbaseConfig = hbaseConfig;
         try {
             getConnection();
@@ -75,7 +75,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
             }
         } catch (IOException | IllegalArgumentException e) {
             insertionFailureMeter.mark();
-            throw new HbaseSiteDaoException("Hbase can't bulk insert: " + site.getReverseLink(), e);
+            throw new HbaseSiteDaoException("Hbase can't insert: " + site.getLink(), e);
         }
     }
 

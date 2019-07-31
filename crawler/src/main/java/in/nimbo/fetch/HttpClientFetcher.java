@@ -1,5 +1,5 @@
 
-package in.nimbo;
+package in.nimbo.fetch;
 
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
@@ -34,8 +34,8 @@ import java.net.URISyntaxException;
 import java.util.HashSet;
 import java.util.List;
 
-public class FetcherImpl implements Fetcher, Closeable {
-    private static final Logger logger = LoggerFactory.getLogger(FetcherImpl.class);
+public class HttpClientFetcher implements Fetcher, Closeable {
+    private static final Logger logger = LoggerFactory.getLogger(HttpClientFetcher.class);
     private static final String DEFAULT_ACCEPT_LANGUAGE = "en-us,en-gb,en;q=0.7,*;q=0.3";
     private static final String DEFAULT_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
     private static final String DEFAULT_ACCEPT_CHARSET = "utf-8,ISO-8859-1;q=0.7,*;q=0.7";
@@ -48,7 +48,7 @@ public class FetcherImpl implements Fetcher, Closeable {
     private String redirectUrl;
     private Config config;
 
-    public FetcherImpl(Config config) {
+    public HttpClientFetcher(Config config) {
         this.config = config;
         init();
     }
@@ -85,6 +85,7 @@ public class FetcherImpl implements Fetcher, Closeable {
         PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
         connectionManager.setDefaultMaxPerRoute(maxConnectionsPerRoute);
         connectionManager.setMaxTotal(maxTotalConnections);
+        connectionManager.setValidateAfterInactivity(-1);
         httpClientBuilder.setConnectionManager(connectionManager);
 
 
@@ -104,7 +105,8 @@ public class FetcherImpl implements Fetcher, Closeable {
         try (Timer.Context time = fetchTimer.time()) {
             HttpClientContext context = HttpClientContext.create();
             HttpGet httpGet = new HttpGet(url);
-            try (CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context)){
+            CloseableHttpResponse response = (CloseableHttpResponse) client.execute(httpGet, context);
+            try {
                 HttpHost target = context.getTargetHost();
                 List<URI> redirectLocations = context.getRedirectLocations();
                 URI location = URIUtils.resolve(httpGet.getURI(), target, redirectLocations);
@@ -112,6 +114,7 @@ public class FetcherImpl implements Fetcher, Closeable {
                 responseStatusCode = response.getStatusLine().getStatusCode();
                 rawHtmlDocument = EntityUtils.toString(response.getEntity());
                 contentType = ContentType.getOrDefault(response.getEntity());
+                response.close();
             } catch (URISyntaxException e) {
                 throw new FetchException(String.format("uri syntax exception in fetching %s", url), e);
             } catch (RedirectException e) {
@@ -122,9 +125,17 @@ public class FetcherImpl implements Fetcher, Closeable {
                 throw new FetchException(String.format("Parse Exception in fetching %s", url), e);
             } catch (IOException e) {
                 throw new FetchException(String.format("IO Exception in fetching %s", url), e);
+            } finally {
+                try {
+                    response.close();
+                } catch (IOException e) {
+                    logger.error("can't close response while fetching", e);
+                }
             }
         } catch (IllegalArgumentException e) {
             throw new FetchException(String.format("IllegalArgumentException in fetching %s", url), e);
+        } catch (IOException e) {
+            throw new FetchException("can't create closeableHttpResponse while fetching", e);
         }
         return rawHtmlDocument;
     }
@@ -135,7 +146,7 @@ public class FetcherImpl implements Fetcher, Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
 
     }
 }
