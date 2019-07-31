@@ -20,7 +20,7 @@ public class CaffeineVistedDomainCache implements VisitedLinksCache {
                 .expireAfterWrite(politenessWaitingTime, TimeUnit.SECONDS)
                 .build();
         SharedMetricRegistries.getDefault().register(
-                MetricRegistry.name(CaffeineVistedDomainCache.class, "visited links", "size"),
+                MetricRegistry.name(CaffeineVistedDomainCache.class, "Caffeine visited links size"),
                 (Gauge<Long>) visitedSites::estimatedSize);
     }
 
