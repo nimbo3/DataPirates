@@ -3,6 +3,7 @@ package in.nimbo;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import in.nimbo.exception.FetchException;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -19,7 +20,7 @@ public class FetcherImplTest {
     }
 
     @Test
-    public void fetcherRedirectionTest() throws IOException {
+    public void fetcherRedirectionTest() throws IOException, FetchException {
         FetcherImpl fetcher = new FetcherImpl(config);
         int maxRedirects = config.getInt("fetcher.max.redirects");
         fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects));
@@ -30,7 +31,7 @@ public class FetcherImplTest {
     }
 
     @Test(expected = IOException.class)
-    public void fetcherMaxRedirectionTest() throws IOException {
+    public void fetcherMaxRedirectionTest() throws IOException, FetchException {
         FetcherImpl fetcher = new FetcherImpl(config);
         int maxRedirects = config.getInt("fetcher.max.redirects");
         fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects + 1));
