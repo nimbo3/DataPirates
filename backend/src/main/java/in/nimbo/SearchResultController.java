@@ -13,6 +13,7 @@ import java.util.List;
 @RestController
 public class SearchResultController {
 
+    @CrossOrigin
     @GetMapping("/search")
     public List<SearchResult> greeting(@RequestParam(value="input", defaultValue="") String input) {
         Config config = ConfigFactory.load("config");

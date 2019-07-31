@@ -5,6 +5,7 @@ import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
 import in.nimbo.exception.ElasticSiteDaoException;
+import in.nimbo.exception.ElasticLongIdException;
 import in.nimbo.model.Site;
 import org.apache.http.HttpHost;
 import org.apache.log4j.Logger;
@@ -23,10 +24,11 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-public class ElasticSiteDaoImpl implements SiteDao {
+public class ElasticSiteDaoImpl implements SiteDao, Closeable {
     private static Logger logger = Logger.getLogger(ElasticSiteDaoImpl.class);
     private final Config config;
     private final Timer insertionTimer;
@@ -63,7 +65,7 @@ public class ElasticSiteDaoImpl implements SiteDao {
         deleteTimer = SharedMetricRegistries.getDefault().timer(config.getString("elastic.delete.metric.name"));
         this.hostname = config.getString("elastic.hostname");
         this.port = config.getInt("elastic.port");
-        this.index = config.getString("elastic.index");
+        this.index = "sites";
         BulkProcessor.Builder bulkProcessorBuilder = BulkProcessor.builder(
                 (bulkRequest, bulkResponseActionListener) ->
                         getClient().bulkAsync(bulkRequest, RequestOptions.DEFAULT,
@@ -94,7 +96,7 @@ public class ElasticSiteDaoImpl implements SiteDao {
             if (response.isExists()) {
                 return new Site(
                         response.getId(),
-                        response.getSourceAsMap().get(config.getString("elastic.title.name")).toString());
+                        response.getSourceAsMap().get("title").toString());
             } else {
                 return null;
             }
@@ -107,16 +109,18 @@ public class ElasticSiteDaoImpl implements SiteDao {
     @Override
     public void insert(Site site) throws ElasticSiteDaoException {
         try (Timer.Context time = insertionTimer.time()) {
+            if (site.getReverseLink().getBytes().length >= 512)
+                throw new ElasticLongIdException("Elastic Long Id Exception (bytes of id must be lower than 512 bytes)");
             XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
-            builder.field(config.getString("elastic.title.name"), site.getTitle());
-            builder.field(config.getString("elastic.metadata.name"), site.getMetadata());
-            builder.field(config.getString("elastic.text.name"), site.getPlainText());
-            builder.field(config.getString("elastic.keywords.name"), site.getKeywords());
+            builder.field("title", site.getTitle());
+            builder.field("text", site.getPlainText());
+            builder.field("keywords", site.getKeywords());
+            builder.field("link", site.getLink());
             builder.endObject();
             IndexRequest indexRequest = new IndexRequest(index).id(site.getLink()).source(builder);
             bulkProcessor.add(indexRequest);
-        } catch (IOException e) {
+        } catch (IOException | ElasticLongIdException e) {
             elasticFailureMeter.mark();
             throw new ElasticSiteDaoException(String.format("Elastic couldn't insert [%s]", site.getLink()), e);
         }
@@ -133,13 +137,14 @@ public class ElasticSiteDaoImpl implements SiteDao {
         }
     }
 
-    public void stop() throws Exception {
-        bulkProcessor.awaitClose(config.getInt("elastic.bulk.timeout"), TimeUnit.SECONDS);
-        getClient().close();
-    }
 
     @Override
-    public void close() {
-
+    public void close() throws IOException {
+        try {
+            bulkProcessor.awaitClose(config.getInt("elastic.bulk.timeout"), TimeUnit.SECONDS);
+            getClient().close();
+        } catch (InterruptedException e) {
+            logger.error("thread interrupted in elastic close.", e);
+        }
     }
 }

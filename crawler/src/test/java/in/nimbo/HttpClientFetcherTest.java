@@ -4,11 +4,12 @@ import com.codahale.metrics.SharedMetricRegistries;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.exception.FetchException;
+import in.nimbo.fetch.HttpClientFetcher;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-public class FetcherImplTest {
+public class HttpClientFetcherTest {
     private static final Config config = ConfigFactory.load("config");
 
     @BeforeClass
@@ -23,7 +24,7 @@ public class FetcherImplTest {
 
     @Test
     public void fetcherRedirectionTest() throws FetchException {
-        FetcherImpl fetcher = new FetcherImpl(config);
+        HttpClientFetcher fetcher = new HttpClientFetcher(config);
         int maxRedirects = config.getInt("fetcher.max.redirects");
         fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects));
         Assert.assertEquals("http://httpbin.org/get", fetcher.getRedirectUrl());
@@ -33,7 +34,7 @@ public class FetcherImplTest {
 
     @Test(expected = FetchException.class)
     public void fetcherMaxRedirectionTest() throws FetchException {
-        FetcherImpl fetcher = new FetcherImpl(config);
+        HttpClientFetcher fetcher = new HttpClientFetcher(config);
         int maxRedirects = config.getInt("fetcher.max.redirects");
         fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects + 1));
     }

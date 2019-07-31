@@ -77,5 +77,5 @@ name="referrer" content="origin"
 name="referrer" content="origin-when-cross-origin"
 
 anchors:
-https://www.york.ac.uk/teaching/cws/wws/webpage2.html=lesson two
-https://www.york.ac.uk/teaching/cws/wws/col3.html=back to wws index
+york.ac.uk/teaching/cws/wws/webpage2.html=lesson two
+york.ac.uk/teaching/cws/wws/col3.html=back to wws index

@@ -1,5 +1,6 @@
 package in.nimbo;
 
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
@@ -11,6 +12,9 @@ import com.typesafe.config.ConfigFactory;
 import in.nimbo.dao.ElasticSiteDaoImpl;
 import in.nimbo.dao.HbaseSiteDaoImpl;
 import in.nimbo.exception.HbaseSiteDaoException;
+import in.nimbo.fetch.HttpClientFetcher;
+import in.nimbo.fetch.JsoupFetcher;
+import in.nimbo.model.Pair;
 import in.nimbo.kafka.LinkConsumer;
 import in.nimbo.kafka.LinkProducer;
 import in.nimbo.cache.RedisVisitedLinksCache;
@@ -18,8 +22,6 @@ import in.nimbo.cache.VisitedLinksCache;
 import in.nimbo.cache.CaffeineVistedDomainCache;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,18 +30,22 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.Closeable;
-import java.io.IOException;
+import java.io.File;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class App {
-    private static final Config config = ConfigFactory.load("config");
+    private static Config config;
     private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) {
+        Config outConfig = ConfigFactory.parseFile(new File("config.properties"));
+        Config inConfig = ConfigFactory.load("config");
+        config = ConfigFactory.load(outConfig).withFallback(inConfig);
         SharedMetricRegistries.setDefault(config.getString("metric.registry.name"));
         MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
         List<Closeable> closeables = new LinkedList<>();
@@ -80,14 +86,14 @@ public class App {
 
 
             Configuration hbaseConfig = HBaseConfiguration.create();
-            Connection conn = ConnectionFactory.createConnection(hbaseConfig);
-            logger.info("connection available to hbase!");
-            HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(conn, hbaseConfig, config);
+            HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
             closeables.add(hbaseDao);
-
             int numberOfFetcherThreads = config.getInt("fetcher.threads.num");
-            FetcherImpl fetcher = new FetcherImpl(config);
+            HttpClientFetcher fetcher = new HttpClientFetcher(config);
             closeables.add(fetcher);
+
+            int numberOfProcessorThreads = config.getInt("processor.threads.num");
+
             VisitedLinksCache visitedUrlsCache = new RedisVisitedLinksCache(config);
             closeables.add(visitedUrlsCache);
             CaffeineVistedDomainCache vistedDomainCache = new CaffeineVistedDomainCache(config);
@@ -102,24 +108,38 @@ public class App {
             //this shutdown hook is only for kafka
             KafkaShutdownHook kafkaShutdownHook = new KafkaShutdownHook(linkConsumer, linkProducer, config);
             Runtime.getRuntime().addShutdownHook(kafkaShutdownHook);
+            LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue = new LinkedBlockingQueue<>();
+            SharedMetricRegistries.getDefault().register(
+                    MetricRegistry.name(FetcherThread.class, "fetch queue size"),
+                    (Gauge<Integer>) linkPairHtmlQueue::size);
+            JsoupFetcher jsoupFetcher = new JsoupFetcher();
 
-            CrawlerThread[] crawlerThreads = new CrawlerThread[numberOfFetcherThreads];
+            FetcherThread[] fetcherThreads = new FetcherThread[numberOfFetcherThreads];
             for (int i = 0; i < numberOfFetcherThreads; i++) {
-                crawlerThreads[i] = new CrawlerThread(fetcher,
+                fetcherThreads[i] = new FetcherThread(jsoupFetcher,
                         vistedDomainCache,
                         visitedUrlsCache,
                         linkConsumer,
                         linkProducer,
+                        linkPairHtmlQueue);
+                closeables.add(fetcherThreads[i]);
+                fetcherThreads[i].start();
+            }
+
+            ProcessorThread[] processorThreads = new ProcessorThread[numberOfProcessorThreads];
+            for (int i = 0; i < numberOfProcessorThreads; i++) {
+                processorThreads[i] = new ProcessorThread(linkProducer,
                         elasticDao,
                         hbaseDao,
+                        visitedUrlsCache,
+                        linkPairHtmlQueue,
                         config);
-                closeables.add(crawlerThreads[i]);
-                crawlerThreads[i].start();
+                closeables.add(processorThreads[i]);
+                processorThreads[i].start();
             }
+
         } catch (HbaseSiteDaoException e) {
             logger.error(e.getMessage(), e);
-        } catch (IOException e) {
-            logger.error("connection not available to hbase!", e);
         }
     }
 }

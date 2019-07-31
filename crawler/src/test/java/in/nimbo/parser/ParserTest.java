@@ -162,18 +162,6 @@ public class ParserTest {
         }
     }
 
-    @Test
-    public void extractTest() throws IOException {
-        String h;
-        try (InputStream inputStream =
-                     ParserTest.class.getClassLoader().getResourceAsStream(
-                             "html/" + 3 + ".html")) {
-            assert inputStream != null;
-            h = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
-        }
-        Parser parser = new Parser("https://stackoverflow.com/company/management", h, config);
-        Map<String, String> actualList = parser.extractAnchors();
-    }
 
     @Test
     public void test() throws IOException {
@@ -193,5 +181,7 @@ public class ParserTest {
         expected = "ir.ac.sbu.znu.samp";
         url = "https://samp.znu.sbu.ac.ir";
         Assert.assertEquals(expected, parser.reverse(url));
+        url = "https://samp.znu.sbu.ac.ir/www.asd";
+        System.out.println(parser.reverse(url));
     }
 }

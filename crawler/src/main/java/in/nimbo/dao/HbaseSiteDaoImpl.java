@@ -70,7 +70,7 @@ public class HbaseSiteDaoImpl implements SiteDao {
             }
         } catch (IOException | IllegalArgumentException e) {
             insertionFailureMeter.mark();
-            throw new HbaseSiteDaoException("Hbase can't insert: " + site.getReverseLink(), e);
+            throw new HbaseSiteDaoException("Hbase can't insert: " + site.getLink(), e);
         }
     }
 
@@ -115,7 +115,6 @@ public class HbaseSiteDaoImpl implements SiteDao {
             throw new HbaseSiteDaoException(e);
         }
     }
-
 
     @Override
     public void close() {
