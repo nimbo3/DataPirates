@@ -38,9 +38,9 @@ public class HbaseSiteDaoImpl implements SiteDao {
     public HbaseSiteDaoImpl(Connection conn, Configuration hbaseConfig, Config config) {
         this.config = config;
         this.conn = conn;
-        insertionTimer = SharedMetricRegistries.getDefault().timer(config.getString("metric.name.hbase.insertion"));
-        insertionFailureMeter = SharedMetricRegistries.getDefault().meter(config.getString("metric.name.hbase.insertion.failure"));
-        deleteTimer = SharedMetricRegistries.getDefault().timer(config.getString("metric.name.hbase.delete"));
+        insertionTimer = SharedMetricRegistries.getDefault().timer("hbase-insertion");
+        insertionFailureMeter = SharedMetricRegistries.getDefault().meter("hbase-insertion-failure");
+        deleteTimer = SharedMetricRegistries.getDefault().timer("hbase-delete");
         TABLE_NAME = config.getString("hbase.table.name");
         anchorsFamily = config.getString("hbase.table.column.family.anchors");
         this.hbaseConfig = hbaseConfig;
