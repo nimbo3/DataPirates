@@ -35,20 +35,15 @@ public class HbaseSiteDaoImpl implements SiteDao {
     private String anchorsFamily;
     private Connection conn;
 
-    public HbaseSiteDaoImpl(Configuration hbaseConfig, Config config) throws HbaseSiteDaoException {
+    public HbaseSiteDaoImpl(Connection conn, Configuration hbaseConfig, Config config) {
         this.config = config;
-        insertionTimer = SharedMetricRegistries.getDefault().timer(config.getString("hbase.insertion.metric.name"));
-        insertionFailureMeter = SharedMetricRegistries.getDefault().meter(config.getString("hbase.insertion.failure.metric.name"));
-        deleteTimer = SharedMetricRegistries.getDefault().timer(config.getString("hbase.delete.metric.name"));
-        TABLE_NAME = "sites";
-        anchorsFamily = "links";
+        this.conn = conn;
+        insertionTimer = SharedMetricRegistries.getDefault().timer("hbase-insertion");
+        insertionFailureMeter = SharedMetricRegistries.getDefault().meter("hbase-insertion-failure");
+        deleteTimer = SharedMetricRegistries.getDefault().timer("hbase-delete");
+        TABLE_NAME = config.getString("hbase.table.name");
+        anchorsFamily = config.getString("hbase.table.column.family.anchors");
         this.hbaseConfig = hbaseConfig;
-        try {
-            getConnection();
-            logger.info("connection available to hbase!");
-        } catch (IOException e) {
-            throw new HbaseSiteDaoException("connection not available to hbase!", e);
-        }
     }
 
     private Connection getConnection() throws IOException {

@@ -11,7 +11,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.dao.ElasticSiteDaoImpl;
 import in.nimbo.dao.HbaseSiteDaoImpl;
-import in.nimbo.exception.HbaseSiteDaoException;
 import in.nimbo.fetch.HttpClientFetcher;
 import in.nimbo.fetch.JsoupFetcher;
 import in.nimbo.model.Pair;
@@ -22,6 +21,8 @@ import in.nimbo.cache.VisitedLinksCache;
 import in.nimbo.cache.CaffeineVistedDomainCache;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +32,7 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
@@ -84,9 +86,9 @@ public class App {
                 logger.error("SSl can't be established", e);
             }
 
-
             Configuration hbaseConfig = HBaseConfiguration.create();
-            HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
+            final Connection connection = ConnectionFactory.createConnection(hbaseConfig);
+            HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(connection, hbaseConfig, config);
             closeables.add(hbaseDao);
             int numberOfFetcherThreads = config.getInt("fetcher.threads.num");
             HttpClientFetcher fetcher = new HttpClientFetcher(config);
@@ -138,8 +140,8 @@ public class App {
                 processorThreads[i].start();
             }
 
-        } catch (HbaseSiteDaoException e) {
-            logger.error(e.getMessage(), e);
+        } catch (IOException e) {
+            logger.error("can't create connection to hbase!");
         }
     }
 }
