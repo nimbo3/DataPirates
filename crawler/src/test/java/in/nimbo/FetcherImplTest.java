@@ -39,14 +39,17 @@ public class FetcherImplTest {
             e.printStackTrace();
         }
         Assert.assertEquals("https://git-scm.com/docs/git-credential-store", fetcher.getRedirectUrl());
-
     }
 
     @Test(expected = FetchException.class)
     public void fetcherMaxRedirectionTest() throws FetchException, IOException {
         FetcherImpl fetcher = new FetcherImpl(config);
         int maxRedirects = config.getInt("fetcher.max.redirects");
-        fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects + 1));
+        try {
+            fetcher.fetch(String.format("http://httpbin.org/redirect/%d", maxRedirects + 1));
+        } catch (Exception e) {
+            throw new FetchException(e.getMessage(), e);
+        }
     }
 
 }

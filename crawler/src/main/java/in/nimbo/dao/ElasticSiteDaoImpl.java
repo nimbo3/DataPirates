@@ -116,7 +116,7 @@ public class ElasticSiteDaoImpl implements SiteDao {
             builder.field("text", site.getPlainText());
             builder.field("keywords", site.getKeywords());
             builder.endObject();
-            IndexRequest indexRequest = new IndexRequest(index).id(site.getLink()).source(builder);
+            IndexRequest indexRequest = new IndexRequest(index).id(site.getReverseLink()).source(builder);
             bulkProcessor.add(indexRequest);
         } catch (IOException | ElasticLongIdException e) {
             elasticFailureMeter.mark();
