@@ -138,7 +138,6 @@ buildNumber.properties
 *.swp
 *~
 .DS_Store
-.cache
 .ensime
 .ensime_cache/
 .ensime_lucene
@@ -155,7 +154,6 @@ build/*.jar
 build/apache-maven*
 build/scala*
 build/zinc*
-cache
 checkpoint
 conf/*.cmd
 conf/*.conf

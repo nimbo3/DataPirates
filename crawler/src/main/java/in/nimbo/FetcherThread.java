@@ -1,22 +1,22 @@
 package in.nimbo;
 
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
+import in.nimbo.cache.VisitedLinksCache;
 import in.nimbo.exception.FetchException;
+import in.nimbo.fetch.Fetcher;
+import in.nimbo.kafka.LinkConsumer;
+import in.nimbo.kafka.LinkProducer;
 import in.nimbo.model.Pair;
 import in.nimbo.model.Site;
 import in.nimbo.parser.Parser;
-import in.nimbo.util.LinkConsumer;
-import in.nimbo.util.LinkProducer;
-import in.nimbo.util.VisitedLinksCache;
 import org.apache.log4j.Logger;
 
+import java.io.Closeable;
 import java.net.MalformedURLException;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class FetcherThread extends Thread {
+public class FetcherThread extends Thread implements Closeable {
     private static Logger logger = Logger.getLogger(FetcherThread.class);
     private static Timer fetcherTimer = SharedMetricRegistries.getDefault().timer("fetcher thread");
 
@@ -26,6 +26,7 @@ public class FetcherThread extends Thread {
     private LinkConsumer linkConsumer;
     private LinkProducer linkProducer;
     private LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue;
+    private boolean closed = false;
 
     public FetcherThread(Fetcher fetcher,
                          VisitedLinksCache visitedDomainsCache, VisitedLinksCache visitedUrlsCache,
@@ -42,7 +43,7 @@ public class FetcherThread extends Thread {
     @Override
     public void run() {
         try {
-            while (!interrupted()) {
+            while (!interrupted() && closed) {
                 String url = null;
                 try (Timer.Context time = fetcherTimer.time()) {
                     try {
@@ -86,5 +87,10 @@ public class FetcherThread extends Thread {
         } catch (Exception e) {
             logger.error("Fetcher Thread Shut Down", e);
         }
+    }
+
+    @Override
+    public void close() {
+        closed = true;
     }
 }

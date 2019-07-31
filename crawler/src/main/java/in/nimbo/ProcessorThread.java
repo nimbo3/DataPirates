@@ -2,24 +2,25 @@ package in.nimbo;
 
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
+import com.typesafe.config.Config;
+import in.nimbo.cache.VisitedLinksCache;
 import in.nimbo.dao.ElasticSiteDaoImpl;
 import in.nimbo.dao.HbaseSiteDaoImpl;
 import in.nimbo.exception.SiteDaoException;
+import in.nimbo.kafka.LinkProducer;
 import in.nimbo.model.Pair;
 import in.nimbo.model.Site;
 import in.nimbo.parser.Parser;
-import in.nimbo.util.LinkProducer;
 import in.nimbo.util.UnusableSiteDetector;
-import in.nimbo.util.VisitedLinksCache;
 import org.apache.log4j.Logger;
 
+import java.io.Closeable;
 import java.util.concurrent.LinkedBlockingQueue;
 
-class ProcessorThread extends Thread {
+class ProcessorThread extends Thread implements Closeable {
     private static Logger logger = Logger.getLogger(ProcessorThread.class);
     private static Timer crawlTimer = SharedMetricRegistries.getDefault().timer("processor thread");
-
-
+    private final Config config;
     private LinkProducer linkProducer;
     private ElasticSiteDaoImpl elasitcSiteDao;
     private HbaseSiteDaoImpl hbaseSiteDao;
@@ -28,12 +29,14 @@ class ProcessorThread extends Thread {
 
     public ProcessorThread(LinkProducer linkProducer, ElasticSiteDaoImpl elasticSiteDao,
                            HbaseSiteDaoImpl hbaseSiteDao, VisitedLinksCache visitedUrlsCache,
-                           LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue) {
+                           LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue,
+                           Config config) {
         this.linkProducer = linkProducer;
         this.elasitcSiteDao = elasticSiteDao;
         this.hbaseSiteDao = hbaseSiteDao;
         this.linkPairHtmlQueue = linkPairHtmlQueue;
         this.visitedUrlsCache = visitedUrlsCache;
+        this.config = config;
     }
 
     @Override
@@ -54,10 +57,10 @@ class ProcessorThread extends Thread {
 
                     logger.trace(String.format("Parsing (%s)", url));
                     try {
-                        Parser parser = new Parser(url, html);
+                        Parser parser = new Parser(url, html, config);
                         site = parser.parse();
                         logger.trace(String.format("(%s) Parsed", url));
-                        if (new UnusableSiteDetector(site.getPlainText()).hasAcceptableLanguage()) {
+                        if (UnusableSiteDetector.hasAcceptableLanguage(site.getPlainText())) {
                             logger.trace(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
                             site.getAnchors().keySet().forEach(link -> {
                                 if (!visitedUrlsCache.hasVisited(link))
@@ -82,5 +85,10 @@ class ProcessorThread extends Thread {
         } catch (Exception e) {
             logger.error("Processor Thread Shut Down", e);
         }
+    }
+
+    @Override
+    public void close() {
+
     }
 }

@@ -1,4 +1,4 @@
-package in.nimbo.util.cacheManager;
+package in.nimbo.cache;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
@@ -6,8 +6,8 @@ import com.codahale.metrics.SharedMetricRegistries;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.typesafe.config.Config;
-import in.nimbo.util.VisitedLinksCache;
 
+import java.io.IOException;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
@@ -32,5 +32,10 @@ public class CaffeineVistedDomainCache implements VisitedLinksCache {
     @Override
     public boolean hasVisited(String normalizedUrl) {
         return visitedSites.getIfPresent(normalizedUrl) != null;
+    }
+
+    @Override
+    public void close() throws IOException {
+
     }
 }

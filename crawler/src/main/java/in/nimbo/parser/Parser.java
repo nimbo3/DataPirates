@@ -2,6 +2,7 @@ package in.nimbo.parser;
 
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
+import com.typesafe.config.Config;
 import in.nimbo.model.Site;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -17,12 +18,15 @@ import java.util.Map;
 
 public class Parser {
     private static final Logger logger = LoggerFactory.getLogger(Parser.class);
-    private static Timer parseTimer = SharedMetricRegistries.getDefault().timer("parser");
+    private final Config config;
+    private static Timer parseTimer;
     private String link;
     private Document document;
     private String html;
 
-    public Parser(String link, String html) {
+    public Parser(String link, String html, Config config) {
+        this.config = config;
+        parseTimer = SharedMetricRegistries.getDefault().timer(config.getString("metric.name.parser"));
         this.html = html;
         this.link = link;
         document = Jsoup.parse(html, link);
@@ -75,11 +79,17 @@ public class Parser {
                 String content = element.text();
                 if (content.length() == 0)
                     content = "empty";
-                href = NormalizeURL.normalize(href);
                 if (validateProtocol(href))
                     map.put(href, content);
-                else
+                else {
                     logger.debug("protocol is not supported for:" + href + ". Only http/https are supported");
+                    continue;
+                }
+                href = href.replaceFirst("https?://", "http://");
+                URL url = new URL(href);
+                href = NormalizeURL.normalize(href);
+                String domain = url.getHost().replaceFirst("www\\.", "");
+                href = href.replace(url.getHost(), domain).replaceFirst("http://", "");
             } catch (MalformedURLException e) {
                 logger.debug("normalizer can't add link: " + href + " to the anchors list for this page: " + link, e);
             }
@@ -119,21 +129,16 @@ public class Parser {
     public String reverse(String link) throws MalformedURLException {
         URL url = new URL(link);
         String domain = url.getHost();
-        domain = domain.replaceAll(" ", "");
-        StringBuilder sb = new StringBuilder(domain).reverse();
+        domain = domain.replaceAll(" ", "").replaceFirst("www\\.", "");
+        final String[] splits = domain.split("\\.");
         StringBuilder reverse = new StringBuilder();
-        int index = -1;
-        do {
-            int startIndex = index + 1;
-            index = sb.indexOf(".", index + 1);
-            if (index != -1) {
-                reverse.append(new StringBuilder(sb.substring(startIndex, index)).reverse());
-                reverse.append(".");
-            } else {
-                reverse.append(new StringBuilder(sb.substring(startIndex)).reverse());
-            }
-        } while (index != -1);
-        return link.replace(domain, reverse).replaceAll("https?://", "").replace(".www", "");
+        for (int i = splits.length - 1; i >= 0; i--) {
+            reverse.append(splits[i]);
+            reverse.append(".");
+        }
+        if(reverse.charAt(reverse.length() - 1) == '.')
+            reverse.deleteCharAt(reverse.length() - 1);
+        return link.replace(url.getHost(), reverse).replaceAll("https?://", "");
     }
 
     private boolean validateProtocol(String urlString) throws MalformedURLException {

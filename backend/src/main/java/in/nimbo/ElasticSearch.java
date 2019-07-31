@@ -21,17 +21,20 @@ import java.util.List;
 
 public class ElasticSearch implements Searchable {
     private static Logger logger = Logger.getLogger(ElasticSearch.class);
-    private Timer searchTimer = SharedMetricRegistries.getDefault().timer("elastic-insertion");
+    private final Config config;
+    private Timer searchTimer;
     private RestHighLevelClient client;
     private String index;
 
 
     public ElasticSearch(Config config) {
-        this.index = config.getString("elastic.index");
+        this.config = config;
+        searchTimer = SharedMetricRegistries.getDefault().timer(config.getString("elastic.insertion.metric.name"));
+        this.index = "sites";
         client = new RestHighLevelClient(
                 RestClient.builder(new HttpHost(
                         config.getString("elastic.hostname"),
-                        config.getInt("elastic.port"), "http")));
+                        config.getInt("elastic.port"))));
     }
 
     @Override
