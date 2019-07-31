@@ -27,6 +27,7 @@ import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+import java.io.File;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
@@ -71,7 +72,9 @@ public class App {
                 logger.error("SSl can't be es   tablished", e);
             }
 
-            Config config = ConfigFactory.load("config");
+            Config outConfig = ConfigFactory.parseFile(new File("config.properties"));
+            Config inConfig = ConfigFactory.load("config");
+            Config config = ConfigFactory.load(outConfig).withFallback(inConfig);
             Configuration hbaseConfig = HBaseConfiguration.create();
             HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(hbaseConfig, config);
 
