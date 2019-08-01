@@ -43,7 +43,7 @@ public class FetcherThread extends Thread implements Closeable {
     @Override
     public void run() {
         try {
-            while (!interrupted() && closed) {
+            while (!interrupted() && !closed) {
                 String url = null;
                 try (Timer.Context time = fetcherTimer.time()) {
                     try {

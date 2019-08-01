@@ -156,7 +156,6 @@ public class App {
                 closeables.add(processorThreads[i]);
                 processorThreads[i].start();
             }
-
         } catch (IOException e) {
             logger.error("can't create connection to hbase!");
         }

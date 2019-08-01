@@ -26,6 +26,7 @@ class ProcessorThread extends Thread implements Closeable {
     private HbaseSiteDaoImpl hbaseSiteDao;
     private LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue;
     private VisitedLinksCache visitedUrlsCache;
+    private boolean closed = false;
 
     public ProcessorThread(LinkProducer linkProducer, ElasticSiteDaoImpl elasticSiteDao,
                            HbaseSiteDaoImpl hbaseSiteDao, VisitedLinksCache visitedUrlsCache,
@@ -42,7 +43,7 @@ class ProcessorThread extends Thread implements Closeable {
     @Override
     public void run() {
         try {
-            while (!interrupted()) {
+            while (!interrupted() && !closed) {
                 try (Timer.Context time = crawlTimer.time()) {
                     Pair<String, String> pair = null;
                     try {
