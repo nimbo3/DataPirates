@@ -33,7 +33,7 @@ public class App {
         hbaseConfiguration.addResource(hbaseXmlHbase);
         hbaseConfiguration.set(TableInputFormat.INPUT_TABLE, hbaseTableName);
         hbaseConfiguration.set(TableInputFormat.SCAN_COLUMN_FAMILY, hbaseColumnFamily);
-//        hbaseConfiguration.set(TableInputFormat.SCAN_CACHEDROWS, "500");
+        hbaseConfiguration.set(TableInputFormat.SCAN_CACHEDROWS, "500");
 
         SparkConf sparkConf = new SparkConf();
         sparkConf.setAppName(sparkAppName);
@@ -42,7 +42,10 @@ public class App {
         JavaRDD<Result> hbaseRDD = sparkContext.newAPIHadoopRDD(hbaseConfiguration
                 , TableInputFormat.class, ImmutableBytesWritable.class, Result.class)
                 .values();
-        JavaRDD<Cell> cellRDD = hbaseRDD.flatMap(result -> result.listCells().iterator());
+        JavaRDD<Cell> cellRDD = hbaseRDD.flatMap(result -> {
+            result.listCells().forEach(t -> System.out.println(t));
+            return result.listCells().iterator();
+        });
         JavaPairRDD<byte[], Integer> linkToOne = cellRDD.mapToPair(cell -> new Tuple2<>(CellUtil.cloneQualifier(cell), 1));
         JavaPairRDD<byte[], Integer> linkToCount = linkToOne.reduceByKey(Integer::sum);
 
