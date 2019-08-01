@@ -43,7 +43,7 @@ public class App {
                 , TableInputFormat.class, ImmutableBytesWritable.class, Result.class)
                 .values();
         JavaRDD<Cell> cellRDD = hbaseRDD.flatMap(result -> {
-            result.listCells().forEach(t -> System.out.println(t));
+            result.listCells().forEach(t -> System.out.println(CellUtil.cloneQualifier(t)));
             return result.listCells().iterator();
         });
         JavaPairRDD<byte[], Integer> linkToOne = cellRDD.mapToPair(cell -> new Tuple2<>(CellUtil.cloneQualifier(cell), 1));
