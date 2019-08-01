@@ -116,23 +116,6 @@ public class App {
                     (Gauge<Integer>) linkPairHtmlQueue::size);
             JsoupFetcher jsoupFetcher = new JsoupFetcher();
 
-
-            /**
-             * Note:
-             * consider that before starting the crawler there are some links in Queue.
-             * these links are not necessarily normalized neither added to redis
-             * and in the code below these links are not taken care of!
-             *
-             * if you want this code to work correctly,
-             * these links should be normalized and then put into redis.
-             * then you're good to go :))
-             *
-             * assumption:
-             * all the links in kafka are unique and normalized
-             * (as a result we won't check links before fetching them and we will check them before adding them to kafka
-             * and consequently we won't add fetching url to redis because it already exists there)
-             **/
-
             FetcherThread[] fetcherThreads = new FetcherThread[numberOfFetcherThreads];
             for (int i = 0; i < numberOfFetcherThreads; i++) {
                 fetcherThreads[i] = new FetcherThread(jsoupFetcher,

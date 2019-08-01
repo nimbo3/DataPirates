@@ -64,7 +64,6 @@ class ProcessorThread extends Thread implements Closeable {
                             logger.trace(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
                             site.getAnchors().keySet().forEach(link -> {
                                 if (!visitedUrlsCache.hasVisited(link)) {
-                                    visitedUrlsCache.put(link);
                                     linkProducer.send(link);
                                 }
                             });
