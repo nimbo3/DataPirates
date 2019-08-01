@@ -4,6 +4,8 @@ jdk:
   - openjdk8
 services:
   - elasticsearch
+before_install:
+  - chmod +x .travis/hbase-install.sh
 before_script:
   - sleep 10
   - .travis/hbase-install.sh
