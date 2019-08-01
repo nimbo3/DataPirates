@@ -9,41 +9,43 @@ import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ConnectionFactory;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Table;
-import org.apache.hadoop.hbase.client.Delete;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.LinkedBlockingQueue;
 
-
-public class HbaseSiteDaoImpl implements SiteDao {
+public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
     private static final Logger logger = LoggerFactory.getLogger(HbaseSiteDaoImpl.class);
-    private final Configuration hbaseConfig;
     private final String TABLE_NAME;
-    private final Config config;
-    private Timer insertionTimer;
-    private Meter insertionFailureMeter;
-    private Timer deleteTimer;
-    private String anchorsFamily;
+    private final int BULK_SIZE;
+    private Config config;
+    private Timer hbasebulkInsertMeter = SharedMetricRegistries.getDefault().timer("hbase-bulk-insert");
+    private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("hbase-insertion");
+    private Meter insertionFailureMeter = SharedMetricRegistries.getDefault().meter("hbase-insertion-failure");
+    private Timer deleteTimer = SharedMetricRegistries.getDefault().timer("hbase-delete");
+    private LinkedBlockingQueue<Site> sites;
+    private List<Put> puts = new LinkedList<>();
     private Connection conn;
+    private Configuration hbaseConfig;
+    private String anchorsFamily;
+    private boolean closed = false;
 
-    public HbaseSiteDaoImpl(Connection conn, Configuration hbaseConfig, Config config) {
+
+    public HbaseSiteDaoImpl(Connection conn, LinkedBlockingQueue<Site> sites, Configuration hbaseConfig, Config config) {
         this.config = config;
         this.conn = conn;
-        insertionTimer = SharedMetricRegistries.getDefault().timer("hbase-insertion");
-        insertionFailureMeter = SharedMetricRegistries.getDefault().meter("hbase-insertion-failure");
-        deleteTimer = SharedMetricRegistries.getDefault().timer("hbase-delete");
+        this.hbaseConfig = hbaseConfig;
         TABLE_NAME = config.getString("hbase.table.name");
         anchorsFamily = config.getString("hbase.table.column.family.anchors");
-        this.hbaseConfig = hbaseConfig;
+        BULK_SIZE = config.getInt("hbase.bulk.size");
+        this.sites = sites;
     }
 
     private Connection getConnection() throws IOException {
@@ -51,7 +53,6 @@ public class HbaseSiteDaoImpl implements SiteDao {
             conn = ConnectionFactory.createConnection(hbaseConfig);
         return conn;
     }
-
 
     @Override
     public void insert(Site site) throws SiteDaoException {
@@ -117,7 +118,45 @@ public class HbaseSiteDaoImpl implements SiteDao {
     }
 
     @Override
-    public void close() {
+    public void run() {
+        try {
+            while (!closed && !interrupted()) {
+                Site site = sites.take();
+                Put put = new Put(Bytes.toBytes(site.getReverseLink()));
+                for (Map.Entry<String, String> anchorEntry : site.getAnchors().entrySet()) {
+                    String link = anchorEntry.getKey();
+                    String text = anchorEntry.getValue();
+                    put.addColumn(Bytes.toBytes(anchorsFamily),
+                            Bytes.toBytes(link), Bytes.toBytes(text));
+                }
+                puts.add(put);
+                if (puts.size() >= BULK_SIZE) {
+                    try (Table table = getConnection().getTable(TableName.valueOf(TABLE_NAME));
+                         Timer.Context time = hbasebulkInsertMeter.time()) {
+                        table.put(puts);
+                    } catch (IOException e) {
+                       logger.error("Hbase thread can't bulk insert.", e);
+                    }
+                    puts.clear();
+                }
+            }
+        } catch (InterruptedException e) {
+            logger.error("hbase-bulk-insertion thread interrupted!");
+        }
+    }
 
+    @Override
+    public void close() throws IOException {
+        closed = true;
+        if(!puts.isEmpty()){
+            try (Table table = getConnection().getTable(TableName.valueOf(TABLE_NAME));
+                 Timer.Context time = hbasebulkInsertMeter.time()) {
+                table.put(puts);
+            } catch (IOException e) {
+                logger.error("Hbase thread can't bulk insert.", e);
+            }
+            puts.clear();
+        }
+        conn.close();
     }
 }

@@ -23,21 +23,24 @@ class ProcessorThread extends Thread implements Closeable {
     private final Config config;
     private LinkProducer linkProducer;
     private ElasticSiteDaoImpl elasitcSiteDao;
+    private LinkedBlockingQueue<Site> hbaseBulkQueue;
     private HbaseSiteDaoImpl hbaseSiteDao;
     private LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue;
     private VisitedLinksCache visitedUrlsCache;
     private boolean closed = false;
 
     public ProcessorThread(LinkProducer linkProducer, ElasticSiteDaoImpl elasticSiteDao,
-                           HbaseSiteDaoImpl hbaseSiteDao, VisitedLinksCache visitedUrlsCache,
+                           VisitedLinksCache visitedUrlsCache,
                            LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue,
-                           Config config) {
+                           LinkedBlockingQueue<Site> hbaseBulkQueue,
+                           HbaseSiteDaoImpl hbaseSiteDao, Config config) {
         this.linkProducer = linkProducer;
         this.elasitcSiteDao = elasticSiteDao;
-        this.hbaseSiteDao = hbaseSiteDao;
         this.linkPairHtmlQueue = linkPairHtmlQueue;
         this.visitedUrlsCache = visitedUrlsCache;
         this.config = config;
+        this.hbaseBulkQueue = hbaseBulkQueue;
+        this.hbaseSiteDao = hbaseSiteDao;
     }
 
     @Override
@@ -73,13 +76,15 @@ class ProcessorThread extends Thread implements Closeable {
                             logger.trace(String.format("(%s) Inserting into elastic", url));
                             elasitcSiteDao.insert(site);
                             logger.trace(String.format("(%s) Inserting into hbase", url));
-                            hbaseSiteDao.insert(site);
+                            hbaseBulkQueue.put(site);
                             logger.trace("Inserted : " + site.getTitle() + " : " + site.getLink());
                         }
                     } catch (SiteDaoException e) {
                         logger.error(String.format("Failed to save in database(s) : %s", url), e);
                         hbaseSiteDao.delete(site.getReverseLink());
                         elasitcSiteDao.delete(url);
+                    } catch (InterruptedException e) {
+                        logger.error("hbase bulk can't take site from blocking queue!");
                     } catch (Exception e) {
                         logger.error(String.format("Failed to parse : %s", url), e);
                     }
@@ -92,6 +97,6 @@ class ProcessorThread extends Thread implements Closeable {
 
     @Override
     public void close() {
-
+        closed = true;
     }
 }

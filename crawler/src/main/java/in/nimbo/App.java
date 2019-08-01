@@ -19,6 +19,7 @@ import in.nimbo.kafka.LinkProducer;
 import in.nimbo.cache.RedisVisitedLinksCache;
 import in.nimbo.cache.VisitedLinksCache;
 import in.nimbo.cache.CaffeineVistedDomainCache;
+import in.nimbo.model.Site;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Connection;
@@ -85,16 +86,17 @@ public class App {
             } catch (NoSuchAlgorithmException | KeyManagementException e) {
                 logger.error("SSl can't be established", e);
             }
+            LinkedBlockingQueue<Site> hbaseBulkQueue = new LinkedBlockingQueue<>();
 
             Configuration hbaseConfig = HBaseConfiguration.create();
-            final Connection connection = ConnectionFactory.createConnection(hbaseConfig);
-            HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(connection, hbaseConfig, config);
-            closeables.add(hbaseDao);
+            final Connection conn = ConnectionFactory.createConnection(hbaseConfig);
+
             int numberOfFetcherThreads = config.getInt("fetcher.threads.num");
             HttpClientFetcher fetcher = new HttpClientFetcher(config);
             closeables.add(fetcher);
 
             int numberOfProcessorThreads = config.getInt("processor.threads.num");
+            int numberOfHbaseThreads = config.getInt("hbase.threads.num");
 
             VisitedLinksCache visitedUrlsCache = new RedisVisitedLinksCache(config);
             closeables.add(visitedUrlsCache);
@@ -145,19 +147,27 @@ public class App {
                 fetcherThreads[i].start();
             }
 
+            HbaseSiteDaoImpl[] hbaseSiteDaoImpls = new HbaseSiteDaoImpl[numberOfHbaseThreads];
+            for (int i = 0; i < numberOfHbaseThreads; i++) {
+                hbaseSiteDaoImpls[i] = new HbaseSiteDaoImpl(conn, hbaseBulkQueue, hbaseConfig, config);
+                closeables.add(hbaseSiteDaoImpls[i]);
+                hbaseSiteDaoImpls[i].start();
+            }
+
             ProcessorThread[] processorThreads = new ProcessorThread[numberOfProcessorThreads];
             for (int i = 0; i < numberOfProcessorThreads; i++) {
                 processorThreads[i] = new ProcessorThread(linkProducer,
                         elasticDao,
-                        hbaseDao,
                         visitedUrlsCache,
                         linkPairHtmlQueue,
+                        hbaseBulkQueue,
+                        hbaseSiteDaoImpls[0],
                         config);
                 closeables.add(processorThreads[i]);
                 processorThreads[i].start();
             }
         } catch (IOException e) {
-            logger.error("can't create connection to hbase!");
+            logger.error("can't create connection to hbase!", e);
         }
     }
 }

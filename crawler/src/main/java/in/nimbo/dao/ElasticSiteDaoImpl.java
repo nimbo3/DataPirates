@@ -120,7 +120,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
             builder.endObject();
             IndexRequest indexRequest = new IndexRequest(index).id(site.getLink()).source(builder);
             bulkProcessor.add(indexRequest);
-        } catch (IOException | ElasticLongIdException e) {
+        } catch (IOException e) {
             elasticFailureMeter.mark();
             throw new ElasticSiteDaoException(String.format("Elastic couldn't insert [%s]", site.getLink()), e);
         }
