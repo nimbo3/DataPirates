@@ -79,9 +79,9 @@ public class ElasticSearch {
             searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
             List<ResultEntry> resultEntries = new ArrayList<>();
             for (SearchHit searchHit : searchResponse.getHits().getHits()) {
-                ResultEntry resultEntry = new ResultEntry();
-                resultEntry.setLink(searchHit.getId());
-                resultEntry.setTitle(searchHit.getSourceAsMap().get("title").toString());
+                ResultEntry resultEntry = new ResultEntry(searchHit.getId(),
+                        searchHit.getSourceAsMap().get("title").toString(),
+                        searchHit.getSourceAsMap().get("text").toString().substring(0, 1000).concat("..."));
                 resultEntries.add(resultEntry);
             }
             return resultEntries;
