@@ -47,6 +47,18 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
         BULK_SIZE = config.getInt("hbase.bulk.size");
         this.sites = sites;
     }
+    public HbaseSiteDaoImpl(Configuration hbaseConfig, Config config) throws HbaseSiteDaoException {
+        this.config = config;
+        this.hbaseConfig = hbaseConfig;
+        TABLE_NAME = config.getString("hbase.table.name");
+        anchorsFamily = config.getString("hbase.table.column.family.anchors");
+        BULK_SIZE = config.getInt("hbase.bulk.size");
+        try {
+            getConnection();
+        } catch (IOException e) {
+            throw new HbaseSiteDaoException("can't connect to hbase!", e);
+        }
+    }
 
     private Connection getConnection() throws IOException {
         if (conn == null)
