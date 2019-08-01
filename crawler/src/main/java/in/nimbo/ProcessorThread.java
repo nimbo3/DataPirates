@@ -26,6 +26,7 @@ class ProcessorThread extends Thread implements Closeable {
     private HbaseSiteDaoImpl hbaseSiteDao;
     private LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue;
     private VisitedLinksCache visitedUrlsCache;
+    private boolean closed = false;
 
     public ProcessorThread(LinkProducer linkProducer, ElasticSiteDaoImpl elasticSiteDao,
                            HbaseSiteDaoImpl hbaseSiteDao, VisitedLinksCache visitedUrlsCache,
@@ -42,7 +43,7 @@ class ProcessorThread extends Thread implements Closeable {
     @Override
     public void run() {
         try {
-            while (!interrupted()) {
+            while (!interrupted() && !closed) {
                 try (Timer.Context time = crawlTimer.time()) {
                     Pair<String, String> pair = null;
                     try {
@@ -63,8 +64,10 @@ class ProcessorThread extends Thread implements Closeable {
                         if (UnusableSiteDetector.hasAcceptableLanguage(site.getPlainText())) {
                             logger.trace(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
                             site.getAnchors().keySet().forEach(link -> {
-                                if (!visitedUrlsCache.hasVisited(link))
+                                if (!visitedUrlsCache.hasVisited(link)) {
+                                    visitedUrlsCache.put(link);
                                     linkProducer.send(link);
+                                }
                             });
                             logger.trace(String.format("anchors in Kafka putted(%s)", url));
                             logger.trace(String.format("(%s) Inserting into elastic", url));

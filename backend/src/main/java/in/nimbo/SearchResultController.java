@@ -5,7 +5,7 @@ import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.jmx.JmxReporter;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import in.nimbo.model.SearchResult;
+import in.nimbo.model.ResultEntry;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,13 +15,19 @@ public class SearchResultController {
 
     @CrossOrigin
     @GetMapping("/search")
-    public List<SearchResult> greeting(@RequestParam(value="input", defaultValue="") String input) {
+    public List<ResultEntry> greeting(@RequestParam(value = "input") String input, @RequestParam(value = "type", defaultValue = "2") int type) {
         Config config = ConfigFactory.load("config");
-        SharedMetricRegistries.setDefault(config.getString("metric.registry.name"));
         MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
         JmxReporter jmxReporter = JmxReporter.forRegistry(metricRegistry).inDomain(config.getString("metric.domain.name")).build();
         jmxReporter.start();
         ElasticSearch elasticSearch = new ElasticSearch(config);
-        return elasticSearch.search(input);
+        if (type == 1)
+            return elasticSearch.search(input);
+        else if (type == 2)
+            return elasticSearch.multiMatchSearch(input);
+        else if (type == 3)
+            return elasticSearch.fuzzySearch(input);
+        throw new IllegalArgumentException();
     }
 }
+
