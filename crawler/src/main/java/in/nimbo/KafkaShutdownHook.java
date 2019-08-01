@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 public class KafkaShutdownHook extends Thread {
     private static Logger logger = LoggerFactory.getLogger(ShutdownHook.class);
     private final Config config;
-    private Timer kafkaShutdownTimer = kafkaShutdownTimer = SharedMetricRegistries.getDefault().timer("kafka-shutdown");
+    private Timer kafkaShutdownTimer = SharedMetricRegistries.getDefault().timer("kafka-shutdown");
     private LinkConsumer linkConsumer;
     private LinkProducer linkProducer;
 

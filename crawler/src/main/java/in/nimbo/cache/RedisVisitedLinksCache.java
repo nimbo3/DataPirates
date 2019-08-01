@@ -13,7 +13,7 @@ import java.util.ArrayList;
 public class RedisVisitedLinksCache implements VisitedLinksCache {
     private final Config config;
     private final RedisAdvancedClusterCommands<String, String> sync;
-    private Timer visitingCheckTimer = visitingCheckTimer = SharedMetricRegistries.getDefault().timer("redis-visited-check");
+    private Timer visitingCheckTimer = SharedMetricRegistries.getDefault().timer("redis-visited-check");
     private RedisClusterClient redisClusterClient;
     private StatefulRedisClusterConnection<String, String> connection;
 
