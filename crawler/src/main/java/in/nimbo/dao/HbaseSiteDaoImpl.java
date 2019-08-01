@@ -146,7 +146,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         closed = true;
         if(!puts.isEmpty()){
             try (Table table = getConnection().getTable(TableName.valueOf(TABLE_NAME));
@@ -157,6 +157,9 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
             }
             puts.clear();
         }
+    }
+
+    public void closeConnection() throws IOException {
         conn.close();
     }
 }
