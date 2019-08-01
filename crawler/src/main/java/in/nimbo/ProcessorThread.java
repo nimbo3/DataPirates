@@ -5,7 +5,6 @@ import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
 import in.nimbo.cache.VisitedLinksCache;
 import in.nimbo.dao.ElasticSiteDaoImpl;
-import in.nimbo.dao.HbaseSiteDaoImpl;
 import in.nimbo.exception.SiteDaoException;
 import in.nimbo.kafka.LinkProducer;
 import in.nimbo.model.Pair;
@@ -24,7 +23,6 @@ class ProcessorThread extends Thread implements Closeable {
     private LinkProducer linkProducer;
     private ElasticSiteDaoImpl elasitcSiteDao;
     private LinkedBlockingQueue<Site> hbaseBulkQueue;
-    private HbaseSiteDaoImpl hbaseSiteDao;
     private LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue;
     private VisitedLinksCache visitedUrlsCache;
     private boolean closed = false;
@@ -33,14 +31,13 @@ class ProcessorThread extends Thread implements Closeable {
                            VisitedLinksCache visitedUrlsCache,
                            LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue,
                            LinkedBlockingQueue<Site> hbaseBulkQueue,
-                           HbaseSiteDaoImpl hbaseSiteDao, Config config) {
+                           Config config) {
         this.linkProducer = linkProducer;
         this.elasitcSiteDao = elasticSiteDao;
         this.linkPairHtmlQueue = linkPairHtmlQueue;
         this.visitedUrlsCache = visitedUrlsCache;
         this.config = config;
         this.hbaseBulkQueue = hbaseBulkQueue;
-        this.hbaseSiteDao = hbaseSiteDao;
     }
 
     @Override
@@ -81,8 +78,6 @@ class ProcessorThread extends Thread implements Closeable {
                         }
                     } catch (SiteDaoException e) {
                         logger.error(String.format("Failed to save in database(s) : %s", url), e);
-                        hbaseSiteDao.delete(site.getReverseLink());
-                        elasitcSiteDao.delete(url);
                     } catch (InterruptedException e) {
                         logger.error("hbase bulk can't take site from blocking queue!");
                     } catch (Exception e) {

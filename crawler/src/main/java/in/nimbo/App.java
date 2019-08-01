@@ -161,7 +161,6 @@ public class App {
                         visitedUrlsCache,
                         linkPairHtmlQueue,
                         hbaseBulkQueue,
-                        hbaseSiteDaoImpls[0],
                         config);
                 closeables.add(processorThreads[i]);
                 processorThreads[i].start();
