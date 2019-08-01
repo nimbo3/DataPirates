@@ -1,13 +1,13 @@
 package in.nimbo.model;
 
-public class SearchResult {
+public class ResultEntry {
     private String title;
     private String link;
 
-    public SearchResult() {
+    public ResultEntry() {
     }
 
-    public SearchResult(String title, String link) {
+    public ResultEntry(String title, String link) {
         this.title = title;
         this.link = link;
     }
@@ -28,3 +28,4 @@ public class SearchResult {
         this.link = link;
     }
 }
+

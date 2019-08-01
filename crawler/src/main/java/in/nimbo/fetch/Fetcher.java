@@ -8,4 +8,6 @@ public interface Fetcher {
     String fetch(String url) throws FetchException;
 
     boolean isContentTypeTextHtml();
+
+    String getRedirectUrl();
 }
