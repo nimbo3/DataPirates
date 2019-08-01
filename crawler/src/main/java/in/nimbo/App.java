@@ -89,6 +89,9 @@ public class App {
                 logger.error("SSl can't be established", e);
             }
             LinkedBlockingQueue<Site> hbaseBulkQueue = new LinkedBlockingQueue<>();
+            SharedMetricRegistries.getDefault().register(
+                    MetricRegistry.name("bulk queue size"),
+                    (Gauge<Integer>) hbaseBulkQueue::size);
 
             Configuration hbaseConfig = HBaseConfiguration.create();
 
@@ -133,9 +136,10 @@ public class App {
             }
 
             HbaseSiteDaoImpl[] hbaseSiteDaoImpls = new HbaseSiteDaoImpl[numberOfHbaseThreads];
+            HbaseShutdownHook hbaseShutdownHook = new HbaseShutdownHook(hbaseSiteDaoImpls, config);
+            Runtime.getRuntime().addShutdownHook(hbaseShutdownHook);
             for (int i = 0; i < numberOfHbaseThreads; i++) {
                 hbaseSiteDaoImpls[i] = new HbaseSiteDaoImpl(conn, hbaseBulkQueue, hbaseConfig, config);
-                closeables.add(hbaseSiteDaoImpls[i]);
                 hbaseSiteDaoImpls[i].start();
             }
 
