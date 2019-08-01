@@ -15,7 +15,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 
 public class LinkConsumer implements Closeable {
     private final Config config;
-    private Timer receiveTimer;
+    private Timer receiveTimer = SharedMetricRegistries.getDefault().timer("kafka-receiving");
     private ArrayBlockingQueue<String> buffer;
     private KafkaConsumer<String, String> consumer;
     private String topicName;
@@ -24,7 +24,6 @@ public class LinkConsumer implements Closeable {
 
     public LinkConsumer(Config config) {
         this.config = config;
-        receiveTimer = SharedMetricRegistries.getDefault().timer(config.getString("metric.name.linkConsumer"));
         Properties properties = new Properties();
         properties.setProperty("bootstrap.servers", config.getString("kafka.bootstrap.servers"));
         properties.setProperty("group.id", config.getString("kafka.group.id"));

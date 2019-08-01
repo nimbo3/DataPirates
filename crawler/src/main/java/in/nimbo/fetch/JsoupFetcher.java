@@ -3,7 +3,6 @@ package in.nimbo.fetch;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import in.nimbo.exception.FetchException;
-import in.nimbo.fetch.Fetcher;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 

@@ -109,18 +109,17 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
     @Override
     public void insert(Site site) throws ElasticSiteDaoException {
         try (Timer.Context time = insertionTimer.time()) {
-            if (site.getReverseLink().getBytes().length >= 512)
+            if (site.getLink().getBytes().length >= 512)
                 throw new ElasticLongIdException("Elastic Long Id Exception (bytes of id must be lower than 512 bytes)");
             XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
             builder.field("title", site.getTitle());
             builder.field("text", site.getPlainText());
             builder.field("keywords", site.getKeywords());
-            builder.field("link", site.getLink());
             builder.endObject();
             IndexRequest indexRequest = new IndexRequest(index).id(site.getLink()).source(builder);
             bulkProcessor.add(indexRequest);
-        } catch (IOException | ElasticLongIdException e) {
+        } catch (IOException e) {
             elasticFailureMeter.mark();
             throw new ElasticSiteDaoException(String.format("Elastic couldn't insert [%s]", site.getLink()), e);
         }

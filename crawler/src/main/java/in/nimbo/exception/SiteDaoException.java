@@ -8,4 +8,8 @@ public class SiteDaoException extends Exception {
     public SiteDaoException(String message, Exception cause) {
         super(message, cause);
     }
+
+    public SiteDaoException(String message) {
+        super(message);
+    }
 }

@@ -8,4 +8,8 @@ public class ElasticSiteDaoException extends SiteDaoException{
     public ElasticSiteDaoException(String message, Exception cause) {
         super(message, cause);
     }
+
+    public ElasticSiteDaoException(String message) {
+        super(message);
+    }
 }

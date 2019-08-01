@@ -21,7 +21,6 @@ public class RedisVisitedLinksCache implements VisitedLinksCache {
 
     public RedisVisitedLinksCache(Config config) {
         this.config = config;
-        visitingCheckTimer = SharedMetricRegistries.getDefault().timer("metric.name.redis.visit.check");
         ArrayList<RedisURI> redisServers = new ArrayList<>();
         for (String string : config.getString("redis.servers").split(","))
             redisServers.add(RedisURI.create("redis://"+string));
