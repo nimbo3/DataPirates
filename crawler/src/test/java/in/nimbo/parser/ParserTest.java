@@ -11,6 +11,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -164,7 +165,7 @@ public class ParserTest {
 
 
     @Test
-    public void test() throws IOException {
+    public void reverseTest() throws IOException {
         Parser parser = new Parser(links[0], htmls[0], config);
         String url = "https://www.geeksforgeeks.org:80/url-samefile-method-in-java-with-examples/";
         String expected = "org.geeksforgeeks:80/url-samefile-method-in-java-with-examples/";
@@ -183,5 +184,24 @@ public class ParserTest {
         Assert.assertEquals(expected, parser.reverse(url));
         url = "https://samp.znu.sbu.ac.ir/www.asd";
         System.out.println(parser.reverse(url));
+    }
+    @Test
+    public void normalizeTest() throws MalformedURLException {
+        Parser parser = new Parser(links[0], htmls[0], config);
+        String url = "https://www.geeksforgeeks.org:80/url-samefile-method-in-java-with-examples/";
+        String expected = "http://geeksforgeeks.org/url-samefile-method-in-java-with-examples";
+        Assert.assertEquals(expected, parser.normalize(url));
+        url = "http://www.googlewww.com";
+        expected = "http://googlewww.com";
+        Assert.assertEquals(expected, parser.normalize(url));
+        url = "http://www.yahoo.com/asdwaefselkjhklsd#slfdjslkdj";
+        expected = "http://yahoo.com/asdwaefselkjhklsd";
+        Assert.assertEquals(expected, parser.normalize(url));
+        url = "http://www.yahoo.com/werljwer?";
+        expected = "http://yahoo.com/werljwer";
+        Assert.assertEquals(expected, parser.normalize(url));
+        url = "http://www.yahoo.com/asdwaefselkjhklsd?asghar=2";
+        expected = "http://yahoo.com/asdwaefselkjhklsd?asghar=2";
+        Assert.assertEquals(expected, parser.normalize(url));
     }
 }

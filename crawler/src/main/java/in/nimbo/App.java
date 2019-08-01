@@ -49,14 +49,14 @@ public class App {
         Config outConfig = ConfigFactory.parseFile(new File("config.properties"));
         Config inConfig = ConfigFactory.load("config");
         config = ConfigFactory.load(outConfig).withFallback(inConfig);
-        SharedMetricRegistries.setDefault(config.getString("metric.registry.name"));
+        SharedMetricRegistries.setDefault("data-pirates-crawler");
         MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
         List<Closeable> closeables = new LinkedList<>();
         ShutdownHook shutdownHook = new ShutdownHook(closeables, config);
         Runtime.getRuntime().addShutdownHook(shutdownHook);
-        JmxReporter jmxReporter = JmxReporter.forRegistry(metricRegistry).inDomain(config.getString("metric.domain.name")).build();
+        JmxReporter jmxReporter = JmxReporter.forRegistry(metricRegistry).inDomain("crawler").build();
         jmxReporter.start();
-        Timer appInitializingMetric = metricRegistry.timer(config.getString("metric.registry.timer.name"));
+        Timer appInitializingMetric = metricRegistry.timer("app initializing");
         try (Timer.Context appInitializingTimer = appInitializingMetric.time()) {
             try {
                 DetectorFactory.loadProfile(config.getString("langDetect.profile.dir"));

@@ -13,14 +13,13 @@ import java.util.List;
 class ShutdownHook extends Thread {
     private static Logger logger = LoggerFactory.getLogger(ShutdownHook.class);
     private final Config config;
-    private Timer shutDownTimer;
+    private Timer shutDownTimer = shutDownTimer = SharedMetricRegistries.getDefault().timer("shutdown");
 
 
     private List<Closeable> closeables;
 
     public ShutdownHook(List<Closeable> closeables, Config config) {
         this.config = config;
-        shutDownTimer = SharedMetricRegistries.getDefault().timer(config.getString("metric.name.shutdown"));
         this.closeables = closeables;
     }
 

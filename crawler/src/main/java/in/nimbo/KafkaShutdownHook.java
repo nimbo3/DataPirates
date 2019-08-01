@@ -11,14 +11,13 @@ import org.slf4j.LoggerFactory;
 public class KafkaShutdownHook extends Thread {
     private static Logger logger = LoggerFactory.getLogger(ShutdownHook.class);
     private final Config config;
-    private Timer kafkaShutdownTimer;
+    private Timer kafkaShutdownTimer = kafkaShutdownTimer = SharedMetricRegistries.getDefault().timer("kafka-shutdown");
     private LinkConsumer linkConsumer;
     private LinkProducer linkProducer;
 
 
     public KafkaShutdownHook(LinkConsumer linkConsumer, LinkProducer linkProducer, Config config) {
         this.config = config;
-        kafkaShutdownTimer = SharedMetricRegistries.getDefault().timer("metric.name.kafka.shutdown");
         this.linkConsumer = linkConsumer;
         this.linkProducer = linkProducer;
     }

@@ -13,13 +13,12 @@ import java.util.ArrayList;
 public class RedisVisitedLinksCache implements VisitedLinksCache {
     private final Config config;
     private final RedisAdvancedClusterCommands<String, String> sync;
-    private Timer visitingCheckTimer;
+    private Timer visitingCheckTimer = visitingCheckTimer = SharedMetricRegistries.getDefault().timer("redis-visited-check");
     private RedisClusterClient redisClusterClient;
     private StatefulRedisClusterConnection<String, String> connection;
 
     public RedisVisitedLinksCache(Config config) {
         this.config = config;
-        visitingCheckTimer = SharedMetricRegistries.getDefault().timer("metric.name.redis.visit.check");
         ArrayList<RedisURI> redisServers = new ArrayList<>();
         for (String string : config.getString("redis.servers").split(","))
             redisServers.add(RedisURI.create("redis://"+string));

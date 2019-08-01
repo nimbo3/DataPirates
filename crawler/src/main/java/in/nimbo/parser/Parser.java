@@ -18,15 +18,14 @@ import java.util.Map;
 
 public class Parser {
     private static final Logger logger = LoggerFactory.getLogger(Parser.class);
+    private static Timer parseTimer = SharedMetricRegistries.getDefault().timer("parser");
     private final Config config;
-    private static Timer parseTimer;
     private String link;
     private Document document;
     private String html;
 
     public Parser(String link, String html, Config config) {
         this.config = config;
-        parseTimer = SharedMetricRegistries.getDefault().timer(config.getString("metric.name.parser"));
         this.html = html;
         this.link = link;
         document = Jsoup.parse(html, link);
@@ -56,7 +55,7 @@ public class Parser {
      * @return a space-seperated-string that appends all values mentioned
      */
     public String extractKeywords() {
-        Elements elements = document.select("h1 > *, h2 > *, h3 > *, h4 > *, h5 > *,b");
+        Elements elements = document.select("h1 > *, h2 > *, h3 > *,b");
         StringBuilder sb = new StringBuilder();
         sb.append(elements.text()).append(" ");
         Elements metaTags = document.getElementsByTag("meta");
@@ -79,17 +78,13 @@ public class Parser {
                 String content = element.text();
                 if (content.length() == 0)
                     content = "empty";
-                if (validateProtocol(href))
-                    map.put(href, content);
-                else {
+                if (validateProtocol(href)) {
+                    href = normalize(href);
+                } else {
                     logger.debug("protocol is not supported for:" + href + ". Only http/https are supported");
                     continue;
                 }
-                href = href.replaceFirst("https?://", "http://");
-                URL url = new URL(href);
-                href = NormalizeURL.normalize(href);
-                String domain = url.getHost().replaceFirst("www\\.", "");
-                href = href.replace(url.getHost(), domain).replaceFirst("http://", "");
+                map.put(href, content);
             } catch (MalformedURLException e) {
                 logger.debug("normalizer can't add link: " + href + " to the anchors list for this page: " + link, e);
             }
@@ -97,6 +92,14 @@ public class Parser {
         if (map.size() == 0)
             map.put(href, "empty");
         return map;
+    }
+
+    public String normalize(String href) throws MalformedURLException {
+        href = href.replaceFirst("^https?://", "http://");
+        href = NormalizeURL.normalize(href);
+        URL url = new URL(href);
+        String domain = url.getHost().replaceFirst("^www\\.", "");
+        return href.replace(url.getHost(), domain);
     }
 
     public String extractMetadata() {
@@ -136,7 +139,7 @@ public class Parser {
             reverse.append(splits[i]);
             reverse.append(".");
         }
-        if(reverse.charAt(reverse.length() - 1) == '.')
+        if (reverse.charAt(reverse.length() - 1) == '.')
             reverse.deleteCharAt(reverse.length() - 1);
         return link.replace(url.getHost(), reverse).replaceAll("https?://", "");
     }
