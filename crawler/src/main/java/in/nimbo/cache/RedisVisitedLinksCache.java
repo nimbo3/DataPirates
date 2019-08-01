@@ -6,14 +6,16 @@ import com.typesafe.config.Config;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
+import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands;
 import io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands;
 
 import java.util.ArrayList;
 
 public class RedisVisitedLinksCache implements VisitedLinksCache {
     private final Config config;
-    private final RedisAdvancedClusterCommands<String, String> sync;
-    private Timer visitingCheckTimer = SharedMetricRegistries.getDefault().timer("redis-visited-check");
+    private RedisAdvancedClusterCommands<String, String> sync;
+    private RedisAdvancedClusterAsyncCommands<String, String> async;
+    private Timer visitingCheckTimer;
     private RedisClusterClient redisClusterClient;
     private StatefulRedisClusterConnection<String, String> connection;
 
@@ -24,12 +26,13 @@ public class RedisVisitedLinksCache implements VisitedLinksCache {
             redisServers.add(RedisURI.create("redis://"+string));
         redisClusterClient = RedisClusterClient.create(redisServers);
         connection = redisClusterClient.connect();
+        async = connection.async();
         sync = connection.sync();
     }
 
     @Override
     public void put(String normalizedUrl) {
-        sync.set(normalizedUrl, "");
+        async.set(normalizedUrl, "");
     }
 
     @Override

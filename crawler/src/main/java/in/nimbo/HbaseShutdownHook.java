@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 public class HbaseShutdownHook extends Thread {
-    private static Logger logger = LoggerFactory.getLogger(ShutdownHook.class);
+    private static Logger logger = LoggerFactory.getLogger(HbaseShutdownHook.class);
     private final Config config;
     private Timer hbaseShutdownTimer = SharedMetricRegistries.getDefault().timer("hbase shutdown");
     private HbaseSiteDaoImpl[] hbaseSiteDaos;
