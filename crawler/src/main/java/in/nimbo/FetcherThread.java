@@ -52,6 +52,8 @@ public class FetcherThread extends Thread implements Closeable {
                         logger.error("InterruptedException happened while consuming from Kafka", e);
                         Thread.currentThread().interrupt();
                     }
+                    if (visitedUrlsCache.hasVisited(url))
+                        continue;
                     logger.trace(String.format("New link (%s) poped from queue", url));
                     if (!visitedDomainsCache.hasVisited(Parser.getDomain(url))) {
                         logger.trace(String.format("Fetching (%s)", url));
@@ -62,6 +64,8 @@ public class FetcherThread extends Thread implements Closeable {
                                 Pair<String, String> pair = new Pair<>(fetcher.getRedirectUrl(), html);
                                 try {
                                     linkPairHtmlQueue.put(pair);
+                                    visitedUrlsCache.put(url);
+                                    visitedDomainsCache.put(Parser.getDomain(url));
                                     visitedDomainsCache.put(Parser.getDomain(fetcher.getRedirectUrl()));
                                 } catch (InterruptedException e) {
                                     logger.error("Interrupted Exception when putting in linkPairHtmlQueue", e);
