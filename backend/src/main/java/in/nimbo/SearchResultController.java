@@ -17,9 +17,6 @@ public class SearchResultController {
     @GetMapping("/search")
     public List<ResultEntry> greeting(@RequestParam(value = "input") String input, @RequestParam(value = "type", defaultValue = "2") int type) {
         Config config = ConfigFactory.load("config");
-        MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
-        JmxReporter jmxReporter = JmxReporter.forRegistry(metricRegistry).inDomain(config.getString("metric.domain.name")).build();
-        jmxReporter.start();
         ElasticSearch elasticSearch = new ElasticSearch(config);
         if (type == 1)
             return elasticSearch.search(input);
