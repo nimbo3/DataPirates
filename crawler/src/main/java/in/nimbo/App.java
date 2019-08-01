@@ -24,6 +24,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +47,7 @@ public class App {
     private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) {
+
         Config outConfig = ConfigFactory.parseFile(new File("config.properties"));
         Config inConfig = ConfigFactory.load("config");
         config = ConfigFactory.load(outConfig).withFallback(inConfig);
@@ -89,8 +91,8 @@ public class App {
             LinkedBlockingQueue<Site> hbaseBulkQueue = new LinkedBlockingQueue<>();
 
             Configuration hbaseConfig = HBaseConfiguration.create();
-            final Connection conn = ConnectionFactory.createConnection(hbaseConfig);
 
+            final Connection conn = ConnectionFactory.createConnection(hbaseConfig);
             int numberOfFetcherThreads = config.getInt("fetcher.threads.num");
             HttpClientFetcher fetcher = new HttpClientFetcher(config);
             closeables.add(fetcher);
@@ -117,23 +119,6 @@ public class App {
                     MetricRegistry.name(FetcherThread.class, "fetch queue size"),
                     (Gauge<Integer>) linkPairHtmlQueue::size);
             JsoupFetcher jsoupFetcher = new JsoupFetcher();
-
-
-            /**
-             * Note:
-             * consider that before starting the crawler there are some links in Queue.
-             * these links are not necessarily normalized neither added to redis
-             * and in the code below these links are not taken care of!
-             *
-             * if you want this code to work correctly,
-             * these links should be normalized and then put into redis.
-             * then you're good to go :))
-             *
-             * assumption:
-             * all the links in kafka are unique and normalized
-             * (as a result we won't check links before fetching them and we will check them before adding them to kafka
-             * and consequently we won't add fetching url to redis because it already exists there)
-             **/
 
             FetcherThread[] fetcherThreads = new FetcherThread[numberOfFetcherThreads];
             for (int i = 0; i < numberOfFetcherThreads; i++) {
