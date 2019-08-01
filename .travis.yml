@@ -7,7 +7,7 @@ services:
 before_install:
   - chmod +x .travis/hbase-install.sh
 before_script:
-  - sleep 10
+  #  - sleep 10
   - .travis/hbase-install.sh
 script:
   - mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent package sonar:sonar -Dsonar.projectKey=nimbo3_DataPirates

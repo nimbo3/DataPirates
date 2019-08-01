@@ -183,7 +183,6 @@ public class ParserTest {
         url = "https://samp.znu.sbu.ac.ir";
         Assert.assertEquals(expected, parser.reverse(url));
         url = "https://samp.znu.sbu.ac.ir/www.asd";
-        System.out.println(parser.reverse(url));
     }
     @Test
     public void normalizeTest() throws MalformedURLException {
