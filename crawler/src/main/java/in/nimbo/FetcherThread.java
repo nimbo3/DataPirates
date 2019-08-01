@@ -54,16 +54,15 @@ public class FetcherThread extends Thread implements Closeable {
                     }
                     logger.trace(String.format("New link (%s) poped from queue", url));
                     if (!visitedDomainsCache.hasVisited(Parser.getDomain(url))) {
-                        Site site = null;
                         logger.trace(String.format("Fetching (%s)", url));
                         try {
                             String html = fetcher.fetch(url);
                             logger.trace(String.format("(%s) Fetched", url));
                             if (fetcher.isContentTypeTextHtml()) {
-                                Pair<String, String> pair = new Pair<>(url, html);
+                                Pair<String, String> pair = new Pair<>(fetcher.getRedirectUrl(), html);
                                 try {
                                     linkPairHtmlQueue.put(pair);
-                                    visitedDomainsCache.put(Parser.getDomain(url));
+                                    visitedDomainsCache.put(Parser.getDomain(fetcher.getRedirectUrl()));
                                 } catch (InterruptedException e) {
                                     logger.error("Interrupted Exception when putting in linkPairHtmlQueue", e);
                                 }

@@ -23,6 +23,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +46,7 @@ public class App {
     private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) {
+
         Config outConfig = ConfigFactory.parseFile(new File("config.properties"));
         Config inConfig = ConfigFactory.load("config");
         config = ConfigFactory.load(outConfig).withFallback(inConfig);
@@ -87,7 +89,7 @@ public class App {
             }
 
             Configuration hbaseConfig = HBaseConfiguration.create();
-            final Connection connection = ConnectionFactory.createConnection(hbaseConfig);
+            Connection connection = ConnectionFactory.createConnection(hbaseConfig);
             HbaseSiteDaoImpl hbaseDao = new HbaseSiteDaoImpl(connection, hbaseConfig, config);
             closeables.add(hbaseDao);
             int numberOfFetcherThreads = config.getInt("fetcher.threads.num");
