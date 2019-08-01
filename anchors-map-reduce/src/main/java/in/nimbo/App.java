@@ -1,11 +1,10 @@
 package in.nimbo;
 
-import com.google.protobuf.ServiceException;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
@@ -17,7 +16,6 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import scala.Tuple2;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.NavigableMap;
@@ -34,16 +32,6 @@ public class App {
 
         Configuration hbaseConfiguration = HBaseConfiguration.create();
 
-        try {
-            HBaseAdmin.checkHBaseAvailable(hbaseConfiguration);
-            System.err.println("-----------------------------------------------------------------------------------------------------------------------------------");
-            System.err.println("Hbase available!");
-            System.err.println("-----------------------------------------------------------------------------------------------------------------------------------");
-        } catch (ServiceException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
         hbaseConfiguration.addResource(hbaseXmlHadoop);
         hbaseConfiguration.addResource(hbaseXmlHbase);
@@ -70,6 +58,8 @@ public class App {
             });
             return result.iterator();
         });
+        System.out.println(mapResult.count());
+        sparkContext.close();
 
     }
 }
