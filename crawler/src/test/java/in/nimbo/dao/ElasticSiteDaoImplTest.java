@@ -6,6 +6,7 @@ import com.typesafe.config.ConfigFactory;
 import in.nimbo.exception.ElasticSiteDaoException;
 import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
+import in.nimbo.parser.Parser;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,7 +36,7 @@ public class ElasticSiteDaoImplTest {
         site.setKeywords("keywords");
         site.setPlainText("text");
         elasticDao.insert(site);
-        assertTrue(elasticDao.get(LINK).equals(site));
+        assertTrue(elasticDao.get("http://test.test/").equals(site));
     }
 
     @Rule
