@@ -116,7 +116,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
             Connection connection = getConnection();
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                  Timer.Context time = deleteTimer.time()) {
-                Get get = new Get(Bytes.toBytes(site.getLink()));
+                Get get = new Get(Bytes.toBytes(site.getReverseLink()));
                 Result result = table.get(get);
                 return result.size() > 0;
             }

@@ -1,6 +1,5 @@
 package in.nimbo.cache;
 
-import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
 import io.lettuce.core.RedisURI;
