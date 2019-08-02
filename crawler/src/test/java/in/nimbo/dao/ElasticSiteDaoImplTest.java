@@ -35,7 +35,12 @@ public class ElasticSiteDaoImplTest {
         site.setKeywords("keywords");
         site.setPlainText("text");
         elasticDao.insert(site);
-        assertTrue(elasticDao.get("http://test.test/").equals(site));
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        assertTrue(elasticDao.get(LINK).equals(site));
     }
 
     @Rule
