@@ -47,6 +47,14 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
         BULK_SIZE = config.getInt("hbase.bulk.size");
         this.sites = sites;
     }
+    public HbaseSiteDaoImpl(Connection conn, Configuration hbaseConfig, Config config) {
+        this.config = config;
+        this.hbaseConfig = hbaseConfig;
+        TABLE_NAME = config.getString("hbase.table.name");
+        anchorsFamily = config.getString("hbase.table.column.family.anchors");
+        BULK_SIZE = config.getInt("hbase.bulk.size");
+        this.conn = conn;
+    }
 
     private Connection getConnection() throws IOException {
         if (conn == null)
@@ -99,7 +107,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
                 return table.get(get);
             }
         } catch (IOException e) {
-            throw new HbaseSiteDaoException("can't bulk get from Hbase", e);
+            throw new HbaseSiteDaoException("can't get from Hbase", e);
         }
     }
 
@@ -108,7 +116,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
             Connection connection = getConnection();
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                  Timer.Context time = deleteTimer.time()) {
-                Get get = new Get(Bytes.toBytes(site.getLink()));
+                Get get = new Get(Bytes.toBytes(site.getReverseLink()));
                 Result result = table.get(get);
                 return result.size() > 0;
             }

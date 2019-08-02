@@ -1,18 +1,21 @@
 language: java
+dist: xenial
 jdk:
   - openjdk8
-script:
-  - mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent package sonar:sonar -Dsonar.projectKey=nimbo3_DataPirates
 services:
   - elasticsearch
+before_install:
+  - chmod +x .travis/hbase-install.sh
 before_script:
   - sleep 10
+  - .travis/hbase-install.sh
+script:
+  - mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent package sonar:sonar -Dsonar.projectKey=nimbo3_DataPirates
 cache:
   directories:
     - '$HOME/.m2/repository'
     - '$HOME/.sonar/cache'
-after_success:
-  - bash <(curl -s https://codecov.io/bash)
+    - '$HOME/downloads'
 addons:
   sonarcloud:
     organization: "nimbo3"
