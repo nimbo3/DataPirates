@@ -1,11 +1,26 @@
 package in.nimbo.parser;
 
+import com.codahale.metrics.SharedMetricRegistries;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.net.MalformedURLException;
 
 public class NormalizeURLTest {
+
+    private static final Config config = ConfigFactory.load("config");
+
+    @BeforeClass
+    public static void init() {
+        try {
+            SharedMetricRegistries.getDefault();
+        } catch (IllegalStateException e) {
+            SharedMetricRegistries.setDefault(config.getString("metric.registry.name"));
+        }
+    }
 
     @Test
     public void NormalizerTest() throws MalformedURLException {

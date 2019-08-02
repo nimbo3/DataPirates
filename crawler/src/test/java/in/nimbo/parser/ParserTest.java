@@ -11,6 +11,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -24,7 +25,11 @@ public class ParserTest {
 
     @BeforeClass
     public static void init() throws IOException {
-        SharedMetricRegistries.setDefault("data-pirates-crawler");
+        try {
+            SharedMetricRegistries.getDefault();
+        } catch (IllegalStateException e) {
+            SharedMetricRegistries.setDefault(config.getString("metric.registry.name"));
+        }
         for (int i = 0; i < NUM_OF_TESTS; i++) {
             try (InputStream inputStream =
                          ParserTest.class.getClassLoader().getResourceAsStream(
@@ -88,7 +93,7 @@ public class ParserTest {
     @Test
     public void extractMetadataTest() {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i]);
+            Parser parser = new Parser(links[i], htmls[i], config);
             String actual = parser.extractMetadata();
             String expected = sites[i].getMetadata();
             double percentage = getPercentage(expected, actual);
@@ -98,7 +103,7 @@ public class ParserTest {
     @Test
     public void extractTitleTest() {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i]);
+            Parser parser = new Parser(links[i], htmls[i], config);
             String actual = parser.extractTitle();
             String expected = sites[i].getTitle();
             double percentage = getPercentage(expected, actual);
@@ -109,7 +114,7 @@ public class ParserTest {
     @Test
     public void extractPlainTextTest() {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i]);
+            Parser parser = new Parser(links[i], htmls[i], config);
             String actual = parser.extractPlainText();
             String expected = sites[i].getPlainText();
             double percentage = getPercentage(expected, actual);
@@ -120,7 +125,7 @@ public class ParserTest {
     @Test
     public void extractKeywordsTest() {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i]);
+            Parser parser = new Parser(links[i], htmls[i], config);
             String actual = parser.extractKeywords();
             String expected = sites[i].getKeywords();
             double percentage = getPercentage(expected, actual);
@@ -131,7 +136,7 @@ public class ParserTest {
     @Test
     public void extractAnchorsTest() {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i]);
+            Parser parser = new Parser(links[i], htmls[i], config);
             Map<String, String> actualList = parser.extractAnchors();
             Map<String, String> expectedList = sites[i].getAnchors();
             StringBuilder actual = new StringBuilder(), expected = new StringBuilder();
@@ -158,37 +163,45 @@ public class ParserTest {
         }
     }
 
-    @Test
-    public void extractTest() throws IOException {
-        String h;
-        try (InputStream inputStream =
-                     ParserTest.class.getClassLoader().getResourceAsStream(
-                             "html/" + 3 + ".html")) {
-            assert inputStream != null;
-            h = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
-        }
-        Parser parser = new Parser("https://stackoverflow.com/company/management", h);
-        Map<String, String> actualList = parser.extractAnchors();
-        System.out.println(actualList);
-    }
 
     @Test
-    public void test() throws IOException {
-        Parser parser = new Parser(links[0], htmls[0]);
+    public void reverseTest() throws IOException {
+        Parser parser = new Parser(links[0], htmls[0], config);
         String url = "https://www.geeksforgeeks.org:80/url-samefile-method-in-java-with-examples/";
-        String expected = "org.geeksforgeeks.www";
+        String expected = "org.geeksforgeeks:80/url-samefile-method-in-java-with-examples/";
         Assert.assertEquals(expected, parser.reverse(url));
-        expected = "org.apache.spark.www";
+        expected = "org.apache.spark/documentation.html";
         url = "http://www.spark.apache.org/documentation.html";
         Assert.assertEquals(expected, parser.reverse(url));
-        expected = "com.stackoverflow";
+        expected = "com.stackoverflow/questions/7569335/reverse-a-string-in-java";
         url = "https://stackoverflow.com/questions/7569335/reverse-a-string-in-java";
         Assert.assertEquals(expected, parser.reverse(url));
-        expected = "master";
+        expected = "master:16010/table.jsp?name=wc";
         url = "http://master:16010/table.jsp?name=wc";
         Assert.assertEquals(expected, parser.reverse(url));
         expected = "ir.ac.sbu.znu.samp";
         url = "https://samp.znu.sbu.ac.ir";
         Assert.assertEquals(expected, parser.reverse(url));
+        url = "https://samp.znu.sbu.ac.ir/www.asd";
+        System.out.println(parser.reverse(url));
+    }
+    @Test
+    public void normalizeTest() throws MalformedURLException {
+        Parser parser = new Parser(links[0], htmls[0], config);
+        String url = "https://www.geeksforgeeks.org:80/url-samefile-method-in-java-with-examples/";
+        String expected = "http://geeksforgeeks.org/url-samefile-method-in-java-with-examples";
+        Assert.assertEquals(expected, parser.normalize(url));
+        url = "http://www.googlewww.com";
+        expected = "http://googlewww.com";
+        Assert.assertEquals(expected, parser.normalize(url));
+        url = "http://www.yahoo.com/asdwaefselkjhklsd#slfdjslkdj";
+        expected = "http://yahoo.com/asdwaefselkjhklsd";
+        Assert.assertEquals(expected, parser.normalize(url));
+        url = "http://www.yahoo.com/werljwer?";
+        expected = "http://yahoo.com/werljwer";
+        Assert.assertEquals(expected, parser.normalize(url));
+        url = "http://www.yahoo.com/asdwaefselkjhklsd?asghar=2";
+        expected = "http://yahoo.com/asdwaefselkjhklsd?asghar=2";
+        Assert.assertEquals(expected, parser.normalize(url));
     }
 }

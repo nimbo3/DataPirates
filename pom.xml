@@ -13,7 +13,6 @@
 
     <modules>
         <module>crawler</module>
-        <module>common</module>
         <module>backend</module>
         <module>anchors-map-reduce</module>
     </modules>

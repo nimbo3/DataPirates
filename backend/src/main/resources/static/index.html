@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>DataPirates | Search Engine</title>
+  <!-- Tell the browser to be responsive to screen width -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="css/all.min.css">
+  <!-- Ionicons -->
+  <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+  <!-- DataTables -->
+  <link rel="stylesheet" href="css/dataTables.bootstrap4.css">
+  <!-- Theme style -->
+  <link rel="stylesheet" href="css/adminlte.min.css">
+  <!-- Google Font: Source Sans Pro -->
+  <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
+</head>
+<body class="hold-transition sidebar-mini">
+
+    <section class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1>Data Pirates</h1>
+          </div>
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-right">
+              <li class="breadcrumb-item"><a href="#">DataPirates</a></li>
+              <li class="breadcrumb-item active">Search</li>
+            </ol>
+          </div>
+        </div>
+      </div><!-- /.container-fluid -->
+    </section>
+    <script>
+        function search(type) {
+            var element = document.getElementById("search-results");
+            while (element.hasChildNodes()) {
+                element.removeChild(element.lastChild);
+            }
+            var url = 'http://localhost:9090/search?input=' + document.getElementById("search-text").value + '?type=' + type;
+            console.log(url);
+            var counter = 1;
+            fetch(url)
+                .then(function (resp) { return resp.json(); })
+                .then(function (searchResults) {
+                    console.log(searchResults);
+                    searchResults.forEach(function(result) {
+                        var tableRow = document.createElement("tr");
+                        var rankTh = document.createElement("th");
+                        var titleTh = document.createElement("th");
+                        var summaryTh = document.createElement("th");
+                        //RankTh
+                        var rank = document.createTextNode(counter);
+                        counter = counter + 1;
+                        rankTh.appendChild(rank);
+                        //TitleTh
+                        var anchor = document.createElement("a");
+                        var title = document.createTextNode(result.link);
+                        anchor.setAttribute("href", result.title);
+                        anchor.appendChild(title);
+                        titleTh.appendChild(anchor);
+                        //Summary
+                        var summary = document.createTextNode(result.text);
+
+                        tableRow.appendChild(rankTh);
+                        tableRow.appendChild(titleTh);
+                        tableRow.appendChild(summaryTh);
+                        element.appendChild(tableRow);
+                    })
+                })
+                .catch(function(error) {
+                    console.log(error);
+                });
+        }
+
+    </script>
+    <section class="content">
+      <div class="row">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header">
+              <div class="input-group mb-3">
+                <div class="input-group-prepend">
+                  <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+                    Action
+                  </button>
+                  <div class="dropdown-menu">
+                    <a class="dropdown-item" href="#">Action</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="javascript:search(1)">Simple Search</a>
+                    <a class="dropdown-item" href="javascript:search(2)">MultiMatch Search</a>
+                    <a class="dropdown-item" href="javascript:search(3)">Fuzzy Search</a>
+                  </div>
+                </div>
+                <!-- /btn-group -->
+                <input type="text" id="search-text" class="form-control">
+              </div>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body">
+              <table id="example1" class="table table-bordered table-striped">
+                <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Title</th>
+                  <th>Summary Text</th>
+                </tr>
+                </thead>
+                <tbody id="search-results">
+                <tr>
+                  <td>1</td>
+                  <td>Trident</td>
+                  <td><a href="https://www.w3schools.com">Visit W3Schools.com!</a></td>
+                </tr>
+                </tbody>
+                <tfoot>
+                <tr>
+                  <th>Rank</th>
+                  <th>Title</th>
+                  <th>Summary Text</th>
+                </tr>
+                </tfoot>
+              </table>
+            </div>
+            <!-- /.card-body -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+  <footer class="main-footer">
+    <div class="d-none d-sm-block">
+      <b>Version</b> 1.0
+    </div>
+    <strong>Copyright &copy; 2019 <a href="http://data-pirates.ir">Data Pirates</a>.</strong> All rights
+    reserved.
+  </footer>
+
+
+<!-- jQuery -->
+<script src="js/jquery.min.js"></script>
+<!-- Bootstrap 4 -->
+<script src="js/bootstrap.bundle.min.js"></script>
+<!-- DataTables -->
+<script src="js/jquery.dataTables.js"></script>
+<script src="js/dataTables.bootstrap4.js"></script>
+<!-- FastClick -->
+<script src="js/fastclick.js"></script>
+<!-- AdminLTE App -->
+<script src="js/adminlte.min.js"></script>
+<!-- AdminLTE for demo purposes -->
+<script src="js/demo.js"></script>
+<!-- page script -->
+<script>
+  $(function () {
+    $("#example1").DataTable();
+  });
+</script>
+</body>
+</html>

@@ -12,6 +12,7 @@ public class Site {
     private String html;
     //TODO it should be a map from string to list of strings to store different texts for the same link
     private Map<String, String> anchors;
+
     public Site() {
     }
 
@@ -35,7 +36,7 @@ public class Site {
     public void setHtml(String html) {
         this.html = html;
     }
-    
+
     public String getLink() {
         return link;
     }

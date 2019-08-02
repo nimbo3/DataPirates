@@ -2,6 +2,7 @@ package in.nimbo.parser;
 
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
+import com.typesafe.config.Config;
 import in.nimbo.model.Site;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -14,30 +15,25 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class Parser {
     private static final Logger logger = LoggerFactory.getLogger(Parser.class);
     private static Timer parseTimer = SharedMetricRegistries.getDefault().timer("parser");
+    private final Config config;
     private String link;
     private Document document;
     private String html;
 
-    public Parser(String link, String html) {
+    public Parser(String link, String html, Config config) {
+        this.config = config;
         this.html = html;
         this.link = link;
         document = Jsoup.parse(html, link);
     }
 
-    // TODO: 7/24/19 discover a better place for this function!
-    public static String getDomain(String url) {
-        Pattern regex = Pattern.compile("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
-        Matcher matcher = regex.matcher(url);
-        if (matcher.find()) {
-            return matcher.group(4);
-        }
-        return url;
+    public static String getDomain(String link) throws MalformedURLException {
+        URL url = new URL(link);
+        return url.getHost();
     }
 
     /**
@@ -59,7 +55,7 @@ public class Parser {
      * @return a space-seperated-string that appends all values mentioned
      */
     public String extractKeywords() {
-        Elements elements = document.select("h1 > *, h2 > *, h3 > *, h4 > *, h5 > *,b");
+        Elements elements = document.select("h1 > *, h2 > *, h3 > *,b");
         StringBuilder sb = new StringBuilder();
         sb.append(elements.text()).append(" ");
         Elements metaTags = document.getElementsByTag("meta");
@@ -80,16 +76,30 @@ public class Parser {
             try {
                 href = element.absUrl("abs:href");
                 String content = element.text();
-                href = NormalizeURL.normalize(href);
-                if (validateProtocol(href))
-                    map.put(href, content);
-                else
+                if (content.length() == 0)
+                    content = "empty";
+                if (validateProtocol(href)) {
+                    href = normalize(href);
+                } else {
                     logger.debug("protocol is not supported for:" + href + ". Only http/https are supported");
+                    continue;
+                }
+                map.put(href, content);
             } catch (MalformedURLException e) {
                 logger.debug("normalizer can't add link: " + href + " to the anchors list for this page: " + link, e);
             }
         }
+        if (map.size() == 0)
+            map.put(href, "empty");
         return map;
+    }
+
+    public String normalize(String href) throws MalformedURLException {
+        href = href.replaceFirst("^https?://", "http://");
+        href = NormalizeURL.normalize(href);
+        URL url = new URL(href);
+        String domain = url.getHost().replaceFirst("^www\\.", "");
+        return href.replace(url.getHost(), domain);
     }
 
     public String extractMetadata() {
@@ -122,21 +132,16 @@ public class Parser {
     public String reverse(String link) throws MalformedURLException {
         URL url = new URL(link);
         String domain = url.getHost();
-        domain = domain.replaceAll(" ", "");
-        StringBuilder sb = new StringBuilder(domain).reverse();
+        domain = domain.replaceAll(" ", "").replaceFirst("www\\.", "");
+        final String[] splits = domain.split("\\.");
         StringBuilder reverse = new StringBuilder();
-        int index = -1;
-        do {
-            int startIndex = index + 1;
-            index = sb.indexOf(".", index + 1);
-            if (index != -1) {
-                reverse.append(new StringBuilder(sb.substring(startIndex, index)).reverse());
-                reverse.append(".");
-            } else {
-                reverse.append(new StringBuilder(sb.substring(startIndex)).reverse());
-            }
-        } while (index != -1);
-        return reverse.toString();
+        for (int i = splits.length - 1; i >= 0; i--) {
+            reverse.append(splits[i]);
+            reverse.append(".");
+        }
+        if (reverse.charAt(reverse.length() - 1) == '.')
+            reverse.deleteCharAt(reverse.length() - 1);
+        return link.replace(url.getHost(), reverse).replaceAll("https?://", "");
     }
 
     private boolean validateProtocol(String urlString) throws MalformedURLException {

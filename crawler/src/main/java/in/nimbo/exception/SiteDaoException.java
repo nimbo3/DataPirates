@@ -1,9 +1,15 @@
 package in.nimbo.exception;
 
-import java.io.IOException;
-
 public class SiteDaoException extends Exception {
     public SiteDaoException(Exception e) {
         super(e);
+    }
+
+    public SiteDaoException(String message, Exception cause) {
+        super(message, cause);
+    }
+
+    public SiteDaoException(String message) {
+        super(message);
     }
 }
