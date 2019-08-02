@@ -20,6 +20,9 @@ import in.nimbo.cache.RedisVisitedLinksCache;
 import in.nimbo.cache.VisitedLinksCache;
 import in.nimbo.cache.CaffeineVistedDomainCache;
 import in.nimbo.model.Site;
+import in.nimbo.shutdown_hook.HbaseShutdownHook;
+import in.nimbo.shutdown_hook.KafkaShutdownHook;
+import in.nimbo.shutdown_hook.ShutdownHook;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Connection;
@@ -90,7 +93,7 @@ public class App {
             }
             LinkedBlockingQueue<Site> hbaseBulkQueue = new LinkedBlockingQueue<>();
             SharedMetricRegistries.getDefault().register(
-                    MetricRegistry.name(HbaseSiteDaoImpl.class,"bulk queue size"),
+                    MetricRegistry.name(HbaseSiteDaoImpl.class, "bulk queue size"),
                     (Gauge<Integer>) hbaseBulkQueue::size);
 
             Configuration hbaseConfig = HBaseConfiguration.create();

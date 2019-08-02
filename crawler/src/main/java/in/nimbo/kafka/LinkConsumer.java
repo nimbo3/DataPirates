@@ -66,7 +66,6 @@ public class LinkConsumer implements Closeable {
                 } catch (InterruptedException e) {
                     closed = true;
                     consumer.commitSync();
-                    Thread.currentThread().interrupt();
                 }
             }
         }

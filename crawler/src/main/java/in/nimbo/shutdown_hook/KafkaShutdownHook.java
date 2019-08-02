@@ -1,4 +1,4 @@
-package in.nimbo;
+package in.nimbo.shutdown_hook;
 
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
