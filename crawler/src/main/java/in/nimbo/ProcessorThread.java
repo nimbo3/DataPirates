@@ -46,44 +46,31 @@ class ProcessorThread extends Thread implements Closeable {
             while (!interrupted() && !closed) {
                 try (Timer.Context time = crawlTimer.time()) {
                     Pair<String, String> pair = null;
-                    try {
-                        pair = linkPairHtmlQueue.take();
-                    } catch (InterruptedException e) {
-                        logger.error("InterruptedException happened while polling from pair", e);
-                        Thread.currentThread().interrupt();
-                    }
+                    pair = linkPairHtmlQueue.take();
                     String url = pair.getKey();
                     String html = pair.getValue();
                     Site site = null;
-
-                    logger.trace(String.format("Parsing (%s)", url));
                     try {
                         Parser parser = new Parser(url, html, config);
                         site = parser.parse();
-                        logger.trace(String.format("(%s) Parsed", url));
                         if (UnusableSiteDetector.hasAcceptableLanguage(site.getPlainText())) {
-                            logger.trace(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
                             site.getAnchors().keySet().forEach(link -> {
                                 if (!visitedUrlsCache.hasVisited(link)) {
                                     linkProducer.send(link);
                                 }
                             });
-                            logger.trace(String.format("anchors in Kafka putted(%s)", url));
-                            logger.trace(String.format("(%s) Inserting into elastic", url));
                             elasitcSiteDao.insert(site);
-                            logger.trace(String.format("(%s) Inserting into hbase", url));
                             hbaseBulkQueue.put(site);
-                            logger.trace("Inserted : " + site.getTitle() + " : " + site.getLink());
                         }
                     } catch (SiteDaoException e) {
                         logger.error(String.format("Failed to save in database(s) : %s", url), e);
-                    } catch (InterruptedException e) {
-                        logger.error("hbase bulk can't take site from blocking queue!");
                     } catch (Exception e) {
                         logger.error(String.format("Failed to parse : %s", url), e);
                     }
                 }
             }
+        } catch (InterruptedException e) {
+            logger.error("InterruptedException happened while polling from pair", e);
         } catch (Exception e) {
             logger.error("Processor Thread Shut Down", e);
         }

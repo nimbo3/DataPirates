@@ -7,7 +7,6 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.typesafe.config.Config;
 
-import java.io.IOException;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
@@ -35,7 +34,7 @@ public class CaffeineVistedDomainCache implements VisitedLinksCache {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
 
     }
 }

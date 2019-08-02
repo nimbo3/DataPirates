@@ -1,4 +1,4 @@
-package in.nimbo;
+package in.nimbo.shutdown_hook;
 
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
@@ -10,7 +10,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 
-class ShutdownHook extends Thread {
+public class ShutdownHook extends Thread {
     private static Logger logger = LoggerFactory.getLogger(ShutdownHook.class);
     private final Config config;
     private Timer shutDownTimer = SharedMetricRegistries.getDefault().timer("shutdown");
@@ -23,6 +23,7 @@ class ShutdownHook extends Thread {
         this.closeables = closeables;
     }
 
+    @Override
     public void run() {
         try (Timer.Context time = shutDownTimer.time()) {
             logger.info("Shutdown hook thread initiated.");
