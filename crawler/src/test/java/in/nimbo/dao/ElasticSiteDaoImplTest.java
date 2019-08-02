@@ -6,7 +6,6 @@ import com.typesafe.config.ConfigFactory;
 import in.nimbo.exception.ElasticSiteDaoException;
 import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
-import in.nimbo.parser.Parser;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
