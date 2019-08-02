@@ -107,7 +107,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
                 return table.get(get);
             }
         } catch (IOException e) {
-            throw new HbaseSiteDaoException("can't bulk get from Hbase", e);
+            throw new HbaseSiteDaoException("can't get from Hbase", e);
         }
     }
 

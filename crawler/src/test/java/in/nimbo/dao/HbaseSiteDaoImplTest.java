@@ -19,6 +19,8 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -29,6 +31,7 @@ import static org.junit.Assert.assertEquals;
 
 
 public class HbaseSiteDaoImplTest {
+    private static final Logger logger = LoggerFactory.getLogger(HbaseSiteDaoImplTest.class);
     private static String TABLE_NAME;
     private static String FAMILY_NAME;
     private static HbaseSiteDaoImpl hbaseSiteDao;
@@ -47,9 +50,14 @@ public class HbaseSiteDaoImplTest {
         hbaseSiteDao = new HbaseSiteDaoImpl(conn, hBaseConfiguration, config);
         TABLE_NAME = config.getString("hbase.table.name");
         FAMILY_NAME = config.getString("hbase.table.column.family.anchors");
-        HTableDescriptor desc = new HTableDescriptor(TableName.valueOf(TABLE_NAME));
-        desc.addFamily(new HColumnDescriptor(FAMILY_NAME));
-        conn.getAdmin().createTable(desc);
+        final Admin admin = conn.getAdmin();
+        if (!admin.tableExists(TableName.valueOf(TABLE_NAME))) {
+            HTableDescriptor desc = new HTableDescriptor(TableName.valueOf(TABLE_NAME));
+            desc.addFamily(new HColumnDescriptor(FAMILY_NAME));
+            admin.createTable(desc);
+        }
+        if (!admin.isTableEnabled(TableName.valueOf(TABLE_NAME)))
+            admin.enableTable(TableName.valueOf(TABLE_NAME));
     }
 
     @After
@@ -60,25 +68,21 @@ public class HbaseSiteDaoImplTest {
     }
 
     @Test
-    public void insert() {
+    public void insert() throws SiteDaoException {
         Site site = new Site("www.google.com", "welcome to google!");
         Map<String, String> map = new HashMap<>();
         map.put("www.stackoverflow.com/google", "see stack");
         map.put("www.yahoo.com/google", "see yahoo");
         site.setAnchors(map);
         site.setReverseLink("com.google.www");
-        try {
-            hbaseSiteDao.insert(site);
-            NavigableMap<byte[], byte[]> actualByteMap = hbaseSiteDao.get(site.getReverseLink()).getFamilyMap(Bytes.toBytes("links"));
-            Map<String, String> actual = new HashMap<>();
-            for (Map.Entry<byte[], byte[]> entry : actualByteMap.entrySet()) {
-                actual.put(new String(entry.getKey()), new String(entry.getValue()));
-            }
-            assertEquals(site.getAnchors(), actual);
-        } catch (Exception e) {
-            System.out.println("exception thrown can't insert");
-            e.printStackTrace();
+        hbaseSiteDao.insert(site);
+        NavigableMap<byte[], byte[]> actualByteMap = hbaseSiteDao.get(site.getReverseLink()).getFamilyMap(Bytes.toBytes("links"));
+        Map<String, String> actual = new HashMap<>();
+        for (Map.Entry<byte[], byte[]> entry : actualByteMap.entrySet()) {
+            actual.put(new String(entry.getKey()), new String(entry.getValue()));
         }
+        System.out.println(actual);
+        assertEquals(site.getAnchors(), actual);
     }
 
     @Test
