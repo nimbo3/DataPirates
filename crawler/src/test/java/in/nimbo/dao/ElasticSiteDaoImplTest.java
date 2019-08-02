@@ -23,7 +23,9 @@ public class ElasticSiteDaoImplTest {
         } catch (IllegalStateException e) {
             SharedMetricRegistries.setDefault(config.getString("metric.registry.name"));
         }
+
         elasticDao = new ElasticSiteDaoImpl(config);
+        elasticDao.createIndex();
     }
 
     @Test
