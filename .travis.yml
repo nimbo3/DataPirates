@@ -1,8 +1,11 @@
 language: java
+dist: xenial
 jdk:
   - openjdk8
 services:
   - elasticsearch
+before_install:
+  - chmod +x .travis/hbase-install.sh
 before_script:
   - .travis/hbase-install.sh
   - sleep 10
@@ -12,6 +15,7 @@ cache:
   directories:
     - '$HOME/.m2/repository'
     - '$HOME/.sonar/cache'
+    - '$HOME/downloads'
 addons:
   sonarcloud:
     organization: "nimbo3"
