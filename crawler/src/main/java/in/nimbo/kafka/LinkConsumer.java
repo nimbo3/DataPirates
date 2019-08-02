@@ -70,6 +70,7 @@ public class LinkConsumer implements Closeable {
             } catch (InterruptedException e) {
                 logger.error("Kafka reader thread interrupted");
                 consumer.commitSync();
+                Thread.currentThread().interrupt();
             }
         }
     }
