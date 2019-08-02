@@ -1,5 +1,6 @@
 package in.nimbo.cache;
 
+import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
 import io.lettuce.core.RedisURI;
@@ -14,7 +15,7 @@ public class RedisVisitedLinksCache implements VisitedLinksCache {
     private final Config config;
     private RedisAdvancedClusterCommands<String, String> sync;
     private RedisAdvancedClusterAsyncCommands<String, String> async;
-    private Timer visitingCheckTimer;
+    private Timer visitingCheckTimer = SharedMetricRegistries.getDefault().timer("redis checking");
     private RedisClusterClient redisClusterClient;
     private StatefulRedisClusterConnection<String, String> connection;
 
