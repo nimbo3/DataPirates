@@ -90,7 +90,7 @@ public class App {
             }
             LinkedBlockingQueue<Site> hbaseBulkQueue = new LinkedBlockingQueue<>();
             SharedMetricRegistries.getDefault().register(
-                    MetricRegistry.name("bulk queue size"),
+                    MetricRegistry.name(HbaseSiteDaoImpl.class,"bulk queue size"),
                     (Gauge<Integer>) hbaseBulkQueue::size);
 
             Configuration hbaseConfig = HBaseConfiguration.create();
@@ -117,7 +117,7 @@ public class App {
             //this shutdown hook is only for kafka
             KafkaShutdownHook kafkaShutdownHook = new KafkaShutdownHook(linkConsumer, linkProducer, config);
             Runtime.getRuntime().addShutdownHook(kafkaShutdownHook);
-            LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue = new LinkedBlockingQueue<>();
+            LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue = new LinkedBlockingQueue<>(3000);
             SharedMetricRegistries.getDefault().register(
                     MetricRegistry.name(FetcherThread.class, "fetch queue size"),
                     (Gauge<Integer>) linkPairHtmlQueue::size);

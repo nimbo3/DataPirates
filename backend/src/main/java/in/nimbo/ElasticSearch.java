@@ -81,7 +81,7 @@ public class ElasticSearch {
             for (SearchHit searchHit : searchResponse.getHits().getHits()) {
                 ResultEntry resultEntry = new ResultEntry(searchHit.getId(),
                         searchHit.getSourceAsMap().get("title").toString(),
-                        searchHit.getSourceAsMap().get("text").toString().substring(0, 1000).concat("..."));
+                        searchHit.getSourceAsMap().get("text").toString());
                 resultEntries.add(resultEntry);
             }
             return resultEntries;
