@@ -6,7 +6,6 @@ import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
 import in.nimbo.exception.FetchException;
 import in.nimbo.parser.NormalizeURL;
-import org.apache.commons.httpclient.RedirectException;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
@@ -117,8 +116,6 @@ public class HttpClientFetcher implements Fetcher, Closeable {
                 response.close();
             } catch (URISyntaxException e) {
                 throw new FetchException(String.format("uri syntax exception in fetching %s", url), e);
-            } catch (RedirectException e) {
-                throw new FetchException(String.format("Redirect exception in fetching %s", url), e);
             } catch (ClientProtocolException e) {
                 throw new FetchException(String.format("ClientProtocolException in fetching %s", url), e);
             } catch (ParseException e) {

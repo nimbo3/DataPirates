@@ -8,7 +8,6 @@ import in.nimbo.fetch.Fetcher;
 import in.nimbo.kafka.LinkConsumer;
 import in.nimbo.kafka.LinkProducer;
 import in.nimbo.model.Pair;
-import in.nimbo.model.Site;
 import in.nimbo.parser.Parser;
 import org.apache.log4j.Logger;
 
@@ -46,30 +45,18 @@ public class FetcherThread extends Thread implements Closeable {
             while (!interrupted() && !closed) {
                 String url = null;
                 try (Timer.Context time = fetcherTimer.time()) {
-                    try {
-                        url = linkConsumer.pop();
-                    } catch (InterruptedException e) {
-                        logger.error("InterruptedException happened while consuming from Kafka", e);
-                        Thread.currentThread().interrupt();
-                    }
+                    url = linkConsumer.pop();
                     if (visitedUrlsCache.hasVisited(url))
                         continue;
-                    logger.trace(String.format("New link (%s) poped from queue", url));
                     if (!visitedDomainsCache.hasVisited(Parser.getDomain(url))) {
-                        logger.trace(String.format("Fetching (%s)", url));
                         try {
                             String html = fetcher.fetch(url);
-                            logger.trace(String.format("(%s) Fetched", url));
                             if (fetcher.isContentTypeTextHtml()) {
                                 Pair<String, String> pair = new Pair<>(fetcher.getRedirectUrl(), html);
-                                try {
-                                    linkPairHtmlQueue.put(pair);
-                                    visitedUrlsCache.put(url);
-                                    visitedDomainsCache.put(Parser.getDomain(url));
-                                    visitedDomainsCache.put(Parser.getDomain(fetcher.getRedirectUrl()));
-                                } catch (InterruptedException e) {
-                                    logger.error("Interrupted Exception when putting in linkPairHtmlQueue", e);
-                                }
+                                linkPairHtmlQueue.put(pair);
+                                visitedUrlsCache.put(url);
+                                visitedDomainsCache.put(Parser.getDomain(url));
+                                visitedDomainsCache.put(Parser.getDomain(fetcher.getRedirectUrl()));
                             }
                         } catch (FetchException e) {
                             logger.error(e.getMessage(), e);
@@ -78,12 +65,13 @@ public class FetcherThread extends Thread implements Closeable {
                         }
                     } else {
                         linkProducer.send(url);
-                        logger.trace(String.format("New link (%s) pushed to queue", url));
                     }
                 } catch (MalformedURLException e) {
                     logger.error("can't get domain for link: " + url, e);
                 }
             }
+        } catch (InterruptedException e) {
+            logger.error("InterruptedException happened while consuming from Kafka", e);
         } catch (Exception e) {
             logger.error("Fetcher Thread Shut Down", e);
         }
