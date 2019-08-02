@@ -1,4 +1,7 @@
-# Search Engine [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=nimbo3_DataPirates&metric=alert_status)](https://sonarcloud.io/dashboard?id=nimbo3_DataPirates)
+# Search Engine 
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=nimbo3_DataPirates&metric=bugs)](https://sonarcloud.io/dashboard?id=nimbo3_DataPirates)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=nimbo3_DataPirates&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=nimbo3_DataPirates)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=nimbo3_DataPirates&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=nimbo3_DataPirates)
 <!--
 *** Thanks for checking out this README Template. If you have a suggestion that would
 *** make this better, please fork the repo and create a pull request or simply open
