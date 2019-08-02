@@ -117,7 +117,8 @@ public class App {
             //this shutdown hook is only for kafka
             KafkaShutdownHook kafkaShutdownHook = new KafkaShutdownHook(linkConsumer, linkProducer, config);
             Runtime.getRuntime().addShutdownHook(kafkaShutdownHook);
-            LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue = new LinkedBlockingQueue<>(3000);
+            LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue = new LinkedBlockingQueue<>(
+                    config.getInt("queue.link.pair.html.size"));
             SharedMetricRegistries.getDefault().register(
                     MetricRegistry.name(FetcherThread.class, "fetch queue size"),
                     (Gauge<Integer>) linkPairHtmlQueue::size);
