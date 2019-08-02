@@ -23,6 +23,7 @@ public class ShutdownHook extends Thread {
         this.closeables = closeables;
     }
 
+    @Override
     public void run() {
         try (Timer.Context time = shutDownTimer.time()) {
             logger.info("Shutdown hook thread initiated.");

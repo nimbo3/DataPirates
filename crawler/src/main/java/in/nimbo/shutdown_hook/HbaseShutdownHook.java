@@ -21,6 +21,7 @@ public class HbaseShutdownHook extends Thread {
         this.hbaseSiteDaos = hbaseSiteDaos;
     }
 
+    @Override
     public void run() {
         try (Timer.Context time = hbaseShutdownTimer.time()) {
             for (HbaseSiteDaoImpl hbaseSiteDao : hbaseSiteDaos) {

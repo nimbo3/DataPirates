@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class KafkaShutdownHook extends Thread {
-    private static Logger logger = LoggerFactory.getLogger(ShutdownHook.class);
+    private static Logger logger = LoggerFactory.getLogger(KafkaShutdownHook.class);
     private final Config config;
     private Timer kafkaShutdownTimer = SharedMetricRegistries.getDefault().timer("kafka-shutdown");
     private LinkConsumer linkConsumer;
@@ -22,6 +22,7 @@ public class KafkaShutdownHook extends Thread {
         this.linkProducer = linkProducer;
     }
 
+    @Override
     public void run() {
         try (Timer.Context time = kafkaShutdownTimer.time()) {
             logger.info("KafkaShutdown hook thread initiated.");
