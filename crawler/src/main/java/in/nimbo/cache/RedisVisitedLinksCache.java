@@ -15,7 +15,7 @@ public class RedisVisitedLinksCache implements VisitedLinksCache {
     private final Config config;
     private RedisAdvancedClusterCommands<String, String> sync;
     private RedisAdvancedClusterAsyncCommands<String, String> async;
-    private Timer visitingCheckTimer;
+    private Timer visitingCheckTimer = SharedMetricRegistries.getDefault().timer("redis checking");
     private RedisClusterClient redisClusterClient;
     private StatefulRedisClusterConnection<String, String> connection;
 
