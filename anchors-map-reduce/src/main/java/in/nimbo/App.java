@@ -15,7 +15,7 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.util.LongAccumulator;
-//import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
+import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 import scala.Tuple2;
 
 import java.util.List;
@@ -48,12 +48,10 @@ public class App {
                 .setAppName(sparkAppName)
                 .set("spark.executor.cores", sparkExecutorCores)
                 .set("spark.executor.memory", sparkExecutorMemory)
-                .setMaster("local[*]")
-//                .set("es.nodes", elasticNodesIp)
-//                .set("es.mapping.id", "id")
+                .set("es.nodes", elasticNodesIp)
+                .set("es.mapping.id", "id")
                 // todo
-//                .set("es.write.operation", "update")
-                ;
+                .set("es.write.operation", "upsert");
         JavaSparkContext sparkContext = new JavaSparkContext(sparkConf);
 
         LongAccumulator rowCount = sparkContext.sc().longAccumulator();
@@ -71,15 +69,15 @@ public class App {
         JavaPairRDD<byte[], Integer> linkToOne = cellRDD.mapToPair(cell -> new Tuple2<>(CellUtil.cloneQualifier(cell), 1));
         JavaPairRDD<byte[], Integer> linkToCount = linkToOne.reduceByKey(Integer::sum);
 
-        System.err.println("row count: "+rowCount.value());
-        System.err.println("cell count: "+cellCount.value());
-        JavaRDD<UpdateObject> updateObjectJavaRDD = linkToCount.map(t -> new UpdateObject(new String(t._1), t._2));
+        System.err.println("row count: " + rowCount.value());
+        System.err.println("cell count: " + cellCount.value());
+        JavaRDD<UpdateObject> updateObjectJavaRDD = linkToCount
+                .filter(t -> t._2 > 1)
+                .map(t -> new UpdateObject(new String(t._1), t._2));
         linkToCount.foreach(t -> {
-            if (t._2 > 1)
-                System.out.println(new String(t._1) + ":" + t._2);
+            System.out.println(new String(t._1) + ":" + t._2);
         });
-//        JavaEsSpark.saveToEs(updateObjectJavaRDD, elasticIndexName + "/" + elasticTableName);
+        JavaEsSpark.saveToEs(updateObjectJavaRDD, elasticIndexName + "/" + elasticTableName);
         sparkContext.close();
-
     }
 }
