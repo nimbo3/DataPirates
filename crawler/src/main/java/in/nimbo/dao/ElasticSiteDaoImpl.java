@@ -104,9 +104,11 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
                         response.getSourceAsMap().get("title").toString());
             } else {
                 logger.warn(String.format("Elastic found no match id for [%s]", url));
+                System.out.println("not exists");
                 return null;
             }
         } catch (IOException e) {
+            System.out.println(e.getMessage());
             logger.error(String.format("Elastic couldn't get [%s]", url), e);
             return null;
         }
@@ -126,6 +128,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
             IndexRequest indexRequest = new IndexRequest(index).id(site.getLink()).source(builder);
             bulkProcessor.add(indexRequest);
             logger.trace(String.format("Elastic Inserted [%s]", site.getLink()));
+            System.out.println("inserted");
         } catch (IOException e) {
             elasticFailureMeter.mark();
             throw new ElasticSiteDaoException(String.format("Elastic couldn't insert [%s]", site.getLink()), e);
@@ -157,10 +160,10 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
     }
 
     public void createIndex() {
-        CreateIndexRequest request = new CreateIndexRequest("sites");
+        CreateIndexRequest request = new CreateIndexRequest(index);
         request.settings(Settings.builder()
-                .put("index.number_of_shards", 2)
-                .put("index.number_of_replicas", 1)
+                .put("index.number_of_shards", 1)
+                .put("index.number_of_replicas", 0)
         );
         try {
             client.indices().create(request, RequestOptions.DEFAULT);
