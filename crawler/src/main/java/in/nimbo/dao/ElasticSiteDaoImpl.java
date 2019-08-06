@@ -41,7 +41,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
     private final Meter bulkInsertionFailures;
     private String index;
     private int elasticBulkTimeOut;
-    private RestHighLevelClient client;
+    public RestHighLevelClient client;
     private BulkProcessor bulkProcessor;
 
     private BulkProcessor.Listener bulkProcessorListener = new BulkProcessor.Listener() {
@@ -128,7 +128,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
             IndexRequest indexRequest = new IndexRequest(index).id(site.getLink()).source(builder);
             bulkProcessor.add(indexRequest);
             logger.trace(String.format("Elastic Inserted [%s]", site.getLink()));
-            System.out.println("inserted");
+
         } catch (IOException e) {
             elasticFailureMeter.mark();
             throw new ElasticSiteDaoException(String.format("Elastic couldn't insert [%s]", site.getLink()), e);

@@ -6,10 +6,15 @@ import com.typesafe.config.ConfigFactory;
 import in.nimbo.exception.ElasticSiteDaoException;
 import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.core.CountRequest;
+import org.elasticsearch.client.core.CountResponse;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+
+import java.io.IOException;
 
 import static junit.framework.TestCase.assertTrue;
 
@@ -35,9 +40,17 @@ public class ElasticSiteDaoImplTest {
         site.setKeywords("keywords");
         site.setPlainText("text");
         elasticDao.insert(site);
+        elasticDao.insert(site);
+        System.out.println("inserted");
         try {
             Thread.sleep(3000);
         } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        try {
+            CountResponse count = elasticDao.client.count(new CountRequest("sites"), RequestOptions.DEFAULT);
+            System.out.println(count);
+        } catch (IOException e) {
             e.printStackTrace();
         }
         assertTrue(elasticDao.get(LINK).equals(site));
