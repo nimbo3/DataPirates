@@ -25,7 +25,7 @@ class ShutdownHook extends Thread {
 
     public void run() {
         try (Timer.Context time = shutDownTimer.time()) {
-            logger.info("Shutdown hook thread initiated.");
+            logger.trace("Shutdown hook started ...");
             for (Closeable closeable : closeables) {
                 try {
                     closeable.close();
@@ -33,6 +33,7 @@ class ShutdownHook extends Thread {
                     logger.error("Shutdown hook can't close object with name: " + closeable.getClass().getSimpleName(), e);
                 }
             }
+            logger.trace("Shutdown hook completed.");
         }
     }
 }
