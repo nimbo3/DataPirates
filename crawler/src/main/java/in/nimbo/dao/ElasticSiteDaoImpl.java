@@ -22,6 +22,7 @@ import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.CreateIndexRequest;
+import org.elasticsearch.client.indices.GetIndexRequest;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -161,12 +162,15 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
 
     public void createIndex() {
         CreateIndexRequest request = new CreateIndexRequest(index);
+        GetIndexRequest getRequest = new GetIndexRequest(index);
         request.settings(Settings.builder()
                 .put("index.number_of_shards", 1)
                 .put("index.number_of_replicas", 0)
         );
         try {
-            client.indices().create(request, RequestOptions.DEFAULT);
+            if (!client.indices().exists(getRequest, RequestOptions.DEFAULT)) {
+                client.indices().create(request, RequestOptions.DEFAULT);
+            }
         } catch (IOException e) {
             logger.error("Elastic Can't Create Index", e);
         }

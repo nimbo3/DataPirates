@@ -3,12 +3,10 @@ jdk:
   - openjdk8
 script:
   - mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent package sonar:sonar -Dsonar.projectKey=nimbo3_DataPirates
-before_install:
-  - curl -O https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.2.0-amd64.deb && sudo dpkg -i --force-confnew elasticsearch-7.2.0-amd64.deb && sudo service elasticsearch restart
-services:
-  - elasticsearch
 before_script:
   - sleep 10
+services:
+  - elasticsearch
 cache:
   directories:
     - '$HOME/.m2/repository'
