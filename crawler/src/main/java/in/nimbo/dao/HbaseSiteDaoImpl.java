@@ -46,6 +46,14 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
         this.sites = sites;
     }
 
+    public HbaseSiteDaoImpl(Connection connection, Configuration hbaseConfig, Config config) {
+        this.hbaseConfig = hbaseConfig;
+        TABLE_NAME = config.getString("hbase.table.name");
+        anchorsFamily = config.getString("hbase.table.column.family.anchors");
+        BULK_SIZE = config.getInt("hbase.bulk.size");
+        this.connection = connection;
+    }
+
     //Todo : really needed ?!
     private Connection getConnection() throws IOException {
         if (connection == null)
@@ -55,7 +63,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
 
     @Override
     public void insert(Site site) throws SiteDaoException {
-        try (Timer.Context time = insertionTimer.time()){
+        try (Timer.Context time = insertionTimer.time()) {
             Connection connection = getConnection();
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME))) {
                 Put put = new Put(Bytes.toBytes(site.getReverseLink()));
@@ -97,7 +105,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
                 return table.get(get);
             }
         } catch (IOException e) {
-            throw new HbaseSiteDaoException("can't bulk get from Hbase", e);
+            throw new HbaseSiteDaoException("can't get from Hbase", e);
         }
     }
 
@@ -106,7 +114,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
             Connection connection = getConnection();
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                  Timer.Context time = deleteTimer.time()) {
-                Get get = new Get(Bytes.toBytes(site.getLink()));
+                Get get = new Get(Bytes.toBytes(site.getReverseLink()));
                 Result result = table.get(get);
                 return result.size() > 0;
             }
@@ -133,7 +141,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
                          Timer.Context time = hbaseBulkInsertMeter.time()) {
                         table.put(puts);
                     } catch (IOException e) {
-                       logger.error("Hbase thread can't bulk insert.", e);
+                        logger.error("Hbase thread can't bulk insert.", e);
                     }
                     puts.clear();
                 }
@@ -147,7 +155,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
     @Override
     public void close() {
         closed = true;
-        if(!puts.isEmpty()){
+        if (!puts.isEmpty()) {
             try (Table table = getConnection().getTable(TableName.valueOf(TABLE_NAME));
                  Timer.Context time = hbaseBulkInsertMeter.time()) {
                 table.put(puts);

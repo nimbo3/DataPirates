@@ -6,17 +6,18 @@ import com.typesafe.config.Config;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.time.Duration;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 
 public class LinkConsumer implements Closeable {
-    private final Logger logger = Logger.getLogger(LinkConsumer.class);
     private final Config config;
+    private Logger logger = LoggerFactory.getLogger(LinkConsumer.class);
     private Meter pollLinksMeter = SharedMetricRegistries.getDefault().meter("kafka-poll-links");
     private ArrayBlockingQueue<String> buffer;
     private KafkaConsumer<String, String> consumer;
@@ -58,20 +59,20 @@ public class LinkConsumer implements Closeable {
         @Override
         public void run() {
             final int KAFKA_CONSUME_POLL_TIMEOUT = config.getInt("kafka.consume.poll.timeout");
-            consumer.subscribe(Arrays.asList(topicName));
-            while (!closed) {
-                try {
+            consumer.subscribe(Collections.singletonList(topicName));
+            try {
+                while (!closed) {
                     ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(KAFKA_CONSUME_POLL_TIMEOUT));
                     logger.trace(String.format("[%d] New links consumed from kafka.", records.count()));
                     pollLinksMeter.mark(records.count());
                     for (ConsumerRecord<String, String> record : records)
                         buffer.put(record.value());
                     consumer.commitAsync();
-                } catch (InterruptedException e) {
-                    closed = true;
-                    consumer.commitSync();
-                    Thread.currentThread().interrupt();
                 }
+            } catch (InterruptedException e) {
+                logger.error("Kafka reader thread interrupted");
+                consumer.commitSync();
+                Thread.currentThread().interrupt();
             }
         }
     }

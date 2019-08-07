@@ -9,7 +9,6 @@ import in.nimbo.fetch.Fetcher;
 import in.nimbo.kafka.LinkConsumer;
 import in.nimbo.kafka.LinkProducer;
 import in.nimbo.model.Pair;
-import in.nimbo.model.Site;
 import in.nimbo.parser.Parser;
 import org.apache.log4j.Logger;
 

@@ -9,20 +9,22 @@ import com.cybozu.labs.langdetect.DetectorFactory;
 import com.cybozu.labs.langdetect.LangDetectException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import in.nimbo.cache.CaffeineVistedDomainCache;
+import in.nimbo.cache.RedisVisitedLinksCache;
 import in.nimbo.dao.ElasticSiteDaoImpl;
 import in.nimbo.dao.HbaseSiteDaoImpl;
 import in.nimbo.fetch.JsoupFetcher;
-import in.nimbo.model.Pair;
 import in.nimbo.kafka.LinkConsumer;
 import in.nimbo.kafka.LinkProducer;
-import in.nimbo.cache.RedisVisitedLinksCache;
-import in.nimbo.cache.CaffeineVistedDomainCache;
+import in.nimbo.model.Pair;
 import in.nimbo.model.Site;
+import in.nimbo.shutdown_hook.HbaseShutdownHook;
+import in.nimbo.shutdown_hook.KafkaShutdownHook;
+import in.nimbo.shutdown_hook.ShutdownHook;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +67,7 @@ public class App {
 
             LinkedBlockingQueue<Site> hbaseBulkQueue = new LinkedBlockingQueue<>();
             SharedMetricRegistries.getDefault().register(
-                    MetricRegistry.name("bulk queue size"),
+                    MetricRegistry.name(HbaseSiteDaoImpl.class, "bulk queue size"),
                     (Gauge<Integer>) hbaseBulkQueue::size);
 
             Configuration hbaseConfig = HBaseConfiguration.create();

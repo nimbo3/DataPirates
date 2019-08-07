@@ -44,18 +44,12 @@ class ProcessorThread extends Thread implements Closeable {
             while (!interrupted() && !closed) {
                 try (Timer.Context time = crawlTimer.time()) {
                     Pair<String, String> pair = null;
-                    try {
-                        pair = linkPairHtmlQueue.take();
-                    } catch (InterruptedException e) {
-                        logger.error("InterruptedException happened while polling from pair", e);
-                        Thread.currentThread().interrupt();
-                    }
+                    pair = linkPairHtmlQueue.take();
                     String url = pair.getKey();
                     String html = pair.getValue();
-                    Site site = null;
                     try {
                         Parser parser = new Parser(url, html);
-                        site = parser.parse();
+                        Site site = parser.parse();
                         if (LanguageDetector.detect(site.getPlainText()).equals("en")) {
                             logger.trace(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
                             site.getAnchors().keySet().forEach(link -> {

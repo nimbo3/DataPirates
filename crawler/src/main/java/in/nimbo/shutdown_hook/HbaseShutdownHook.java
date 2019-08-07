@@ -1,4 +1,4 @@
-package in.nimbo;
+package in.nimbo.shutdown_hook;
 
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
@@ -19,6 +19,7 @@ public class HbaseShutdownHook extends Thread {
         this.hbaseSiteDaos = hbaseSiteDaos;
     }
 
+    @Override
     public void run() {
         try (Timer.Context time = hbaseShutdownTimer.time()) {
             logger.info("Hbase Shutdown hook started ...");
