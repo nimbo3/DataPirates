@@ -60,7 +60,7 @@ public class FetcherThread extends Thread implements Closeable {
                         visitedLinksSkips.mark();
                         continue;
                     }
-                    logger.trace(String.format("New link (%s) poped from queue", url));
+                    logger.trace(String.format("New link [%s] poped from kafka queue", url));
                     if (!visitedDomainsCache.hasVisited(Parser.getDomain(url))) {
                         try {
                             String html = fetcher.fetch(url);
@@ -68,6 +68,7 @@ public class FetcherThread extends Thread implements Closeable {
                             linkPairHtmlQueue.put(pair);
                             linkPairHtmlPutsMeter.mark();
                             visitedUrlsCache.put(url);
+                            visitedUrlsCache.put(fetcher.getRedirectedUrl());
                             visitedDomainsCache.put(Parser.getDomain(url));
                             visitedDomainsCache.put(Parser.getDomain(fetcher.getRedirectedUrl()));
                         } catch (FetchException e) {

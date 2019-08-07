@@ -10,24 +10,23 @@ import org.slf4j.LoggerFactory;
 
 public class KafkaShutdownHook extends Thread {
     private static Logger logger = LoggerFactory.getLogger(ShutdownHook.class);
-    private final Config config;
     private Timer kafkaShutdownTimer = SharedMetricRegistries.getDefault().timer("kafka-shutdown");
     private LinkConsumer linkConsumer;
     private LinkProducer linkProducer;
 
 
-    public KafkaShutdownHook(LinkConsumer linkConsumer, LinkProducer linkProducer, Config config) {
-        this.config = config;
+    public KafkaShutdownHook(LinkConsumer linkConsumer, LinkProducer linkProducer) {
         this.linkConsumer = linkConsumer;
         this.linkProducer = linkProducer;
     }
 
     public void run() {
         try (Timer.Context time = kafkaShutdownTimer.time()) {
-            logger.info("KafkaShutdown hook thread initiated.");
+            logger.info("Kafka Shutdown hook started ...");
             linkConsumer.close();
             //TODO do sth to return back consumed files to kafka
             linkProducer.close();
+            logger.info("Kafka Shutdown hook completed.");
         }
     }
 }

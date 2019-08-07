@@ -31,13 +31,13 @@ import java.util.concurrent.TimeUnit;
 
 public class ElasticSiteDaoImpl implements SiteDao, Closeable {
     private final Logger logger = Logger.getLogger(ElasticSiteDaoImpl.class);
+    private final String INDEX;
     private final Timer insertionTimer;
     private final Meter elasticFailureMeter;
     private final Timer deleteTimer;
     private final Timer bulkInsertionTimer;
     private final Meter bulkInsertionMeter;
     private final Meter bulkInsertionFailures;
-    private String index;
     private int elasticBulkTimeOut;
     private RestHighLevelClient client;
     private BulkProcessor bulkProcessor;
@@ -67,7 +67,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
     };
 
     public ElasticSiteDaoImpl(Config config) {
-        this.index = "sites";
+        this.INDEX = "sites";
         this.elasticBulkTimeOut = config.getInt("elastic.bulk.timeout");
         this.client = new RestHighLevelClient(RestClient.builder(
                 new HttpHost(config.getString("elastic.hostname"),
@@ -93,7 +93,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
     }
 
     public Site get(String url) {
-        GetRequest getRequest = new GetRequest(index, url);
+        GetRequest getRequest = new GetRequest(INDEX, url);
         try {
             GetResponse response = client.get(getRequest, RequestOptions.DEFAULT);
             if (response.isExists()) {
@@ -121,7 +121,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
             builder.field("text", site.getPlainText());
             builder.field("keywords", site.getKeywords());
             builder.endObject();
-            IndexRequest indexRequest = new IndexRequest(index).id(site.getLink()).source(builder);
+            IndexRequest indexRequest = new IndexRequest(INDEX).id(site.getLink()).source(builder);
             bulkProcessor.add(indexRequest);
             logger.trace(String.format("Elastic Inserted [%s]", site.getLink()));
         } catch (IOException e) {
@@ -132,7 +132,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
 
     @Override
     public void delete(String url) {
-        DeleteRequest deleteRequest = new DeleteRequest(index, url);
+        DeleteRequest deleteRequest = new DeleteRequest(INDEX, url);
         try (Timer.Context time = deleteTimer.time()) {
             client.delete(deleteRequest, RequestOptions.DEFAULT);
             logger.trace(String.format("Link [%s] deleted from elastic", url));
@@ -151,6 +151,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
             logger.trace("Shut down operation in elastic completed.");
         } catch (InterruptedException e) {
             logger.error("Thread interrupted in elastic close.", e);
+            Thread.currentThread().interrupt();
         }
     }
 }

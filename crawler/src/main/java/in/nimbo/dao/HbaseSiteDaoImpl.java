@@ -25,22 +25,20 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
     private static final Logger logger = LoggerFactory.getLogger(HbaseSiteDaoImpl.class);
     private final String TABLE_NAME;
     private final int BULK_SIZE;
-    private Config config;
-    private Timer hbasebulkInsertMeter = SharedMetricRegistries.getDefault().timer("hbase-bulk-insert");
+    private Timer hbaseBulkInsertMeter = SharedMetricRegistries.getDefault().timer("hbase-bulk-insert");
     private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("hbase-insertion");
     private Meter insertionFailureMeter = SharedMetricRegistries.getDefault().meter("hbase-insertion-failure");
     private Timer deleteTimer = SharedMetricRegistries.getDefault().timer("hbase-delete");
     private LinkedBlockingQueue<Site> sites;
     private List<Put> puts = new LinkedList<>();
-    private Connection conn;
+    private Connection connection;
     private Configuration hbaseConfig;
     private String anchorsFamily;
     private boolean closed = false;
 
 
-    public HbaseSiteDaoImpl(Connection conn, LinkedBlockingQueue<Site> sites, Configuration hbaseConfig, Config config) {
-        this.config = config;
-        this.conn = conn;
+    public HbaseSiteDaoImpl(Connection connection, LinkedBlockingQueue<Site> sites, Configuration hbaseConfig, Config config) {
+        this.connection = connection;
         this.hbaseConfig = hbaseConfig;
         TABLE_NAME = config.getString("hbase.table.name");
         anchorsFamily = config.getString("hbase.table.column.family.anchors");
@@ -48,18 +46,18 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
         this.sites = sites;
     }
 
+    //Todo : really needed ?!
     private Connection getConnection() throws IOException {
-        if (conn == null)
-            conn = ConnectionFactory.createConnection(hbaseConfig);
-        return conn;
+        if (connection == null)
+            connection = ConnectionFactory.createConnection(hbaseConfig);
+        return connection;
     }
 
     @Override
     public void insert(Site site) throws SiteDaoException {
-        try {
+        try (Timer.Context time = insertionTimer.time()){
             Connection connection = getConnection();
-            try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
-                 Timer.Context time = insertionTimer.time()) {
+            try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME))) {
                 Put put = new Put(Bytes.toBytes(site.getReverseLink()));
                 for (Map.Entry<String, String> anchorEntry : site.getAnchors().entrySet()) {
                     String link = anchorEntry.getKey();
@@ -132,7 +130,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
                 puts.add(put);
                 if (puts.size() >= BULK_SIZE) {
                     try (Table table = getConnection().getTable(TableName.valueOf(TABLE_NAME));
-                         Timer.Context time = hbasebulkInsertMeter.time()) {
+                         Timer.Context time = hbaseBulkInsertMeter.time()) {
                         table.put(puts);
                     } catch (IOException e) {
                        logger.error("Hbase thread can't bulk insert.", e);
@@ -142,6 +140,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
             }
         } catch (InterruptedException e) {
             logger.error("hbase-bulk-insertion thread interrupted!");
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -150,7 +149,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
         closed = true;
         if(!puts.isEmpty()){
             try (Table table = getConnection().getTable(TableName.valueOf(TABLE_NAME));
-                 Timer.Context time = hbasebulkInsertMeter.time()) {
+                 Timer.Context time = hbaseBulkInsertMeter.time()) {
                 table.put(puts);
             } catch (IOException e) {
                 logger.error("Hbase thread can't bulk insert.", e);
@@ -160,6 +159,6 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
     }
 
     public void closeConnection() throws IOException {
-        conn.close();
+        connection.close();
     }
 }

@@ -16,7 +16,6 @@ import in.nimbo.model.Pair;
 import in.nimbo.kafka.LinkConsumer;
 import in.nimbo.kafka.LinkProducer;
 import in.nimbo.cache.RedisVisitedLinksCache;
-import in.nimbo.cache.VisitedLinksCache;
 import in.nimbo.cache.CaffeineVistedDomainCache;
 import in.nimbo.model.Site;
 import org.apache.hadoop.conf.Configuration;
@@ -51,7 +50,7 @@ public class App {
         SharedMetricRegistries.setDefault("data-pirates-crawler");
         MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
         List<Closeable> closeables = new LinkedList<>();
-        ShutdownHook shutdownHook = new ShutdownHook(closeables, config);
+        ShutdownHook shutdownHook = new ShutdownHook(closeables);
         Runtime.getRuntime().addShutdownHook(shutdownHook);
         JmxReporter jmxReporter = JmxReporter.forRegistry(metricRegistry).inDomain("crawler").build();
         jmxReporter.start();
@@ -87,14 +86,14 @@ public class App {
             linkConsumer.start();
             LinkProducer linkProducer = new LinkProducer(config);
             //this shutdown hook is only for kafka
-            KafkaShutdownHook kafkaShutdownHook = new KafkaShutdownHook(linkConsumer, linkProducer, config);
+            KafkaShutdownHook kafkaShutdownHook = new KafkaShutdownHook(linkConsumer, linkProducer);
             Runtime.getRuntime().addShutdownHook(kafkaShutdownHook);
             LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue = new LinkedBlockingQueue<>(
                     config.getInt("queue.link.pair.html.size"));
             SharedMetricRegistries.getDefault().register(
                     MetricRegistry.name(FetcherThread.class, "fetch queue size"),
                     (Gauge<Integer>) linkPairHtmlQueue::size);
-            JsoupFetcher jsoupFetcher = new JsoupFetcher();
+            JsoupFetcher jsoupFetcher = new JsoupFetcher(config);
 
 
             FetcherThread[] fetcherThreads = new FetcherThread[numberOfFetcherThreads];
@@ -110,7 +109,7 @@ public class App {
             }
 
             HbaseSiteDaoImpl[] hbaseSiteDaoImpls = new HbaseSiteDaoImpl[numberOfHbaseThreads];
-            HbaseShutdownHook hbaseShutdownHook = new HbaseShutdownHook(hbaseSiteDaoImpls, config);
+            HbaseShutdownHook hbaseShutdownHook = new HbaseShutdownHook(hbaseSiteDaoImpls);
             Runtime.getRuntime().addShutdownHook(hbaseShutdownHook);
             for (int i = 0; i < numberOfHbaseThreads; i++) {
                 hbaseSiteDaoImpls[i] = new HbaseSiteDaoImpl(conn, hbaseBulkQueue, hbaseConfig, config);

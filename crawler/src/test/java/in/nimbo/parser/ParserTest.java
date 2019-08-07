@@ -93,7 +93,7 @@ public class ParserTest {
     @Test
     public void extractMetadataTest() {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i], config);
+            Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractMetadata();
             String expected = sites[i].getMetadata();
             double percentage = getPercentage(expected, actual);
@@ -103,7 +103,7 @@ public class ParserTest {
     @Test
     public void extractTitleTest() {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i], config);
+            Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractTitle();
             String expected = sites[i].getTitle();
             double percentage = getPercentage(expected, actual);
@@ -114,7 +114,7 @@ public class ParserTest {
     @Test
     public void extractPlainTextTest() {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i], config);
+            Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractPlainText();
             String expected = sites[i].getPlainText();
             double percentage = getPercentage(expected, actual);
@@ -125,7 +125,7 @@ public class ParserTest {
     @Test
     public void extractKeywordsTest() {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i], config);
+            Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractKeywords();
             String expected = sites[i].getKeywords();
             double percentage = getPercentage(expected, actual);
@@ -136,7 +136,7 @@ public class ParserTest {
     @Test
     public void extractAnchorsTest() {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i], config);
+            Parser parser = new Parser(links[i], htmls[i]);
             Map<String, String> actualList = parser.extractAnchors();
             Map<String, String> expectedList = sites[i].getAnchors();
             StringBuilder actual = new StringBuilder(), expected = new StringBuilder();
@@ -166,7 +166,7 @@ public class ParserTest {
 
     @Test
     public void reverseTest() throws IOException {
-        Parser parser = new Parser(links[0], htmls[0], config);
+        Parser parser = new Parser(links[0], htmls[0]);
         String url = "https://www.geeksforgeeks.org:80/url-samefile-method-in-java-with-examples/";
         String expected = "org.geeksforgeeks:80/url-samefile-method-in-java-with-examples/";
         Assert.assertEquals(expected, parser.reverse(url));
@@ -187,7 +187,7 @@ public class ParserTest {
     }
     @Test
     public void normalizeTest() throws MalformedURLException {
-        Parser parser = new Parser(links[0], htmls[0], config);
+        Parser parser = new Parser(links[0], htmls[0]);
         String url = "https://www.geeksforgeeks.org:80/url-samefile-method-in-java-with-examples/";
         String expected = "http://geeksforgeeks.org/url-samefile-method-in-java-with-examples";
         Assert.assertEquals(expected, parser.normalize(url));

@@ -7,7 +7,6 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.typesafe.config.Config;
 
-import java.io.IOException;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
@@ -20,18 +19,18 @@ public class CaffeineVistedDomainCache implements VisitedLinksCache {
                 .expireAfterWrite(politenessWaitingTime, TimeUnit.SECONDS)
                 .build();
         SharedMetricRegistries.getDefault().register(
-                MetricRegistry.name(CaffeineVistedDomainCache.class, "Caffeine visited links size"),
+                MetricRegistry.name(CaffeineVistedDomainCache.class, "caffeine visited links"),
                 (Gauge<Long>) visitedSites::estimatedSize);
     }
 
     @Override
-    public void put(String normalizedUrl) {
-        visitedSites.put(normalizedUrl, new Date());
+    public void put(String url) {
+        visitedSites.put(url, new Date());
     }
 
     @Override
-    public boolean hasVisited(String normalizedUrl) {
-        return visitedSites.getIfPresent(normalizedUrl) != null;
+    public boolean hasVisited(String url) {
+        return visitedSites.getIfPresent(url) != null;
     }
 
 }
