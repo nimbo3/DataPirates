@@ -10,13 +10,11 @@ import java.io.Closeable;
 import java.util.Properties;
 
 public class LinkProducer implements Closeable {
-    private final Config config;
     private Timer sendTimer = SharedMetricRegistries.getDefault().timer("kafka-sending");
     private KafkaProducer<String, String> producer;
     private String topicName;
 
     public LinkProducer(Config config) {
-        this.config = config;
         Properties properties = new Properties();
         properties.put("bootstrap.servers", config.getString("kafka.bootstrap.servers"));
         properties.put("acks", config.getString("kafka.acks"));

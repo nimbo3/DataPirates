@@ -8,20 +8,19 @@ import com.cybozu.labs.langdetect.LangDetectException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UnusableSiteDetector {
-    private static Logger logger = LoggerFactory.getLogger(UnusableSiteDetector.class);
-    private static Timer acceptableLanguageDetecterTimer = SharedMetricRegistries.getDefault().timer("unusable site detector");
+public class LanguageDetector {
+    private static Logger logger = LoggerFactory.getLogger(LanguageDetector.class);
+    private static Timer langDetectTimer = SharedMetricRegistries.getDefault().timer("language detector");
 
 
-    public static boolean hasAcceptableLanguage(String plainText) {
-        try (Timer.Context time = acceptableLanguageDetecterTimer.time()) {
+    public static String detect(String plainText) {
+        try (Timer.Context time = langDetectTimer.time()) {
             Detector detector = DetectorFactory.create();
             detector.append(plainText);
-            String detect = detector.detect();
-            return detect.equals("en");
+            return detector.detect();
         } catch (LangDetectException e) {
             logger.error("Failed To Detect Language", e);
-            return false;
+            return "error";
         }
     }
 }

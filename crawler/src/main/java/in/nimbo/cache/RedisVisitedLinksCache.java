@@ -9,21 +9,20 @@ import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands;
 import io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands;
 
+import java.io.Closeable;
 import java.util.ArrayList;
 
-public class RedisVisitedLinksCache implements VisitedLinksCache {
-    private final Config config;
+public class RedisVisitedLinksCache implements VisitedLinksCache, Closeable {
+    private Timer visitingCheckTimer = SharedMetricRegistries.getDefault().timer("redis checking");
     private RedisAdvancedClusterCommands<String, String> sync;
     private RedisAdvancedClusterAsyncCommands<String, String> async;
-    private Timer visitingCheckTimer = SharedMetricRegistries.getDefault().timer("redis checking");
-    private RedisClusterClient redisClusterClient;
     private StatefulRedisClusterConnection<String, String> connection;
+    private RedisClusterClient redisClusterClient;
 
     public RedisVisitedLinksCache(Config config) {
-        this.config = config;
         ArrayList<RedisURI> redisServers = new ArrayList<>();
         for (String string : config.getString("redis.servers").split(","))
-            redisServers.add(RedisURI.create("redis://"+string));
+            redisServers.add(RedisURI.create("redis://" + string));
         redisClusterClient = RedisClusterClient.create(redisServers);
         connection = redisClusterClient.connect();
         async = connection.async();

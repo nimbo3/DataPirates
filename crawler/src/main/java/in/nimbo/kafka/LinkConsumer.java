@@ -1,7 +1,7 @@
 package in.nimbo.kafka;
 
+import com.codahale.metrics.Meter;
 import com.codahale.metrics.SharedMetricRegistries;
-import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -17,8 +17,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 
 public class LinkConsumer implements Closeable {
     private final Config config;
-    Logger logger = LoggerFactory.getLogger(LinkConsumer.class);
-    private Timer receiveTimer = SharedMetricRegistries.getDefault().timer("kafka-receiving");
+    private Logger logger = LoggerFactory.getLogger(LinkConsumer.class);
+    private Meter pollLinksMeter = SharedMetricRegistries.getDefault().meter("kafka-poll-links");
     private ArrayBlockingQueue<String> buffer;
     private KafkaConsumer<String, String> consumer;
     private String topicName;
@@ -63,6 +63,8 @@ public class LinkConsumer implements Closeable {
             try {
                 while (!closed) {
                     ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(KAFKA_CONSUME_POLL_TIMEOUT));
+                    logger.trace(String.format("[%d] New links consumed from kafka.", records.count()));
+                    pollLinksMeter.mark(records.count());
                     for (ConsumerRecord<String, String> record : records)
                         buffer.put(record.value());
                     consumer.commitAsync();

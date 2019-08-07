@@ -2,10 +2,6 @@ package in.nimbo.model;
 
 import java.io.Serializable;
 
-/**
- * <p>A convenience class to represent name-value pairs.</p>
- * @since JavaFX 2.0
- */
 public class Pair<K,V> implements Serializable{
 
     /**
