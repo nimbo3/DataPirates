@@ -34,8 +34,4 @@ public class CaffeineVistedDomainCache implements VisitedLinksCache {
         return visitedSites.getIfPresent(normalizedUrl) != null;
     }
 
-    @Override
-    public void close() throws IOException {
-
-    }
 }

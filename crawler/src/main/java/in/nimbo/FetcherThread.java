@@ -1,5 +1,6 @@
 package in.nimbo;
 
+import com.codahale.metrics.Meter;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import in.nimbo.cache.VisitedLinksCache;
@@ -18,7 +19,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class FetcherThread extends Thread implements Closeable {
     private static Logger logger = Logger.getLogger(FetcherThread.class);
-    private static Timer fetcherTimer = SharedMetricRegistries.getDefault().timer("fetcher thread");
+    private Timer fetcherTimer = SharedMetricRegistries.getDefault().timer("fetcher thread");
+    private Meter visitedLinksSkips = SharedMetricRegistries.getDefault().meter("fetcher visited links skips");
+    private Meter visitedDomainsSkips = SharedMetricRegistries.getDefault().meter("fetcher visited domains skips");
+    private Meter linkPairHtmlPutsMeter = SharedMetricRegistries.getDefault().meter("fetcher linkpairhtml puts");
 
     private Fetcher fetcher;
     private VisitedLinksCache visitedDomainsCache;
@@ -52,40 +56,39 @@ public class FetcherThread extends Thread implements Closeable {
                         logger.error("InterruptedException happened while consuming from Kafka", e);
                         Thread.currentThread().interrupt();
                     }
-                    if (visitedUrlsCache.hasVisited(url))
+                    if (visitedUrlsCache.hasVisited(url)) {
+                        visitedLinksSkips.mark();
                         continue;
+                    }
                     logger.trace(String.format("New link (%s) poped from queue", url));
                     if (!visitedDomainsCache.hasVisited(Parser.getDomain(url))) {
-                        logger.trace(String.format("Fetching (%s)", url));
                         try {
                             String html = fetcher.fetch(url);
-                            logger.trace(String.format("(%s) Fetched", url));
-                            if (fetcher.isContentTypeTextHtml()) {
-                                Pair<String, String> pair = new Pair<>(fetcher.getRedirectUrl(), html);
-                                try {
-                                    linkPairHtmlQueue.put(pair);
-                                    visitedUrlsCache.put(url);
-                                    visitedDomainsCache.put(Parser.getDomain(url));
-                                    visitedDomainsCache.put(Parser.getDomain(fetcher.getRedirectUrl()));
-                                } catch (InterruptedException e) {
-                                    logger.error("Interrupted Exception when putting in linkPairHtmlQueue", e);
-                                }
-                            }
+                            Pair<String, String> pair = new Pair<>(fetcher.getRedirectedUrl(), html);
+                            linkPairHtmlQueue.put(pair);
+                            linkPairHtmlPutsMeter.mark();
+                            visitedUrlsCache.put(url);
+                            visitedDomainsCache.put(Parser.getDomain(url));
+                            visitedDomainsCache.put(Parser.getDomain(fetcher.getRedirectedUrl()));
                         } catch (FetchException e) {
                             logger.error(e.getMessage(), e);
+                        } catch (InterruptedException e) {
+                            logger.error("Interrupted Exception when putting in linkPairHtmlQueue", e);
+                            Thread.currentThread().interrupt();
                         } catch (Exception e) {
                             logger.error("Exception In Fetching ", e);
                         }
                     } else {
+                        visitedDomainsSkips.mark();
                         linkProducer.send(url);
                         logger.trace(String.format("New link (%s) pushed to queue", url));
                     }
                 } catch (MalformedURLException e) {
-                    logger.error("can't get domain for link: " + url, e);
+                    logger.error("Can't get domain for link: " + url, e);
                 }
             }
         } catch (Exception e) {
-            logger.error("Fetcher Thread Shut Down", e);
+            logger.error("Fetcher thread shut down", e);
         }
     }
 

@@ -11,7 +11,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.dao.ElasticSiteDaoImpl;
 import in.nimbo.dao.HbaseSiteDaoImpl;
-import in.nimbo.fetch.HttpClientFetcher;
 import in.nimbo.fetch.JsoupFetcher;
 import in.nimbo.model.Pair;
 import in.nimbo.kafka.LinkConsumer;
@@ -47,10 +46,8 @@ public class App {
     private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) {
+        loadConfig();
 
-        Config outConfig = ConfigFactory.parseFile(new File("config.properties"));
-        Config inConfig = ConfigFactory.load("config");
-        config = ConfigFactory.load(outConfig).withFallback(inConfig);
         SharedMetricRegistries.setDefault("data-pirates-crawler");
         MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
         List<Closeable> closeables = new LinkedList<>();
@@ -65,48 +62,23 @@ public class App {
             } catch (LangDetectException e) {
                 logger.error("langDetector profile can't be loaded, lang detection not started", e);
             }
+            fixSsl();
 
-            try {
-                TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
-                    public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                        return null;
-                    }
-
-                    public void checkClientTrusted(X509Certificate[] certs, String authType) {
-                    }
-
-                    public void checkServerTrusted(X509Certificate[] certs, String authType) {
-                    }
-                }};
-
-                SSLContext sc = null;
-
-                sc = SSLContext.getInstance("SSL");
-
-                sc.init(null, trustAllCerts, new java.security.SecureRandom());
-                HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-            } catch (NoSuchAlgorithmException | KeyManagementException e) {
-                logger.error("SSl can't be established", e);
-            }
             LinkedBlockingQueue<Site> hbaseBulkQueue = new LinkedBlockingQueue<>();
             SharedMetricRegistries.getDefault().register(
-                    MetricRegistry.name(HbaseSiteDaoImpl.class,"bulk queue size"),
+                    MetricRegistry.name("bulk queue size"),
                     (Gauge<Integer>) hbaseBulkQueue::size);
 
             Configuration hbaseConfig = HBaseConfiguration.create();
 
             final Connection conn = ConnectionFactory.createConnection(hbaseConfig);
             int numberOfFetcherThreads = config.getInt("fetcher.threads.num");
-            HttpClientFetcher fetcher = new HttpClientFetcher(config);
-            closeables.add(fetcher);
-
             int numberOfProcessorThreads = config.getInt("processor.threads.num");
             int numberOfHbaseThreads = config.getInt("hbase.threads.num");
 
-            VisitedLinksCache visitedUrlsCache = new RedisVisitedLinksCache(config);
+            RedisVisitedLinksCache visitedUrlsCache = new RedisVisitedLinksCache(config);
             closeables.add(visitedUrlsCache);
             CaffeineVistedDomainCache vistedDomainCache = new CaffeineVistedDomainCache(config);
-            closeables.add(vistedDomainCache);
             ElasticSiteDaoImpl elasticDao = new ElasticSiteDaoImpl(config);
             closeables.add(elasticDao);
 
@@ -123,6 +95,7 @@ public class App {
                     MetricRegistry.name(FetcherThread.class, "fetch queue size"),
                     (Gauge<Integer>) linkPairHtmlQueue::size);
             JsoupFetcher jsoupFetcher = new JsoupFetcher();
+
 
             FetcherThread[] fetcherThreads = new FetcherThread[numberOfFetcherThreads];
             for (int i = 0; i < numberOfFetcherThreads; i++) {
@@ -156,8 +129,39 @@ public class App {
                 processorThreads[i].start();
             }
         } catch (IOException e) {
-            logger.error("can't create connection to hbase!", e);
+            logger.error("Can't create connection to hbase!", e);
         }
+    }
+
+    private static void fixSsl() {
+        try {
+            TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
+                public X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+
+                public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                }
+
+                public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                }
+            }};
+
+            SSLContext sc = null;
+
+            sc = SSLContext.getInstance("SSL");
+
+            sc.init(null, trustAllCerts, new java.security.SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+        } catch (NoSuchAlgorithmException | KeyManagementException e) {
+            logger.error("SSl can't be established", e);
+        }
+    }
+
+    private static void loadConfig() {
+        Config outConfig = ConfigFactory.parseFile(new File("config.properties"));
+        Config inConfig = ConfigFactory.load("config");
+        config = ConfigFactory.load(outConfig).withFallback(inConfig);
     }
 }
 

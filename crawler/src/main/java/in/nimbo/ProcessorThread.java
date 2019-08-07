@@ -10,7 +10,7 @@ import in.nimbo.kafka.LinkProducer;
 import in.nimbo.model.Pair;
 import in.nimbo.model.Site;
 import in.nimbo.parser.Parser;
-import in.nimbo.util.UnusableSiteDetector;
+import in.nimbo.util.LanguageDetector;
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
@@ -61,7 +61,7 @@ class ProcessorThread extends Thread implements Closeable {
                         Parser parser = new Parser(url, html, config);
                         site = parser.parse();
                         logger.trace(String.format("(%s) Parsed", url));
-                        if (UnusableSiteDetector.hasAcceptableLanguage(site.getPlainText())) {
+                        if (LanguageDetector.detect(site.getPlainText()).equals("en")) {
                             logger.trace(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
                             site.getAnchors().keySet().forEach(link -> {
                                 if (!visitedUrlsCache.hasVisited(link)) {
@@ -69,7 +69,6 @@ class ProcessorThread extends Thread implements Closeable {
                                 }
                             });
                             logger.trace(String.format("anchors in Kafka putted(%s)", url));
-                            logger.trace(String.format("(%s) Inserting into elastic", url));
                             elasitcSiteDao.insert(site);
                             logger.trace(String.format("(%s) Inserting into hbase", url));
                             hbaseBulkQueue.put(site);
