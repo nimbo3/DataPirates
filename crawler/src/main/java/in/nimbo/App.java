@@ -122,8 +122,7 @@ public class App {
                         elasticDao,
                         visitedUrlsCache,
                         linkPairHtmlQueue,
-                        hbaseBulkQueue,
-                        config);
+                        hbaseBulkQueue);
                 closeables.add(processorThreads[i]);
                 processorThreads[i].start();
             }
