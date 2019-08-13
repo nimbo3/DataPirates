@@ -33,7 +33,8 @@ public class Site {
         }
         if (reverse.charAt(reverse.length() - 1) == '.')
             reverse.deleteCharAt(reverse.length() - 1);
-        return link.replace(url.getHost(), reverse).replaceAll("https?://", "");
+        return link.replace(url.getHost(), reverse).replaceAll("https?://", "").
+                replaceFirst("\\.www", "");
     }
 
     public String getHtml() {

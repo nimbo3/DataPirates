@@ -113,27 +113,23 @@ public class HbaseSiteDaoImplTest {
     }
 
     @Test
-    public void get() throws SiteDaoException {
-        Site site = new Site("http://www.google.com", "welcome to google!");
-        Map<String, String> map = new HashMap<>();
-        map.put("http://www.stackoverflow.com/google", "see stack");
-        site.setAnchors(map);
+    public void get() throws SiteDaoException, MalformedURLException {
         final int NUM_OF_TESTS = 10;
-        String[] links = new String[NUM_OF_TESTS];
-        String[] anchors = new String[NUM_OF_TESTS];
+        Site[] sites = new Site[NUM_OF_TESTS];
+        String anchor = "http://www.stackoverflow.com/google";
+        String text = "see stack";
+        Map<String, String> map = new HashMap<>();
+        map.put(anchor, text);
         final SecureRandom random = new SecureRandom();
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            links[i] = site.getLink() + (char) ('a' + random.nextInt(16));
-            site.setLink(links[i]);
-            anchors[i] = "see stack" + (char) ('a' + random.nextInt(16));
-            map = new HashMap<>();
-            map.put("http://www.stackoverflow.com/google", anchors[i]);
-            site.setAnchors(map);
-            hbaseSiteDao.insert(site);
+            sites[i] = new Site();
+            sites[i].setLink("http://www.google.com" + (char)random.nextInt(16));
+            sites[i].setAnchors(map);
+            hbaseSiteDao.insert(sites[i]);
         }
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Result result = hbaseSiteDao.get(links[i]);
-            assertEquals(anchors[i], Bytes.toString(result.getValue(Bytes.toBytes(FAMILY_NAME), Bytes.toBytes("www.stackoverflow.com/google"))));
+            Result result = hbaseSiteDao.get(sites[i].getReverseLink());
+            assertEquals(text, Bytes.toString(result.getValue(Bytes.toBytes(FAMILY_NAME), Bytes.toBytes(anchor))));
         }
     }
 

@@ -212,13 +212,4 @@ public class ParserTest {
         Assert.assertEquals(expected, parser.normalize(url));
     }
 
-    @Test
-    public void test(){
-        Parser parser = new Parser("jsoup.org", htmls[0]);
-        Site site = parser.parse();
-        System.out.println(site.getLink());
-        System.out.println(site.getNoProtocolLink());
-
-    }
-
 }
