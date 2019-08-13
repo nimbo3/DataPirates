@@ -75,8 +75,9 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
     }
 
     @Override
-    public void delete(String reverseLink) {
+    public void delete(Site site) {
         try {
+            String reverseLink = site.getReverseLink();
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                  Timer.Context time = deleteTimer.time()) {
                 Delete del = new Delete(Bytes.toBytes(reverseLink));
@@ -84,7 +85,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
                 logger.debug(String.format("Link [%s] deleted from hbase", reverseLink));
             }
         } catch (IOException e) {
-            logger.error("can't delete this link: " + reverseLink + "from hbase", e);
+            logger.error("can't delete this link: " + site.getLink() + "from hbase", e);
         }
     }
 

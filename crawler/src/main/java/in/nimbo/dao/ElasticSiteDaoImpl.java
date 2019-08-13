@@ -5,9 +5,9 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
-import in.nimbo.exception.ElasticLongIdException;
 import in.nimbo.exception.ElasticSiteDaoException;
 import in.nimbo.model.Site;
+import in.nimbo.util.HashCodeGenerator;
 import org.apache.http.HttpHost;
 import org.apache.log4j.Logger;
 import org.elasticsearch.action.bulk.BackoffPolicy;
@@ -92,8 +92,8 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
         bulkInsertionFailures = metricRegistry.meter("elastic-bulk-insertion-failure");
     }
 
-    public Site get(String url) {
-        GetRequest getRequest = new GetRequest(INDEX, url);
+    public Site get(Site site) {
+        GetRequest getRequest = new GetRequest(String.format("%s-%s", INDEX, site.getLanguage()), site.getLink());
         try {
             GetResponse response = client.get(getRequest, RequestOptions.DEFAULT);
             if (response.isExists()) {
@@ -101,11 +101,11 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
                         response.getId(),
                         response.getSourceAsMap().get("title").toString());
             } else {
-                logger.warn(String.format("Elastic found no match id for [%s]", url));
+                logger.warn(String.format("Elastic found no match id for [%s]", site.getLink()));
                 return null;
             }
         } catch (IOException e) {
-            logger.error(String.format("Elastic couldn't get [%s]", url), e);
+            logger.error(String.format("Elastic couldn't get [%s]", site.getLink()), e);
             return null;
         }
     }
@@ -113,15 +113,17 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
     @Override
     public void insert(Site site) throws ElasticSiteDaoException {
         try (Timer.Context time = insertionTimer.time()) {
-            if (site.getLink().getBytes().length >= 512)
-                throw new ElasticLongIdException("Elastic Long Id Exception (bytes of id must be lower than 512 bytes)");
+            String hashedUrl = HashCodeGenerator.sha2Hash(site.getLink());
             XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
             builder.field("title", site.getTitle());
+            builder.field("link", site.getLink());
             builder.field("text", site.getPlainText());
             builder.field("keywords", site.getKeywords());
+            builder.field("domain", site.getDomain());
             builder.endObject();
-            IndexRequest indexRequest = new IndexRequest(INDEX).id(site.getLink()).source(builder);
+            IndexRequest indexRequest = new IndexRequest(String.format("%s-%s", INDEX, site.getLanguage()))
+                    .id(hashedUrl).source(builder);
             bulkProcessor.add(indexRequest);
             logger.trace(String.format("Elastic Inserted [%s]", site.getLink()));
         } catch (IOException e) {
@@ -131,13 +133,13 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
     }
 
     @Override
-    public void delete(String url) {
-        DeleteRequest deleteRequest = new DeleteRequest(INDEX, url);
+    public void delete(Site site) {
+        DeleteRequest deleteRequest = new DeleteRequest(String.format("%s-%s", INDEX, site.getLanguage()), site.getLink());
         try (Timer.Context time = deleteTimer.time()) {
             client.delete(deleteRequest, RequestOptions.DEFAULT);
-            logger.trace(String.format("Link [%s] deleted from elastic", url));
+            logger.trace(String.format("Link [%s] deleted from elastic", site.getLink()));
         } catch (IOException e) {
-            logger.error(String.format("Elastic couldn't delete [%s]", url), e);
+            logger.error(String.format("Elastic couldn't delete [%s]", site.getLink()), e);
         }
     }
 

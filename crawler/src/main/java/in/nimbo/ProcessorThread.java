@@ -16,6 +16,7 @@ import org.apache.log4j.Logger;
 import java.io.Closeable;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
+import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
 class ProcessorThread extends Thread implements Closeable {
@@ -28,16 +29,19 @@ class ProcessorThread extends Thread implements Closeable {
     private LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue;
     private VisitedLinksCache visitedUrlsCache;
     private boolean closed = false;
+    private List<String> acceptableLanguages;
 
     public ProcessorThread(LinkProducer linkProducer, ElasticSiteDaoImpl elasticSiteDao,
                            VisitedLinksCache visitedUrlsCache,
                            LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue,
-                           LinkedBlockingQueue<Site> hbaseBulkQueue) {
+                           LinkedBlockingQueue<Site> hbaseBulkQueue,
+                           List<String> acceptableLanguages) {
         this.linkProducer = linkProducer;
         this.elasitcSiteDao = elasticSiteDao;
         this.linkPairHtmlQueue = linkPairHtmlQueue;
         this.visitedUrlsCache = visitedUrlsCache;
         this.hbaseBulkQueue = hbaseBulkQueue;
+        this.acceptableLanguages = acceptableLanguages;
     }
 
     @Override
@@ -52,10 +56,12 @@ class ProcessorThread extends Thread implements Closeable {
                     try {
                         Parser parser = new Parser(url, html);
                         Site site = parser.parse();
-                        if (LanguageDetector.detect(site.getPlainText()).equals("en")) {
+                        String language = LanguageDetector.detect(site.getPlainText());
+                        if (acceptableLanguages.contains(language)) {
+                            site.setLanguage(language);
                             elasitcSiteDao.insert(site);
                             hbaseBulkQueue.put(site);
-                            logger.trace("Inserted : " + site.getTitle() + " : " + site.getLink());
+                            logger.trace("Inserted In DBs: " + site.getTitle() + " : " + site.getLink());
                             logger.trace(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
                             site.getAnchors().keySet().forEach(link -> {
                                 if (!visitedUrlsCache.hasVisited(link)) {
