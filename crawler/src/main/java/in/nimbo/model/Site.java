@@ -7,7 +7,6 @@ import java.util.Map;
 
 public class Site {
     private String link;
-    private String reverseLink;
     private String title;
     private String keywords;
     private String plainText;
@@ -33,7 +32,7 @@ public class Site {
         }
         if (reverse.charAt(reverse.length() - 1) == '.')
             reverse.deleteCharAt(reverse.length() - 1);
-        return link.replace(url.getHost(), reverse).replaceAll("https?://", "").
+        return link.replace(url.getHost(), reverse).replaceFirst("https?://", "").
                 replaceFirst("\\.www", "");
     }
 
@@ -50,7 +49,7 @@ public class Site {
     }
 
     public String getNoProtocolLink(){
-        return link.replaceAll("https?://", "");
+        return link.replaceFirst("https?://", "");
     }
 
     public void setLink(String link) {
@@ -92,7 +91,7 @@ public class Site {
     public Map<String, String> getNoProtocolAnchors(){
         Map<String, String> map = new HashMap<>();
         for (Map.Entry<String, String> entry : anchors.entrySet()) {
-            map.put(entry.getKey().replaceAll("https?://", ""), entry.getValue());
+            map.put(entry.getKey().replaceFirst("https?://", ""), entry.getValue());
         }
         return map;
     }
