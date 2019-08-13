@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -118,7 +119,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
             while (!closed && !interrupted()) {
                 Site site = sites.take();
                 Put put = new Put(Bytes.toBytes(site.getReverseLink()));
-                for (Map.Entry<String, String> anchorEntry : site.getAnchors().entrySet()) {
+                for (Map.Entry<String, String> anchorEntry : site.getNoProtocolAnchors().entrySet()) {
                     String link = anchorEntry.getKey();
                     String text = anchorEntry.getValue();
                     put.addColumn(Bytes.toBytes(anchorsFamily),
@@ -138,6 +139,8 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
         } catch (InterruptedException e) {
             logger.error("hbase-bulk-insertion thread interrupted!");
             Thread.currentThread().interrupt();
+        } catch (MalformedURLException e) {
+            logger.error("can't get reverse link from site object");
         }
     }
 

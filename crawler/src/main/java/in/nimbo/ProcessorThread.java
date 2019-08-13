@@ -51,6 +51,9 @@ class ProcessorThread extends Thread implements Closeable {
                         Parser parser = new Parser(url, html);
                         Site site = parser.parse();
                         if (LanguageDetector.detect(site.getPlainText()).equals("en")) {
+                            elasitcSiteDao.insert(site);
+                            hbaseBulkQueue.put(site);
+                            logger.trace("Inserted : " + site.getTitle() + " : " + site.getLink());
                             logger.trace(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
                             site.getAnchors().keySet().forEach(link -> {
                                 if (!visitedUrlsCache.hasVisited(link)) {
@@ -58,9 +61,6 @@ class ProcessorThread extends Thread implements Closeable {
                                 }
                             });
                             logger.trace(String.format("anchors in Kafka putted(%s)", url));
-                            elasitcSiteDao.insert(site);
-                            hbaseBulkQueue.put(site);
-                            logger.trace("Inserted : " + site.getTitle() + " : " + site.getLink());
                         } else {
                             langDetectorSkips.mark();
                         }

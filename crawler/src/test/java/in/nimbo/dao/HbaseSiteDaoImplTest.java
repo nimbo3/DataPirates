@@ -4,7 +4,6 @@ package in.nimbo.dao;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import in.nimbo.exception.HbaseSiteDaoException;
 import in.nimbo.exception.SiteDaoException;
 import in.nimbo.model.Site;
 import org.apache.hadoop.conf.Configuration;
@@ -17,10 +16,9 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,14 +28,13 @@ import static org.junit.Assert.*;
 
 
 public class HbaseSiteDaoImplTest {
-    private static final Logger logger = LoggerFactory.getLogger(HbaseSiteDaoImplTest.class);
     private static String TABLE_NAME;
     private static String FAMILY_NAME;
     private static HbaseSiteDaoImpl hbaseSiteDao;
     private static Connection conn;
 
     @BeforeClass
-    public static void init() throws HbaseSiteDaoException, IOException {
+    public static void init() throws IOException {
         Config config = ConfigFactory.load("config");
         try {
             SharedMetricRegistries.getDefault();
@@ -71,14 +68,13 @@ public class HbaseSiteDaoImplTest {
 
     @Test
     public void insert() throws SiteDaoException, IOException {
-        Site site = new Site("www.google.com", "welcome to google!");
+        Site site = new Site("http://www.google.com", "welcome to google!");
         Map<String, String> map = new HashMap<>();
-        map.put("www.stackoverflow.com/google", "see stack");
-        map.put("www.yahoo.com/google", "see yahoo");
+        map.put("http://www.stackoverflow.com/google", "see stack");
+        map.put("http://www.yahoo.com/google", "see yahoo");
         site.setAnchors(map);
-        site.setReverseLink("com.google.www");
         hbaseSiteDao.insert(site);
-        NavigableMap<byte[], byte[]> actualByteMap = hbaseSiteDao.get(site.getReverseLink()).getFamilyMap(Bytes.toBytes("links"));
+        NavigableMap<byte[], byte[]> actualByteMap = hbaseSiteDao.get(site.getReverseLink()).getFamilyMap(Bytes.toBytes(FAMILY_NAME));
         Map<String, String> actual = new HashMap<>();
         for (Map.Entry<byte[], byte[]> entry : actualByteMap.entrySet()) {
             actual.put(Bytes.toString(entry.getKey()), Bytes.toString(entry.getValue()));
@@ -87,13 +83,13 @@ public class HbaseSiteDaoImplTest {
         final int NUM_OF_TESTS = 10;
         final SecureRandom random = new SecureRandom();
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            site.setReverseLink(site.getReverseLink() + (char) ('a' + random.nextInt(16)));
+            site.setLink(site.getLink() + (char) ('a' + random.nextInt(16)));
             hbaseSiteDao.insert(site);
         }
-        try (Table table = conn.getTable(TableName.valueOf(TABLE_NAME));){
+        try (Table table = conn.getTable(TableName.valueOf(TABLE_NAME))) {
             Scan scan = new Scan();
-            scan.addFamily(Bytes.toBytes("links"));
-            try(ResultScanner scanner = table.getScanner(scan)){
+            scan.addFamily(Bytes.toBytes(FAMILY_NAME));
+            try (ResultScanner scanner = table.getScanner(scan)) {
                 int count = 0;
                 for (Result result : scanner) {
                     ++count;
@@ -104,13 +100,12 @@ public class HbaseSiteDaoImplTest {
     }
 
     @Test
-    public void delete() throws SiteDaoException {
-        Site site = new Site("www.google.com", "welcome to google!");
+    public void delete() throws SiteDaoException, MalformedURLException {
+        Site site = new Site("http://www.google.com", "welcome to google!");
         Map<String, String> map = new HashMap<>();
-        map.put("www.stackoverflow.com/google", "see stack");
-        map.put("www.yahoo.com/google", "see yahoo");
+        map.put("http://www.stackoverflow.com/google", "see stack");
+        map.put("http://www.yahoo.com/google", "see yahoo");
         site.setAnchors(map);
-        site.setReverseLink("com.google.www");
         hbaseSiteDao.insert(site);
         hbaseSiteDao.delete(site.getReverseLink());
         Result result = hbaseSiteDao.get(site.getReverseLink());
@@ -119,41 +114,39 @@ public class HbaseSiteDaoImplTest {
 
     @Test
     public void get() throws SiteDaoException {
-        Site site = new Site("www.google.com", "welcome to google!");
+        Site site = new Site("http://www.google.com", "welcome to google!");
         Map<String, String> map = new HashMap<>();
-        map.put("www.stackoverflow.com/google", "see stack");
+        map.put("http://www.stackoverflow.com/google", "see stack");
         site.setAnchors(map);
         final int NUM_OF_TESTS = 10;
-        String[] reverseLinks = new String[NUM_OF_TESTS];
+        String[] links = new String[NUM_OF_TESTS];
         String[] anchors = new String[NUM_OF_TESTS];
         final SecureRandom random = new SecureRandom();
-        site.setReverseLink("org");
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            reverseLinks[i] = site.getReverseLink() + (char) ('a' + random.nextInt(16));
-            site.setReverseLink(reverseLinks[i]);
+            links[i] = site.getLink() + (char) ('a' + random.nextInt(16));
+            site.setLink(links[i]);
             anchors[i] = "see stack" + (char) ('a' + random.nextInt(16));
             map = new HashMap<>();
-            map.put("www.stackoverflow.com/google", anchors[i]);
+            map.put("http://www.stackoverflow.com/google", anchors[i]);
             site.setAnchors(map);
             hbaseSiteDao.insert(site);
         }
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Result result = hbaseSiteDao.get(reverseLinks[i]);
+            Result result = hbaseSiteDao.get(links[i]);
             assertEquals(anchors[i], Bytes.toString(result.getValue(Bytes.toBytes(FAMILY_NAME), Bytes.toBytes("www.stackoverflow.com/google"))));
         }
     }
 
     @Test
     public void contains() throws SiteDaoException {
-        Site site = new Site("www.google.com", "welcome to google!");
+        Site site = new Site("http://www.google.com", "welcome to google!");
         Map<String, String> map = new HashMap<>();
-        map.put("www.stackoverflow.com/google", "see stack");
-        map.put("www.yahoo.com/google", "see yahoo");
+        map.put("http://www.stackoverflow.com/google", "see stack");
+        map.put("http://www.yahoo.com/google", "see yahoo");
         site.setAnchors(map);
-        site.setReverseLink("com.google.www");
         hbaseSiteDao.insert(site);
         assertTrue(hbaseSiteDao.contains(site));
-        site.setReverseLink("com.helloworld.www");
+        site = new Site("http://www.yahoo.com", "welcome to yahoo!");
         assertFalse(hbaseSiteDao.contains(site));
     }
 }

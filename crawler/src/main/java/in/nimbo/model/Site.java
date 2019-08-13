@@ -1,5 +1,8 @@
 package in.nimbo.model;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.HashMap;
 import java.util.Map;
 
 public class Site {
@@ -10,7 +13,6 @@ public class Site {
     private String plainText;
     private String metadata;
     private String html;
-    //TODO it should be a map from string to list of strings to store different texts for the same link
     private Map<String, String> anchors;
 
     public Site() {
@@ -21,12 +23,17 @@ public class Site {
         this.title = title;
     }
 
-    public String getReverseLink() {
-        return reverseLink;
-    }
-
-    public void setReverseLink(String reverseLink) {
-        this.reverseLink = reverseLink;
+    public String getReverseLink() throws MalformedURLException {
+        URL url = new URL(link);
+        final String[] splits = url.getHost().split("\\.");
+        StringBuilder reverse = new StringBuilder();
+        for (int i = splits.length - 1; i >= 0; i--) {
+            reverse.append(splits[i]);
+            reverse.append(".");
+        }
+        if (reverse.charAt(reverse.length() - 1) == '.')
+            reverse.deleteCharAt(reverse.length() - 1);
+        return link.replace(url.getHost(), reverse).replaceAll("https?://", "");
     }
 
     public String getHtml() {
@@ -39,6 +46,10 @@ public class Site {
 
     public String getLink() {
         return link;
+    }
+
+    public String getNoProtocolLink(){
+        return link.replaceAll("https?://", "");
     }
 
     public void setLink(String link) {
@@ -75,6 +86,14 @@ public class Site {
 
     public void setAnchors(Map<String, String> anchors) {
         this.anchors = anchors;
+    }
+
+    public Map<String, String> getNoProtocolAnchors(){
+        Map<String, String> map = new HashMap<>();
+        for (Map.Entry<String, String> entry : anchors.entrySet()) {
+            map.put(entry.getKey().replaceAll("https?://", ""), entry.getValue());
+        }
+        return map;
     }
 
     public String getMetadata() {
