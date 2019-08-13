@@ -92,8 +92,8 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
         bulkInsertionFailures = metricRegistry.meter("elastic-bulk-insertion-failure");
     }
 
-    public Site get(String url) {
-        GetRequest getRequest = new GetRequest(INDEX, url);
+    public Site get(Site site) {
+        GetRequest getRequest = new GetRequest(String.format("%s-%s", INDEX, site.getLanguage()), site.getLink());
         try {
             GetResponse response = client.get(getRequest, RequestOptions.DEFAULT);
             if (response.isExists()) {
@@ -101,11 +101,11 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
                         response.getId(),
                         response.getSourceAsMap().get("title").toString());
             } else {
-                logger.warn(String.format("Elastic found no match id for [%s]", url));
+                logger.warn(String.format("Elastic found no match id for [%s]", site.getLink()));
                 return null;
             }
         } catch (IOException e) {
-            logger.error(String.format("Elastic couldn't get [%s]", url), e);
+            logger.error(String.format("Elastic couldn't get [%s]", site.getLink()), e);
             return null;
         }
     }
@@ -120,8 +120,10 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
             builder.field("title", site.getTitle());
             builder.field("text", site.getPlainText());
             builder.field("keywords", site.getKeywords());
+            builder.field("domain", site.getDomain());
             builder.endObject();
-            IndexRequest indexRequest = new IndexRequest(INDEX).id(site.getLink()).source(builder);
+            IndexRequest indexRequest = new IndexRequest(String.format("%s-%s", INDEX, site.getLanguage()))
+                    .id(site.getLink()).source(builder);
             bulkProcessor.add(indexRequest);
             logger.trace(String.format("Elastic Inserted [%s]", site.getLink()));
         } catch (IOException e) {
@@ -131,13 +133,13 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
     }
 
     @Override
-    public void delete(String url) {
-        DeleteRequest deleteRequest = new DeleteRequest(INDEX, url);
+    public void delete(Site site) {
+        DeleteRequest deleteRequest = new DeleteRequest(String.format("%s-%s", INDEX, site.getLanguage()), site.getLink());
         try (Timer.Context time = deleteTimer.time()) {
             client.delete(deleteRequest, RequestOptions.DEFAULT);
-            logger.trace(String.format("Link [%s] deleted from elastic", url));
+            logger.trace(String.format("Link [%s] deleted from elastic", site.getLink()));
         } catch (IOException e) {
-            logger.error(String.format("Elastic couldn't delete [%s]", url), e);
+            logger.error(String.format("Elastic couldn't delete [%s]", site.getLink()), e);
         }
     }
 

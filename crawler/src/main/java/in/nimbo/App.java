@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -47,6 +48,7 @@ public class App {
     private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) {
+
         loadConfig();
 
         SharedMetricRegistries.setDefault("data-pirates-crawler");
@@ -63,7 +65,11 @@ public class App {
             } catch (LangDetectException e) {
                 logger.error("langDetector profile can't be loaded, lang detection not started", e);
             }
-            fixSsl();
+            disableSsl();
+
+            String acceptableLanguagesString = config.getString("langDetect.acceptable.languages");
+            List<String> acceptableLanguages = Arrays.asList(acceptableLanguagesString.split(","));
+            System.out.println(Arrays.toString(acceptableLanguagesString.split(",")));
 
             LinkedBlockingQueue<Site> hbaseBulkQueue = new LinkedBlockingQueue<>();
             SharedMetricRegistries.getDefault().register(
@@ -124,7 +130,8 @@ public class App {
                         elasticDao,
                         visitedUrlsCache,
                         linkPairHtmlQueue,
-                        hbaseBulkQueue);
+                        hbaseBulkQueue,
+                        acceptableLanguages);
                 closeables.add(processorThreads[i]);
                 processorThreads[i].start();
             }
@@ -133,7 +140,7 @@ public class App {
         }
     }
 
-    private static void fixSsl() {
+    private static void disableSsl() {
         try {
             TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
                 public X509Certificate[] getAcceptedIssuers() {

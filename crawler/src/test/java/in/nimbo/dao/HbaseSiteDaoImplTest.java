@@ -107,7 +107,7 @@ public class HbaseSiteDaoImplTest {
         map.put("http://www.yahoo.com/google", "see yahoo");
         site.setAnchors(map);
         hbaseSiteDao.insert(site);
-        hbaseSiteDao.delete(site.getReverseLink());
+        hbaseSiteDao.delete(site);
         Result result = hbaseSiteDao.get(site.getReverseLink());
         assertTrue(result.isEmpty());
     }

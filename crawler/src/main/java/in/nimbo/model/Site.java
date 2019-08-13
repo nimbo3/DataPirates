@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Site {
+    private String language;
     private String link;
     private String title;
     private String keywords;
@@ -20,6 +21,22 @@ public class Site {
     public Site(String link, String title) {
         this.link = link;
         this.title = title;
+    }
+
+    public Site(String link) {
+        this.link = link;
+    }
+
+    public String getDomain() throws MalformedURLException {
+        return new URL(link).getHost();
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
     }
 
     public String getReverseLink() throws MalformedURLException {

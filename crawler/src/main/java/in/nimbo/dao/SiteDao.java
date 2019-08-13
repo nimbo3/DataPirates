@@ -8,5 +8,5 @@ import java.io.Closeable;
 public interface SiteDao extends Closeable {
     void insert(Site site) throws SiteDaoException;
 
-    void delete(String url) throws SiteDaoException;
+    void delete(Site site) throws SiteDaoException;
 }
