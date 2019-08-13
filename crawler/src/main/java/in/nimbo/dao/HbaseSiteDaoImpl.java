@@ -54,17 +54,9 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
         this.connection = connection;
     }
 
-    //Todo : really needed ?!
-    private Connection getConnection() throws IOException {
-        if (connection == null)
-            connection = ConnectionFactory.createConnection(hbaseConfig);
-        return connection;
-    }
-
     @Override
     public void insert(Site site) throws SiteDaoException {
         try (Timer.Context time = insertionTimer.time()) {
-            Connection connection = getConnection();
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME))) {
                 Put put = new Put(Bytes.toBytes(site.getReverseLink()));
                 for (Map.Entry<String, String> anchorEntry : site.getAnchors().entrySet()) {
@@ -84,7 +76,6 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
     @Override
     public void delete(String reverseLink) {
         try {
-            Connection connection = getConnection();
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                  Timer.Context time = deleteTimer.time()) {
                 Delete del = new Delete(Bytes.toBytes(reverseLink));
@@ -98,7 +89,6 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
 
     public Result get(String reverseLink) throws SiteDaoException {
         try {
-            Connection connection = getConnection();
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                  Timer.Context time = deleteTimer.time()) {
                 Get get = new Get(Bytes.toBytes(reverseLink));
@@ -111,7 +101,6 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
 
     public boolean contains(Site site) throws SiteDaoException {
         try {
-            Connection connection = getConnection();
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                  Timer.Context time = deleteTimer.time()) {
                 Get get = new Get(Bytes.toBytes(site.getReverseLink()));
@@ -137,7 +126,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
                 }
                 puts.add(put);
                 if (puts.size() >= BULK_SIZE) {
-                    try (Table table = getConnection().getTable(TableName.valueOf(TABLE_NAME));
+                    try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                          Timer.Context time = hbaseBulkInsertMeter.time()) {
                         table.put(puts);
                     } catch (IOException e) {
@@ -156,7 +145,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
     public void close() {
         closed = true;
         if (!puts.isEmpty()) {
-            try (Table table = getConnection().getTable(TableName.valueOf(TABLE_NAME));
+            try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                  Timer.Context time = hbaseBulkInsertMeter.time()) {
                 table.put(puts);
             } catch (IOException e) {
