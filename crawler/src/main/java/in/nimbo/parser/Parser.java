@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -22,12 +23,12 @@ public class Parser {
     private Document document;
     private String html;
 
-    public Parser(String link, String html) throws MalformedURLException {
+    public Parser(String link, String html) throws MalformedURLException, ProtocolException {
         this.html = html;
         if (!link.matches("^\\w+://"))
-            link = link + "http://";
+            link = "http://" + link;
         if (hasBadProtocol(link)) {
-            throw new MalformedURLException("protocol is not supported for:" + link + ". Only http/https are supported");
+            throw new ProtocolException("protocol is not supported for:" + link + ". Only http/https are supported");
         }
         link = normalize(link);
         this.link = link;
@@ -82,9 +83,8 @@ public class Parser {
                 content = "empty";
             try {
                 if (!href.matches("^\\w+://"))
-                    href = href + "http://";
+                    href = "http://" + href;
                 if (hasBadProtocol(href)) {
-                    logger.error("protocol is not supported for:" + href + ". Only http/https are supported");
                     continue;
                 }
                 href = normalize(href);

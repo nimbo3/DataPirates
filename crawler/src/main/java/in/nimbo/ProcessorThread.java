@@ -15,6 +15,7 @@ import org.apache.log4j.Logger;
 
 import java.io.Closeable;
 import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.util.concurrent.LinkedBlockingQueue;
 
 class ProcessorThread extends Thread implements Closeable {
@@ -72,12 +73,14 @@ class ProcessorThread extends Thread implements Closeable {
                         Thread.currentThread().interrupt();
                     } catch (MalformedURLException e) {
                         logger.error("parser can't parse url: " + url, e);
+                    }catch (ProtocolException e){
+                        logger.error(e.getMessage(), e);
+                    }catch (Exception e) {
+                        logger.error("exception thrown while processing", e);
                     }
                 } catch (InterruptedException e) {
                     logger.error("can't take from linkPairHtmlQueue!", e);
                     Thread.currentThread().interrupt();
-                } catch (Exception e) {
-                    logger.error("exception caught in processor thread", e);
                 }
             }
         } catch (Exception e) {
