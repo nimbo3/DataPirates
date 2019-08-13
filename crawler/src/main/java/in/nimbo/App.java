@@ -69,7 +69,6 @@ public class App {
 
             String acceptableLanguagesString = config.getString("langDetect.acceptable.languages");
             List<String> acceptableLanguages = Arrays.asList(acceptableLanguagesString.split(","));
-            System.out.println(Arrays.toString(acceptableLanguagesString.split(",")));
 
             LinkedBlockingQueue<Site> hbaseBulkQueue = new LinkedBlockingQueue<>();
             SharedMetricRegistries.getDefault().register(
