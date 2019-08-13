@@ -25,7 +25,7 @@ public class Parser {
 
     public Parser(String link, String html) throws MalformedURLException, ProtocolException {
         this.html = html;
-        if (!link.matches("^\\w+://"))
+        if (!link.matches("^\\w+://.+"))
             link = "http://" + link;
         if (hasBadProtocol(link)) {
             throw new ProtocolException("protocol is not supported for:" + link + ". Only http/https are supported");
@@ -82,7 +82,7 @@ public class Parser {
             if (content.length() == 0)
                 content = "empty";
             try {
-                if (!href.matches("^\\w+://"))
+                if (!href.matches("^\\w+://.+"))
                     href = "http://" + href;
                 if (hasBadProtocol(href)) {
                     continue;
