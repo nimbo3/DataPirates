@@ -12,6 +12,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -91,17 +92,18 @@ public class ParserTest {
     }
 
     @Test
-    public void extractMetadataTest() {
+    public void extractMetadataTest() throws MalformedURLException, ProtocolException {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
             Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractMetadata();
             String expected = sites[i].getMetadata();
             double percentage = getPercentage(expected, actual);
+            Assert.assertTrue(percentage >= CONFIDENCE);
         }
     }
 
     @Test
-    public void extractTitleTest() {
+    public void extractTitleTest() throws MalformedURLException, ProtocolException {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
             Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractTitle();
@@ -112,7 +114,7 @@ public class ParserTest {
     }
 
     @Test
-    public void extractPlainTextTest() {
+    public void extractPlainTextTest() throws MalformedURLException, ProtocolException {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
             Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractPlainText();
@@ -123,7 +125,7 @@ public class ParserTest {
     }
 
     @Test
-    public void extractKeywordsTest() {
+    public void extractKeywordsTest() throws MalformedURLException, ProtocolException {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
             Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractKeywords();
@@ -134,7 +136,7 @@ public class ParserTest {
     }
 
     @Test
-    public void extractAnchorsTest() {
+    public void extractAnchorsTest() throws MalformedURLException, ProtocolException {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
             Parser parser = new Parser(links[i], htmls[i]);
             Map<String, String> actualList = parser.extractAnchors();
@@ -166,29 +168,36 @@ public class ParserTest {
 
     @Test
     public void reverseTest() throws IOException {
-        Parser parser = new Parser(links[0], htmls[0]);
         String url = "https://www.geeksforgeeks.org:80/url-samefile-method-in-java-with-examples/";
         String expected = "org.geeksforgeeks:80/url-samefile-method-in-java-with-examples/";
-        Assert.assertEquals(expected, parser.reverse(url));
+        Site site = new Site(url, "title");
+        Assert.assertEquals(expected, site.getReverseLink());
         expected = "org.apache.spark/documentation.html";
         url = "http://www.spark.apache.org/documentation.html";
-        Assert.assertEquals(expected, parser.reverse(url));
+        site = new Site(url, "title");
+        Assert.assertEquals(expected, site.getReverseLink());
         expected = "com.stackoverflow/questions/7569335/reverse-a-string-in-java";
         url = "https://stackoverflow.com/questions/7569335/reverse-a-string-in-java";
-        Assert.assertEquals(expected, parser.reverse(url));
+        site = new Site(url, "title");
+        Assert.assertEquals(expected, site.getReverseLink());
         expected = "master:16010/table.jsp?name=wc";
         url = "http://master:16010/table.jsp?name=wc";
-        Assert.assertEquals(expected, parser.reverse(url));
+        site = new Site(url, "title");
+        Assert.assertEquals(expected, site.getReverseLink());
         expected = "ir.ac.sbu.znu.samp";
         url = "https://samp.znu.sbu.ac.ir";
-        Assert.assertEquals(expected, parser.reverse(url));
+        site = new Site(url, "title");
+        Assert.assertEquals(expected, site.getReverseLink());
+        expected = "ir.ac.sbu.znu.samp/www.asd";
         url = "https://samp.znu.sbu.ac.ir/www.asd";
+        site = new Site(url, "title");
+        Assert.assertEquals(expected, site.getReverseLink());
     }
     @Test
-    public void normalizeTest() throws MalformedURLException {
+    public void normalizeTest() throws MalformedURLException, ProtocolException {
         Parser parser = new Parser(links[0], htmls[0]);
         String url = "https://www.geeksforgeeks.org:80/url-samefile-method-in-java-with-examples/";
-        String expected = "http://geeksforgeeks.org/url-samefile-method-in-java-with-examples";
+        String expected = "https://geeksforgeeks.org/url-samefile-method-in-java-with-examples";
         Assert.assertEquals(expected, parser.normalize(url));
         url = "http://www.googlewww.com";
         expected = "http://googlewww.com";
@@ -203,4 +212,5 @@ public class ParserTest {
         expected = "http://yahoo.com/asdwaefselkjhklsd?asghar=2";
         Assert.assertEquals(expected, parser.normalize(url));
     }
+
 }

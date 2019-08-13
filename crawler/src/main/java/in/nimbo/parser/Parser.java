@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -22,8 +23,14 @@ public class Parser {
     private Document document;
     private String html;
 
-    public Parser(String link, String html) {
+    public Parser(String link, String html) throws MalformedURLException, ProtocolException {
         this.html = html;
+        if (!link.matches("^\\w+://"))
+            link = "http://" + link;
+        if (hasBadProtocol(link)) {
+            throw new ProtocolException("protocol is not supported for:" + link + ". Only http/https are supported");
+        }
+        link = normalize(link);
         this.link = link;
         document = Jsoup.parse(html, link);
     }
@@ -70,32 +77,34 @@ public class Parser {
         Map<String, String> map = new HashMap<>();
         String href = "";
         for (Element element : elements) {
+            href = element.absUrl("abs:href");
+            String content = element.text();
+            if (content.length() == 0)
+                content = "empty";
             try {
-                href = element.absUrl("abs:href");
-                String content = element.text();
-                if (content.length() == 0)
-                    content = "empty";
-                if (validateProtocol(href)) {
-                    href = normalize(href);
-                } else {
-                    logger.debug("protocol is not supported for:" + href + ". Only http/https are supported");
+                if (!href.matches("^\\w+://"))
+                    href = "http://" + href;
+                if (hasBadProtocol(href)) {
                     continue;
                 }
-                map.put(href, content);
+                href = normalize(href);
+                if (map.containsKey(href))
+                    map.put(href, map.get(href) + ", " + content);
+                else
+                    map.put(href, content);
             } catch (MalformedURLException e) {
-                logger.debug("normalizer can't add link: " + href + " to the anchors list for this page: " + link, e);
+                logger.error("url is not well-formed for:" + href + ". can't normalize this url.");
             }
         }
         if (map.size() == 0)
-            map.put(href, "empty");
+            map.put(link, "empty");
         return map;
     }
 
     public String normalize(String href) throws MalformedURLException {
-        href = href.replaceFirst("^https?://", "http://");
         href = NormalizeURL.normalize(href);
         URL url = new URL(href);
-        String domain = url.getHost().replaceFirst("^www\\.", "");
+        String domain = url.getHost().replaceFirst("www\\.", "");
         return href.replace(url.getHost(), domain);
     }
 
@@ -117,33 +126,13 @@ public class Parser {
             site.setAnchors(extractAnchors());
             site.setPlainText(extractPlainText());
             site.setLink(link);
-            site.setReverseLink(reverse(link));
             site.setHtml(html);
-            logger.trace(String.format("[%s] Parsed.", link));
             return site;
-        } catch (MalformedURLException e) {
-            logger.error("Can't make reverse link for key in pareser.", e);
         }
-        return null;
     }
 
-    public String reverse(String link) throws MalformedURLException {
-        URL url = new URL(link);
-        String domain = url.getHost();
-        domain = domain.replaceAll(" ", "").replaceFirst("www\\.", "");
-        final String[] splits = domain.split("\\.");
-        StringBuilder reverse = new StringBuilder();
-        for (int i = splits.length - 1; i >= 0; i--) {
-            reverse.append(splits[i]);
-            reverse.append(".");
-        }
-        if (reverse.charAt(reverse.length() - 1) == '.')
-            reverse.deleteCharAt(reverse.length() - 1);
-        return link.replace(url.getHost(), reverse).replaceAll("https?://", "");
-    }
-
-    private boolean validateProtocol(String urlString) throws MalformedURLException {
+    private boolean hasBadProtocol(String urlString) throws MalformedURLException {
         URL url = new URL(urlString);
-        return url.getProtocol().equals("http") || url.getProtocol().equals("https");
+        return !url.getProtocol().equals("http") && !url.getProtocol().equals("https");
     }
 }

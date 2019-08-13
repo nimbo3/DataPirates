@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -59,7 +60,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
         try (Timer.Context time = insertionTimer.time()) {
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME))) {
                 Put put = new Put(Bytes.toBytes(site.getReverseLink()));
-                for (Map.Entry<String, String> anchorEntry : site.getAnchors().entrySet()) {
+                for (Map.Entry<String, String> anchorEntry : site.getNoProtocolAnchors().entrySet()) {
                     String link = anchorEntry.getKey();
                     String text = anchorEntry.getValue();
                     put.addColumn(Bytes.toBytes(anchorsFamily),
@@ -117,14 +118,18 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
         try {
             while (!closed && !interrupted()) {
                 Site site = sites.take();
-                Put put = new Put(Bytes.toBytes(site.getReverseLink()));
-                for (Map.Entry<String, String> anchorEntry : site.getAnchors().entrySet()) {
-                    String link = anchorEntry.getKey();
-                    String text = anchorEntry.getValue();
-                    put.addColumn(Bytes.toBytes(anchorsFamily),
-                            Bytes.toBytes(link), Bytes.toBytes(text));
+                try {
+                    Put put = new Put(Bytes.toBytes(site.getReverseLink()));
+                    for (Map.Entry<String, String> anchorEntry : site.getNoProtocolAnchors().entrySet()) {
+                        String link = anchorEntry.getKey();
+                        String text = anchorEntry.getValue();
+                        put.addColumn(Bytes.toBytes(anchorsFamily),
+                                Bytes.toBytes(link), Bytes.toBytes(text));
+                    }
+                    puts.add(put);
+                } catch (MalformedURLException e) {
+                    logger.error("can't get reverse link from:" + site.getLink());
                 }
-                puts.add(put);
                 if (puts.size() >= BULK_SIZE) {
                     try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                          Timer.Context time = hbaseBulkInsertMeter.time()) {
