@@ -79,7 +79,7 @@ public class HbaseSiteDaoImplTest {
         for (Map.Entry<byte[], byte[]> entry : actualByteMap.entrySet()) {
             actual.put(Bytes.toString(entry.getKey()), Bytes.toString(entry.getValue()));
         }
-        assertEquals(site.getAnchors(), actual);
+        assertEquals(site.getNoProtocolAnchors(), actual);
         final int NUM_OF_TESTS = 10;
         final SecureRandom random = new SecureRandom();
         for (int i = 0; i < NUM_OF_TESTS; i++) {
@@ -129,7 +129,7 @@ public class HbaseSiteDaoImplTest {
         }
         for (int i = 0; i < NUM_OF_TESTS; i++) {
             Result result = hbaseSiteDao.get(sites[i].getReverseLink());
-            assertEquals(text, Bytes.toString(result.getValue(Bytes.toBytes(FAMILY_NAME), Bytes.toBytes(anchor))));
+            assertEquals(text, Bytes.toString(result.getValue(Bytes.toBytes(FAMILY_NAME), Bytes.toBytes("stackoverflow.com/google"))));
         }
     }
 

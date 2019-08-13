@@ -14,6 +14,7 @@ import in.nimbo.util.LanguageDetector;
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
+import java.net.MalformedURLException;
 import java.util.concurrent.LinkedBlockingQueue;
 
 class ProcessorThread extends Thread implements Closeable {
@@ -67,11 +68,16 @@ class ProcessorThread extends Thread implements Closeable {
                     } catch (SiteDaoException e) {
                         logger.error(String.format("Failed to save in database(s) : %s", url), e);
                     } catch (InterruptedException e) {
-                        logger.error("hbase bulk can't take site from blocking queue!");
+                        logger.error("hbase bulk can't take site from blocking queue!", e);
                         Thread.currentThread().interrupt();
-                    } catch (Exception e) {
-                        logger.error(String.format("Failed to parse : %s", url), e);
+                    } catch (MalformedURLException e) {
+                        logger.error("parser can't parse url: " + url, e);
                     }
+                } catch (InterruptedException e) {
+                    logger.error("can't take from linkPairHtmlQueue!", e);
+                    Thread.currentThread().interrupt();
+                } catch (Exception e) {
+                    logger.error("exception caught in processor thread", e);
                 }
             }
         } catch (Exception e) {

@@ -48,12 +48,12 @@ public class Site {
         return link;
     }
 
-    public String getNoProtocolLink(){
-        return link.replaceFirst("https?://", "");
-    }
-
     public void setLink(String link) {
         this.link = link;
+    }
+
+    public String getNoProtocolLink() {
+        return link.replaceFirst("https?://", "");
     }
 
     public String getTitle() {
@@ -88,10 +88,11 @@ public class Site {
         this.anchors = anchors;
     }
 
-    public Map<String, String> getNoProtocolAnchors(){
+    public Map<String, String> getNoProtocolAnchors() {
         Map<String, String> map = new HashMap<>();
         for (Map.Entry<String, String> entry : anchors.entrySet()) {
-            map.put(entry.getKey().replaceFirst("https?://", ""), entry.getValue());
+            map.put(entry.getKey().replaceFirst("https?://", "").
+                            replaceFirst("www\\.", ""), entry.getValue());
         }
         return map;
     }

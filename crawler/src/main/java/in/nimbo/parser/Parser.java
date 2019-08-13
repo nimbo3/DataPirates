@@ -22,19 +22,16 @@ public class Parser {
     private Document document;
     private String html;
 
-    public Parser(String link, String html) {
+    public Parser(String link, String html) throws MalformedURLException {
         this.html = html;
-        try {
-            if (hasBadProtocol(link)) {
-                logger.error("protocol is not supported for:" + link + ". Only http/https are supported");
-                return;
-            }
-            link = normalize(link);
-            this.link = link;
-            document = Jsoup.parse(html, link);
-        } catch (MalformedURLException e) {
-            logger.error("url is not well-formed for:" + link + ". can't normalize this url.");
+        if (!link.matches("^\\w+://"))
+            link = link + "http://";
+        if (hasBadProtocol(link)) {
+            throw new MalformedURLException("protocol is not supported for:" + link + ". Only http/https are supported");
         }
+        link = normalize(link);
+        this.link = link;
+        document = Jsoup.parse(html, link);
     }
 
     public static String getDomain(String link) throws MalformedURLException {
@@ -84,6 +81,8 @@ public class Parser {
             if (content.length() == 0)
                 content = "empty";
             try {
+                if (!href.matches("^\\w+://"))
+                    href = href + "http://";
                 if (hasBadProtocol(href)) {
                     logger.error("protocol is not supported for:" + href + ". Only http/https are supported");
                     continue;
@@ -133,8 +132,6 @@ public class Parser {
     }
 
     private boolean hasBadProtocol(String urlString) throws MalformedURLException {
-        if (!urlString.matches("\\w+://"))
-            urlString = urlString + "http://";
         URL url = new URL(urlString);
         return !url.getProtocol().equals("http") && !url.getProtocol().equals("https");
     }

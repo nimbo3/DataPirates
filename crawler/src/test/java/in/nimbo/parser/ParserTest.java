@@ -91,7 +91,7 @@ public class ParserTest {
     }
 
     @Test
-    public void extractMetadataTest() {
+    public void extractMetadataTest() throws MalformedURLException {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
             Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractMetadata();
@@ -102,7 +102,7 @@ public class ParserTest {
     }
 
     @Test
-    public void extractTitleTest() {
+    public void extractTitleTest() throws MalformedURLException {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
             Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractTitle();
@@ -113,7 +113,7 @@ public class ParserTest {
     }
 
     @Test
-    public void extractPlainTextTest() {
+    public void extractPlainTextTest() throws MalformedURLException {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
             Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractPlainText();
@@ -124,7 +124,7 @@ public class ParserTest {
     }
 
     @Test
-    public void extractKeywordsTest() {
+    public void extractKeywordsTest() throws MalformedURLException {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
             Parser parser = new Parser(links[i], htmls[i]);
             String actual = parser.extractKeywords();
@@ -135,7 +135,7 @@ public class ParserTest {
     }
 
     @Test
-    public void extractAnchorsTest() {
+    public void extractAnchorsTest() throws MalformedURLException {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
             Parser parser = new Parser(links[i], htmls[i]);
             Map<String, String> actualList = parser.extractAnchors();

@@ -2,8 +2,8 @@ package in.nimbo.util;
 
 import org.apache.commons.codec.digest.DigestUtils;
 
-public class Sha2Hash {
-    public String hash(String link) {
+public class HashCodeGenerator {
+    public String sha2Hash(String link) {
         return DigestUtils.sha256Hex(link);
     }
 }
