@@ -1,0 +1,62 @@
+- hosts: slaves
+  vars:
+    jmx_exporter_url: https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.12.0/jmx_prometheus_javaagent-0.12.0.jar
+    jmx_exporter_name: jmx_exporter
+    git_repository_url: https://github.com/nimbo3/DataPirates.git
+    git_repository_branch: master
+    project_module_name: crawler
+    project_module_version: 1.0-SNAPSHOT
+    crawler_deploy_dir: /opt/data-pirates/
+  environment:
+    JAVA_HOME: /usr/lib/jvm/jdk1.8.0_211
+  tasks:
+  - name: Install needed packages with apt
+    apt:
+      name: "{{ packages }}"
+    vars:
+      packages:
+      - git
+      - maven
+  - name: Get latest project files from github
+    git:
+      repo: "{{ git_repository_url }}"
+      dest: "{{ crawler_deploy_dir }}"
+      force: yes
+      version: "{{ git_repository_branch }}"
+  - name: Create runnable jar file with maven
+    command: mvn clean package -DskipTests -DoutputDirectory=/opt
+    register: mvn
+    changed_when: "'BUILD FAILURE' not in mvn.stdout"
+    args:
+      chdir: "{{ crawler_deploy_dir }}{{ project_module_name }}"
+  - name: Copy profile folder near runnable jar
+    copy:
+      src: "{{ crawler_deploy_dir }}{{ project_module_name }}/src/main/resources/profiles"
+      dest: "{{ crawler_deploy_dir }}{{ project_module_name }}/target"
+      remote_src: yes
+  - name: Download jmx exporter
+    get_url:
+      url: "{{ jmx_exporter_url }}"
+      dest: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/{{ jmx_exporter_name }}.jar"
+  - name: Create jmx exporter config
+    copy:
+      dest: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/config.yaml"
+      content: '---
+
+        hostPort: localhost:5555
+
+        username:
+
+        password:
+
+        rules:
+
+        - pattern: ".*"
+
+        '
+  - name: Run crawler app with jmx exporter
+    shell: "nohup $JAVA_HOME/bin/java -javaagent:{{ jmx_exporter_name }}.jar=9070:config.yaml -jar {{ project_module_name }}-{{ project_module_version }}.jar &"
+    register: nohup
+    changed_when: "'failed' not in nohup.stderr"
+    args:
+      chdir: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/"
