@@ -15,6 +15,7 @@
         <module>crawler</module>
         <module>backend</module>
         <module>anchors-map-reduce</module>
+        <module>web-graph</module>
     </modules>
 
 
