@@ -1,27 +1,27 @@
 package in.nimbo.model;
 
 public class Edge {
-    String srdId;
-    String dstId;
+    String src;
+    String dst;
 
-    public Edge(String srdId, String dstId) {
-        this.srdId = srdId;
-        this.dstId = dstId;
+    public Edge(String src, String dst) {
+        this.src = src;
+        this.dst = dst;
     }
 
-    public String getSrdId() {
-        return srdId;
+    public String getSrc() {
+        return src;
     }
 
-    public void setSrdId(String srdId) {
-        this.srdId = srdId;
+    public void setSrc(String src) {
+        this.src = src;
     }
 
-    public String getDstId() {
-        return dstId;
+    public String getDst() {
+        return dst;
     }
 
-    public void setDstId(String dstId) {
-        this.dstId = dstId;
+    public void setDst(String dst) {
+        this.dst = dst;
     }
 }
