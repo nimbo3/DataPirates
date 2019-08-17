@@ -1,8 +1,6 @@
 package in.nimbo.cache;
 
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.SharedMetricRegistries;
+import com.codahale.metrics.*;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.typesafe.config.Config;
@@ -11,7 +9,10 @@ import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 public class CaffeineVistedDomainCache implements VisitedLinksCache {
+    private Timer visitCheckTimer = SharedMetricRegistries.getDefault().timer("caffeine check visit");
+    private Meter visitedDomainsFails = SharedMetricRegistries.getDefault().meter("caffeine visited domains fails");
     private Cache<String, Date> visitedSites;
+    private int failsCounter = 0;
 
     public CaffeineVistedDomainCache(Config config) {
         int politenessWaitingTime = config.getInt("politeness.waiting.time");
@@ -30,7 +31,18 @@ public class CaffeineVistedDomainCache implements VisitedLinksCache {
 
     @Override
     public boolean hasVisited(String url) {
-        return visitedSites.getIfPresent(url) != null;
+        try (Timer.Context time = visitCheckTimer.time()) {
+            boolean urlVisited = visitedSites.getIfPresent(url) != null;
+            if (urlVisited) {
+                failsCounter++;
+            } else {
+                if (failsCounter != 0) {
+                    visitedDomainsFails.mark(failsCounter);
+                    failsCounter = 0;
+                }
+            }
+            return urlVisited;
+        }
     }
 
 }

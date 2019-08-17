@@ -59,7 +59,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
     public void insert(Site site) throws SiteDaoException {
         try (Timer.Context time = insertionTimer.time()) {
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME))) {
-                Put put = new Put(Bytes.toBytes(site.getReverseLink()));
+                Put put = new Put(Bytes.toBytes(site.getNoProtocolLink()));
                 for (Map.Entry<String, String> anchorEntry : site.getNoProtocolAnchors().entrySet()) {
                     String link = anchorEntry.getKey();
                     String text = anchorEntry.getValue();
@@ -119,18 +119,14 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
         try {
             while (!closed && !interrupted()) {
                 Site site = sites.take();
-                try {
-                    Put put = new Put(Bytes.toBytes(site.getReverseLink()));
-                    for (Map.Entry<String, String> anchorEntry : site.getNoProtocolAnchors().entrySet()) {
-                        String link = anchorEntry.getKey();
-                        String text = anchorEntry.getValue();
-                        put.addColumn(Bytes.toBytes(anchorsFamily),
-                                Bytes.toBytes(link), Bytes.toBytes(text));
-                    }
-                    puts.add(put);
-                } catch (MalformedURLException e) {
-                    logger.error("can't get reverse link from:" + site.getLink());
+                Put put = new Put(Bytes.toBytes(site.getNoProtocolLink()));
+                for (Map.Entry<String, String> anchorEntry : site.getNoProtocolAnchors().entrySet()) {
+                    String link = anchorEntry.getKey();
+                    String text = anchorEntry.getValue();
+                    put.addColumn(Bytes.toBytes(anchorsFamily),
+                            Bytes.toBytes(link), Bytes.toBytes(text));
                 }
+                puts.add(put);
                 if (puts.size() >= BULK_SIZE) {
                     try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                          Timer.Context time = hbaseBulkInsertMeter.time()) {
