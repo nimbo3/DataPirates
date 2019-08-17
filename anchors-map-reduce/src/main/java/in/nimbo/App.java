@@ -27,8 +27,8 @@ public class App {
         String sparkAppName = config.getString("spark.app.name");
         String hbaseXmlHadoop = config.getString("hbase.xml.url.in.hadoop");
         String hbaseXmlHbase = config.getString("hbase.xml.url.in.hbase");
-        String hbaseTableName = config.getString("hbase.table.name");
-        String hbaseColumnFamily = config.getString("hbase.column.family");
+        String hbaseTableName = config.getString("hbase.read.table.name");
+        String hbaseColumnFamily = config.getString("hbase.read.column.family");
         String sparkExecutorCores = config.getString("spark.executor.cores");
         String sparkExecutorMemory = config.getString("spark.executor.memory");
         String elasticNodesIp = config.getString("es.nodes.ip");

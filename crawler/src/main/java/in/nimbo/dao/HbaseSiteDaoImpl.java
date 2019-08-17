@@ -41,7 +41,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
     public HbaseSiteDaoImpl(Connection connection, LinkedBlockingQueue<Site> sites, Configuration hbaseConfig, Config config) {
         this.connection = connection;
         this.hbaseConfig = hbaseConfig;
-        TABLE_NAME = config.getString("hbase.table.name");
+        TABLE_NAME = config.getString("hbase.read.table.name");
         anchorsFamily = config.getString("hbase.table.column.family.anchors");
         BULK_SIZE = config.getInt("hbase.bulk.size");
         this.sites = sites;
@@ -49,7 +49,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
 
     public HbaseSiteDaoImpl(Connection connection, Configuration hbaseConfig, Config config) {
         this.hbaseConfig = hbaseConfig;
-        TABLE_NAME = config.getString("hbase.table.name");
+        TABLE_NAME = config.getString("hbase.read.table.name");
         anchorsFamily = config.getString("hbase.table.column.family.anchors");
         BULK_SIZE = config.getInt("hbase.bulk.size");
         this.connection = connection;
