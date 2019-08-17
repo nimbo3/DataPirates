@@ -4,23 +4,23 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
+import org.apache.spark.util.LongAccumulator;
 import scala.Tuple2;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Collections;
 
 
 public class App {
@@ -55,20 +55,27 @@ public class App {
                 .set("spark.executor.memory", sparkExecutorMemory);
         JavaSparkContext sparkContext = new JavaSparkContext(sparkConf);
 
+        LongAccumulator domainToDomainPairSize = sparkContext.sc().longAccumulator();
+
         JavaRDD<Result> hbaseRDD = sparkContext.newAPIHadoopRDD(hbaseReadConfiguration
                 , TableInputFormat.class, ImmutableBytesWritable.class, Result.class).values();
 
         JavaRDD<Cell> hbaseCells = hbaseRDD.flatMap(result -> result.listCells().iterator());
 
-        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = hbaseCells.mapToPair(cell -> {
-            String source = new String(cell.getRowArray());
-            String destination = new String(cell.getValueArray());
-            String sourceDomain = getDomain(source);
-            String destinationDomain = getDomain(destination);
-            // Todo : Handle Malformed URL Exception
-            Tuple2<String, String> domainPair = new Tuple2<>(sourceDomain, destinationDomain);
-            return new Tuple2<>(domainPair, 1);
+        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = hbaseCells.flatMapToPair(cell -> {
+            String source = new String(CellUtil.cloneRow(cell));
+            String destination = new String(CellUtil.cloneValue(cell));
+            try {
+                String sourceDomain = getDomain("http://" + source);
+                String destinationDomain = getDomain("http://" + destination);
+                Tuple2<String, String> domainPair = new Tuple2<>(sourceDomain, destinationDomain);
+                domainToDomainPairSize.add(1);
+                return Collections.singleton(new Tuple2<>(domainPair, 1)).iterator();
+            } catch (MalformedURLException e) {
+                return Collections.emptyIterator();
+            }
         });
+
         // Todo : CellUtil.cloneRow() Or getValueArray()
 
         JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairWeightRDD = domainToDomainPairRDD
@@ -78,17 +85,19 @@ public class App {
             System.out.println(String.format("%s -> %s : %d", tuple2IntegerTuple2._1._1, tuple2IntegerTuple2._1._2, tuple2IntegerTuple2._2));
         });
 
-        JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = domainToDomainPairWeightRDD
-                .mapToPair((PairFunction<Tuple2<Tuple2<String, String>, Integer>, ImmutableBytesWritable, Put>) t -> {
-            Put put = new Put(Bytes.toBytes(t._1._1 + ":" + t._1._2));
-            put.addColumn(Bytes.toBytes(hbaseWriteColumnFamily),
-                    Bytes.toBytes(hbaseWriteQualifier),
-                    Bytes.toBytes(t._2));
+        System.err.println("Domain To Domain Pair Size :  " + domainToDomainPairSize.sum());
 
-            return new Tuple2<>(new ImmutableBytesWritable(), put);
-        });
+//        JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = domainToDomainPairWeightRDD
+//                .mapToPair((PairFunction<Tuple2<Tuple2<String, String>, Integer>, ImmutableBytesWritable, Put>) t -> {
+//            Put put = new Put(Bytes.toBytes(t._1._1 + ":" + t._1._2));
+//            put.addColumn(Bytes.toBytes(hbaseWriteColumnFamily),
+//                    Bytes.toBytes(hbaseWriteQualifier),
+//                    Bytes.toBytes(t._2));
+//
+//            return new Tuple2<>(new ImmutableBytesWritable(), put);
+//        });
 
-        hbasePuts.saveAsNewAPIHadoopDataset(hbaseWriteConfiguration);
+//        hbasePuts.saveAsNewAPIHadoopDataset(hbaseWriteConfiguration);
 
         sparkContext.close();
     }
