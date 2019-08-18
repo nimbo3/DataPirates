@@ -60,7 +60,8 @@ class ProcessorThread extends Thread implements Closeable {
                         if (acceptableLanguages.contains(language)) {
                             site.setLanguage(language);
                             elasitcSiteDao.insert(site);
-                            hbaseBulkQueue.put(site);
+                            if (site.getLanguage().equals("en"))
+                                hbaseBulkQueue.put(site);
                             logger.trace("Inserted In DBs: " + site.getTitle() + " : " + site.getLink());
                             logger.trace(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
                             site.getAnchors().keySet().forEach(link -> {
