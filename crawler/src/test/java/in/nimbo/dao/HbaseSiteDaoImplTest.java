@@ -44,7 +44,7 @@ public class HbaseSiteDaoImplTest {
         Configuration hBaseConfiguration = HBaseConfiguration.create();
         conn = ConnectionFactory.createConnection(hBaseConfiguration);
         hbaseSiteDao = new HbaseSiteDaoImpl(conn, hBaseConfiguration, config);
-        TABLE_NAME = config.getString("hbase.read.table.name");
+        TABLE_NAME = config.getString("hbase.table.name");
         FAMILY_NAME = config.getString("hbase.table.column.family.anchors");
         try (final Admin admin = conn.getAdmin()) {
             if (!admin.tableExists(TableName.valueOf(TABLE_NAME))) {
