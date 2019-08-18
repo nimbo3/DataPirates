@@ -8,14 +8,22 @@ import com.typesafe.config.Config;
 import in.nimbo.exception.FetchException;
 import org.apache.log4j.Logger;
 import org.jsoup.Connection;
+import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
+import org.jsoup.UnsupportedMimeTypeException;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.SocketTimeoutException;
 
 public class JsoupFetcher implements Fetcher {
     private Logger logger = Logger.getLogger(JsoupFetcher.class);
     private Timer fetchTimer;
     private Meter successFetchMeter;
+    private Meter malformedURLMeter;
+    private Meter socketTimeoutMeter;
+    private Meter httpStatusMeter;
+    private Meter unsupportedMimeTypeMeter;
     private String redirectedUrl;
     private int connectionTimeOut;
 
@@ -38,6 +46,18 @@ public class JsoupFetcher implements Fetcher {
             logger.trace(String.format("Url [%s] fetched successfully", url));
             successFetchMeter.mark();
             return response.body();
+        } catch (MalformedURLException e) {
+            malformedURLMeter.mark();
+            throw new FetchException(String.format("Can't fetch url [%s]", url), e);
+        } catch (SocketTimeoutException e) {
+            socketTimeoutMeter.mark();
+            throw new FetchException(String.format("Can't fetch url [%s]", url), e);
+        } catch (HttpStatusException e) {
+            httpStatusMeter.mark();
+            throw new FetchException(String.format("Can't fetch url [%s]", url), e);
+        } catch (UnsupportedMimeTypeException e) {
+            unsupportedMimeTypeMeter.mark();
+            throw new FetchException(String.format("Can't fetch url [%s]", url), e);
         } catch (IOException e) {
             throw new FetchException(String.format("Can't fetch url [%s]", url), e);
         }
