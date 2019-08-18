@@ -1,0 +1,35 @@
+- hosts: master
+  vars:
+    git_repository_url: https://github.com/nimbo3/DataPirates.git
+    git_repository_branch: issue-119-web-graph
+    project_module_name: web-graph
+    project_module_version: 1.0-SNAPSHOT
+    deploy_dir: /opt/data-pirates/
+  environment:
+    JAVA_HOME: /usr/lib/jvm/jdk1.8.0_211
+  tasks:
+  - name: Install needed packages with apt
+    apt:
+      name: "{{ packages }}"
+    vars:
+      packages:
+      - git
+      - maven
+  - name: Get latest project files from github
+    git:
+      repo: "{{ git_repository_url }}"
+      dest: "{{ deploy_dir }}"
+      force: yes
+      version: "{{ git_repository_branch }}"
+  - name: Create runnable jar file with maven
+    command: mvn clean package -DskipTests -DoutputDirectory=/opt
+    register: mvn
+    changed_when: "'BUILD FAILURE' not in mvn.stdout"
+    args:
+      chdir: "{{ deploy_dir }}{{ project_module_name }}"
+  - name: Run Map/Reduce With nohup
+    shell: "nohup /usr/local/spark/bin/spark-submit --class in.nimbo.App --master spark://master:7077 {{ project_module_name }}-{{ project_module_version }}.jar --jars local:{{ deploy_dir }}{{ project_module_name }}/target/{{ project_module_name }}-{{ project_module_version }}.jar &"
+    register: nohup
+    changed_when: "'failed' not in nohup.stderr"
+    args:
+      chdir: "{{ deploy_dir }}{{ project_module_name }}/target/"
