@@ -6,25 +6,34 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
+import org.apache.hadoop.hbase.mapreduce.TableOutputFormat;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.util.LongAccumulator;
 import scala.Tuple2;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collections;
 
 
 public class App {
-    public static void main(String[] args) {
+
+    public static final String DEFAULT_PROTOCOL = "http://";
+
+    public static void main(String[] args) throws IOException {
         Config config = ConfigFactory.load("config");
         String sparkAppName = config.getString("spark.app.name");
         String hbaseXmlHadoop = config.getString("hbase.xml.url.in.hadoop");
@@ -49,6 +58,10 @@ public class App {
         hbaseReadConfiguration.addResource(hbaseXmlHbase);
         hbaseWriteConfiguration.set(TableInputFormat.INPUT_TABLE, hbaseWriteTableName);
 
+        Job newAPIJobConfiguration = Job.getInstance(hbaseWriteConfiguration);
+        newAPIJobConfiguration.getConfiguration().set(TableOutputFormat.OUTPUT_TABLE, hbaseWriteTableName);
+        newAPIJobConfiguration.setOutputFormatClass(TableOutputFormat.class);
+
         SparkConf sparkConf = new SparkConf()
                 .setAppName(sparkAppName)
                 .set("spark.executor.cores", sparkExecutorCores)
@@ -56,6 +69,7 @@ public class App {
         JavaSparkContext sparkContext = new JavaSparkContext(sparkConf);
 
         LongAccumulator domainToDomainPairSize = sparkContext.sc().longAccumulator();
+        LongAccumulator domainToDomainPairWeightedSize = sparkContext.sc().longAccumulator();
 
         JavaRDD<Result> hbaseRDD = sparkContext.newAPIHadoopRDD(hbaseReadConfiguration
                 , TableInputFormat.class, ImmutableBytesWritable.class, Result.class).values();
@@ -66,8 +80,8 @@ public class App {
             String source = new String(CellUtil.cloneRow(cell));
             String destination = new String(CellUtil.cloneValue(cell));
             try {
-                String sourceDomain = getDomain("http://" + source);
-                String destinationDomain = getDomain("http://" + destination);
+                String sourceDomain = getDomain(DEFAULT_PROTOCOL + source);
+                String destinationDomain = getDomain(DEFAULT_PROTOCOL + destination);
                 Tuple2<String, String> domainPair = new Tuple2<>(sourceDomain, destinationDomain);
                 domainToDomainPairSize.add(1);
                 return Collections.singleton(new Tuple2<>(domainPair, 1)).iterator();
@@ -76,30 +90,30 @@ public class App {
             }
         });
 
-        // Todo : CellUtil.cloneRow() Or getValueArray()
-
         JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairWeightRDD = domainToDomainPairRDD
                 .reduceByKey((Function2<Integer, Integer, Integer>) (integer, integer2) -> integer + integer2);
 
         domainToDomainPairWeightRDD.foreach((VoidFunction<Tuple2<Tuple2<String, String>, Integer>>) tuple2IntegerTuple2 -> {
+            domainToDomainPairWeightedSize.add(1);
             System.out.println(String.format("%s -> %s : %d", tuple2IntegerTuple2._1._1, tuple2IntegerTuple2._1._2, tuple2IntegerTuple2._2));
         });
 
         System.err.println("Domain To Domain Pair Size :  " + domainToDomainPairSize.sum());
+        System.err.println("Domain To Domain Pair Weighted Size :  " + domainToDomainPairWeightedSize.sum());
 
-//        JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = domainToDomainPairWeightRDD
-//                .mapToPair((PairFunction<Tuple2<Tuple2<String, String>, Integer>, ImmutableBytesWritable, Put>) t -> {
-//            Put put = new Put(Bytes.toBytes(t._1._1 + ":" + t._1._2));
-//            put.addColumn(Bytes.toBytes(hbaseWriteColumnFamily),
-//                    Bytes.toBytes(hbaseWriteQualifier),
-//                    Bytes.toBytes(t._2));
-//
-//            return new Tuple2<>(new ImmutableBytesWritable(), put);
-//        });
+        JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = domainToDomainPairWeightRDD
+                .mapToPair((PairFunction<Tuple2<Tuple2<String, String>, Integer>, ImmutableBytesWritable, Put>) t -> {
+                    Put put = new Put(Bytes.toBytes(t._1._1 + ":" + t._1._2));
+                    put.addColumn(Bytes.toBytes(hbaseWriteColumnFamily),
+                            Bytes.toBytes(hbaseWriteQualifier),
+                            Bytes.toBytes(t._2));
 
-//        hbasePuts.saveAsNewAPIHadoopDataset(hbaseWriteConfiguration);
+                    return new Tuple2<>(new ImmutableBytesWritable(), put);
+                });
 
-        sparkContext.close();
+        hbasePuts.saveAsNewAPIHadoopDataset(newAPIJobConfiguration.getConfiguration());
+
+        sparkContext.stop();
     }
 
     public static String getDomain(String url) throws MalformedURLException {
