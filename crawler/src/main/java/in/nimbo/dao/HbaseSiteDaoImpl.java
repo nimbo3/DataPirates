@@ -77,23 +77,23 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
     @Override
     public void delete(Site site) {
         try {
-            String reverseLink = site.getReverseLink();
+            String link = site.getNoProtocolLink();
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                  Timer.Context time = deleteTimer.time()) {
-                Delete del = new Delete(Bytes.toBytes(reverseLink));
+                Delete del = new Delete(Bytes.toBytes(link));
                 table.delete(del);
-                logger.debug(String.format("Link [%s] deleted from hbase", reverseLink));
+                logger.debug(String.format("Link [%s] deleted from hbase", link));
             }
         } catch (IOException e) {
             logger.error("can't delete this link: " + site.getLink() + "from hbase", e);
         }
     }
 
-    public Result get(String reverseLink) throws SiteDaoException {
+    public Result get(String link) throws SiteDaoException {
         try {
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                  Timer.Context time = deleteTimer.time()) {
-                Get get = new Get(Bytes.toBytes(reverseLink));
+                Get get = new Get(Bytes.toBytes(link));
                 return table.get(get);
             }
         } catch (IOException e) {
@@ -105,7 +105,7 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
         try {
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                  Timer.Context time = deleteTimer.time()) {
-                Get get = new Get(Bytes.toBytes(site.getReverseLink()));
+                Get get = new Get(Bytes.toBytes(site.getNoProtocolLink()));
                 Result result = table.get(get);
                 return result.size() > 0;
             }
