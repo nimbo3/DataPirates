@@ -6,6 +6,7 @@ import in.nimbo.model.Edge;
 import in.nimbo.model.Vertex;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
@@ -17,7 +18,10 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.storage.StorageLevel;
+import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 import org.graphframes.GraphFrame;
+import org.apache.commons.codec.digest.DigestUtils;
+
 
 public class App {
     public static void main(String[] args) {
@@ -25,10 +29,12 @@ public class App {
         String sparkAppName = config.getString("spark.app.name");
         String hbaseXmlHadoop = config.getString("hbase.xml.url.in.hadoop");
         String hbaseXmlHbase = config.getString("hbase.xml.url.in.hbase");
-        String hbaseTableName = config.getString("hbase.read.table.name");
-        String hbaseColumnFamily = config.getString("hbase.read.column.family");
+        String hbaseTableName = config.getString("hbase.table.name");
+        String hbaseColumnFamily = config.getString("hbase.column.family");
         String sparkExecutorCores = config.getString("spark.executor.cores");
         String sparkExecutorMemory = config.getString("spark.executor.memory");
+        String elasticNodesIp = config.getString("es.nodes.ip");
+        String elasticIndexName = config.getString("es.index.name");
 
         Configuration hbaseConfiguration = HBaseConfiguration.create();
 
@@ -41,7 +47,12 @@ public class App {
         SparkConf sparkConf = new SparkConf()
                 .setAppName(sparkAppName)
                 .set("spark.executor.cores", sparkExecutorCores)
-                .set("spark.executor.memory", sparkExecutorMemory);
+                .set("spark.executor.memory", sparkExecutorMemory)
+                .set("es.nodes", elasticNodesIp)
+                .set("es.mapping.id", "id")
+                .set("es.mapping.page-rank", "pageRank")
+                .set("es.write.operation", "upsert");
+
 
         SparkSession sparkSession = SparkSession.builder()
                 .config(sparkConf)
@@ -56,14 +67,14 @@ public class App {
             return result.listCells().iterator();
         });
 
-        JavaRDD<Vertex> vertexJavaRDD = cellJavaRDD.map(cell -> new Vertex(Bytes.toString(cell.getQualifierArray())));
-        JavaRDD<Edge> edgeJavaRDD = cellJavaRDD.map(cell -> new Edge(Bytes.toString(cell.getRowArray()), Bytes.toString(cell.getQualifierArray())));
+        JavaRDD<Vertex> vertexJavaRDD = cellJavaRDD.map(cell -> new Vertex(Bytes.toString(CellUtil.cloneQualifier(cell))));
+        JavaRDD<Edge> edgeJavaRDD = cellJavaRDD.map(cell -> new Edge(Bytes.toString(CellUtil.cloneRow(cell)), Bytes.toString(CellUtil.cloneQualifier(cell))));
 
         Dataset<Row> vertexDF = sparkSession.createDataFrame(vertexJavaRDD, Vertex.class);
         Dataset<Row> edgeDF = sparkSession.createDataFrame(edgeJavaRDD, Edge.class);
 
         GraphFrame graphFrame = new GraphFrame(vertexDF, edgeDF);
-        GraphFrame pageRankResult = graphFrame.pageRank().maxIter(10).run();
+        GraphFrame pageRankResult = graphFrame.pageRank().maxIter(1).run();
         pageRankResult.persist(StorageLevel.MEMORY_ONLY());
 
         pageRankResult.vertices().toJavaRDD().map(row -> {
@@ -71,6 +82,8 @@ public class App {
             System.out.println("DF:DoubleRank " + row.getDouble(1));
             return row;
         });
+        JavaRDD<UpdateObject> elasticJavaRDD = pageRankResult.vertices().toJavaRDD().map(row -> new UpdateObject(DigestUtils.sha256Hex(row.getString(0)), row.getDouble(1)));
+        JavaEsSpark.saveToEs(elasticJavaRDD, elasticIndexName + "/_doc");
 
         sparkSession.close();
     }

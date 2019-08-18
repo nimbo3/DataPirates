@@ -4,10 +4,10 @@ import java.io.Serializable;
 
 public class UpdateObject implements Serializable {
     String id;
-    int numOfRefs;
+    double pageRank;
 
-    public UpdateObject(String id, int numOfRefs) {
+    public UpdateObject(String id, double pageRank) {
         this.id = id;
-        this.numOfRefs = numOfRefs;
+        this.pageRank = pageRank;
     }
 }
