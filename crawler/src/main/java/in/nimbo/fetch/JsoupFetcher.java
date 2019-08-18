@@ -32,6 +32,10 @@ public class JsoupFetcher implements Fetcher {
         MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
         fetchTimer = metricRegistry.timer("fetcher");
         successFetchMeter = metricRegistry.meter("fetcher successful");
+        malformedURLMeter = metricRegistry.meter("fetcher malformed url");
+        socketTimeoutMeter = metricRegistry.meter("fetcher socket timeout");
+        httpStatusMeter = metricRegistry.meter("fetcher http status error");
+        unsupportedMimeTypeMeter = metricRegistry.meter("fetcher unsupported mime type");
     }
 
     @Override
