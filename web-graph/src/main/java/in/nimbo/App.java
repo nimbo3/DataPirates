@@ -21,6 +21,8 @@ import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.util.LongAccumulator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 import java.io.IOException;
@@ -30,6 +32,8 @@ import java.util.Collections;
 
 
 public class App {
+
+    private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static final String DEFAULT_PROTOCOL = "http://";
 
@@ -78,7 +82,7 @@ public class App {
 
         JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = hbaseCells.flatMapToPair(cell -> {
             String source = new String(CellUtil.cloneRow(cell));
-            String destination = new String(CellUtil.cloneValue(cell));
+            String destination = new String(CellUtil.cloneQualifier(cell));
             try {
                 String sourceDomain = getDomain(DEFAULT_PROTOCOL + source);
                 String destinationDomain = getDomain(DEFAULT_PROTOCOL + destination);
@@ -98,8 +102,8 @@ public class App {
             System.out.println(String.format("%s -> %s : %d", tuple2IntegerTuple2._1._1, tuple2IntegerTuple2._1._2, tuple2IntegerTuple2._2));
         });
 
-        System.err.println("Domain To Domain Pair Size :  " + domainToDomainPairSize.sum());
-        System.err.println("Domain To Domain Pair Weighted Size :  " + domainToDomainPairWeightedSize.sum());
+        logger.info("Domain To Domain Pair Size :  " + domainToDomainPairSize.sum());
+        logger.info("Domain To Domain Pair Weighted Size :  " + domainToDomainPairWeightedSize.sum());
 
         JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = domainToDomainPairWeightRDD
                 .mapToPair((PairFunction<Tuple2<Tuple2<String, String>, Integer>, ImmutableBytesWritable, Put>) t -> {
