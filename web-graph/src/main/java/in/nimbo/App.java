@@ -1,17 +1,13 @@
 package in.nimbo;
 
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultStatsUtil;
-import org.apache.hadoop.hbase.client.Row;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat;
@@ -21,12 +17,8 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
-import org.apache.spark.internal.Logging;
-import org.apache.spark.internal.Logging$;
 import org.apache.spark.util.LongAccumulator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,14 +27,15 @@ import scala.Tuple2;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 
 public class App {
 
-    private static Logger logger = LoggerFactory.getLogger(App.class);
-
     public static final String DEFAULT_PROTOCOL = "http://";
+    private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) throws IOException {
         Config config = ConfigFactory.load("config");
@@ -114,18 +107,21 @@ public class App {
 
         JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = domainToDomainPairWeightRDD
                 .flatMapToPair(t -> {
+                    byte[] sourceDomainBytes = Bytes.toBytes(t._1._1);
+                    byte[] destinationDomainBytes = Bytes.toBytes(t._1._2);
+                    byte[] domainToDomainRefrences = Bytes.toBytes(t._2);
 
                     Set<Tuple2<ImmutableBytesWritable, Put>> hbasePut = new HashSet<>();
 
-                    Put outputDomainPut = new Put(Bytes.toBytes(t._1._1));
+                    Put outputDomainPut = new Put(sourceDomainBytes);
                     outputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyOutput),
-                            Bytes.toBytes(t._1._2),
-                            Bytes.toBytes(t._2));
+                            destinationDomainBytes,
+                            domainToDomainRefrences);
 
-                    Put inputDomainPut = new Put(Bytes.toBytes(t._1._2));
+                    Put inputDomainPut = new Put(destinationDomainBytes);
                     inputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyInput),
-                            Bytes.toBytes(t._1._1),
-                            Bytes.toBytes(t._2));
+                            sourceDomainBytes,
+                            domainToDomainRefrences);
 
                     hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), inputDomainPut));
                     hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), outputDomainPut));
