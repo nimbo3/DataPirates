@@ -29,11 +29,15 @@
     register: git
 
   - name: Get running crawler process
-      shell: "jps | grep {{ PROCESS }}"
-      register: running_process
+    shell: "jps | grep {{ PROCESS }}"
+    register: running_process
+
+  - debug:
+      var: running_process.stdout
 
   - name: Prepair crawler and run 
     block:
+    
     - name: Kill running crawler process
       shell: kill $(jps | grep {{ PROCESS }} | awk '{print $1}')
       when: "'jar' in running_process.stdout"
@@ -78,7 +82,7 @@
     when: git.changed
 
   - name: Run crawler app with jmx exporter
-    shell: "nohup $JAVA_HOME/bin/java {{ JAVA_OPTS }} -javaagent:{{ jmx_exporter_name }}.jar=9070:config.yaml -jar {{ project_module_name }}-{{ project_module_version }}.jar &"
+    shell: "LD_LIBRARY_PATH=/usr/local/hadoop/lib/native nohup $JAVA_HOME/bin/java {{ JAVA_OPTS }} -javaagent:{{ jmx_exporter_name }}.jar=9070:config.yaml -jar {{ project_module_name }}-{{ project_module_version }}.jar &"
     register: nohup
     changed_when: "'failed' not in nohup.stderr"
     args:
