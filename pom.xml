@@ -18,6 +18,12 @@
         <module>web-graph</module>
     </modules>
 
+    <repositories>
+        <repository>
+            <id>SparkPackagesRepo</id>
+            <url>http://dl.bintray.com/spark-packages/maven</url>
+        </repository>
+    </repositories>
 
     <properties>
         <junit.version>4.12</junit.version>

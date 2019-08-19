@@ -2,6 +2,8 @@ package in.nimbo;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import in.nimbo.model.Edge;
+import in.nimbo.model.Vertex;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
@@ -19,6 +21,9 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.VoidFunction;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.util.LongAccumulator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +35,7 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import org.graphframes.GraphFrame;
 
 
 public class App {
@@ -70,17 +76,31 @@ public class App {
                 .setAppName(sparkAppName)
                 .set("spark.executor.cores", sparkExecutorCores)
                 .set("spark.executor.memory", sparkExecutorMemory);
-        JavaSparkContext sparkContext = new JavaSparkContext(sparkConf);
 
-        LongAccumulator domainToDomainPairSize = sparkContext.sc().longAccumulator();
-        LongAccumulator domainToDomainPairWeightedSize = sparkContext.sc().longAccumulator();
+        SparkSession sparkSession = SparkSession.builder()
+                .config(sparkConf)
+                .getOrCreate();
 
-        JavaRDD<Result> hbaseRDD = sparkContext.newAPIHadoopRDD(hbaseReadConfiguration
-                , TableInputFormat.class, ImmutableBytesWritable.class, Result.class).values();
+        LongAccumulator domainToDomainPairSize = sparkSession.sparkContext().longAccumulator();
+        LongAccumulator domainToDomainPairWeightedSize = sparkSession.sparkContext().longAccumulator();
 
-        JavaRDD<Cell> hbaseCells = hbaseRDD.flatMap(result -> result.listCells().iterator());
+        JavaRDD<Result> hbaseRDD = sparkSession.sparkContext().newAPIHadoopRDD(hbaseReadConfiguration
+                , TableInputFormat.class, ImmutableBytesWritable.class, Result.class).toJavaRDD().map(tuple -> tuple._2);
 
-        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = hbaseCells.flatMapToPair(cell -> {
+        JavaRDD<Cell> hbaseCellsJavaRDD = hbaseRDD.flatMap(result -> result.listCells().iterator());
+
+        JavaRDD<Vertex> vertexJavaRDD = hbaseCellsJavaRDD.map(cell -> new Vertex(Bytes.toString(CellUtil.cloneQualifier(cell))));
+        JavaRDD<Edge> edgeJavaRDD = hbaseCellsJavaRDD.map(cell -> new Edge(Bytes.toString(CellUtil.cloneRow(cell)), Bytes.toString(CellUtil.cloneQualifier(cell))));
+
+        Dataset<Row> vertexDF = sparkSession.createDataFrame(vertexJavaRDD, Vertex.class);
+        Dataset<Row> edgeDF = sparkSession.createDataFrame(edgeJavaRDD, Edge.class);
+
+        GraphFrame graphFrame = new GraphFrame(vertexDF, edgeDF);
+//        graphFrame.triplets().toJavaRDD().map(row -> {
+//
+//        });
+
+        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = hbaseCellsJavaRDD.flatMapToPair(cell -> {
             String source = new String(CellUtil.cloneRow(cell));
             String destination = new String(CellUtil.cloneQualifier(cell));
             try {
@@ -130,7 +150,7 @@ public class App {
 
         hbasePuts.saveAsNewAPIHadoopDataset(newAPIJobConfiguration.getConfiguration());
 
-        sparkContext.stop();
+        sparkSession.stop();
     }
 
     public static String getDomain(String url) throws MalformedURLException {
