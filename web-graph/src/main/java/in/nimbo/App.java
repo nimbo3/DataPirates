@@ -26,9 +26,11 @@ import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.util.LongAccumulator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Function0;
 import scala.Tuple2;
 
 import java.io.IOException;
@@ -64,7 +66,7 @@ public class App {
         hbaseReadConfiguration.addResource(hbaseXmlHbase);
         hbaseReadConfiguration.set(TableInputFormat.INPUT_TABLE, hbaseReadTableName);
         hbaseReadConfiguration.set(TableInputFormat.SCAN_COLUMN_FAMILY, hbaseReadColumnFamily);
-        hbaseReadConfiguration.set(TableInputFormat.SCAN_CACHEDROWS, "500");
+        hbaseReadConfiguration.set(TableInputFormat.SCAN_CACHEDROWS, "2");
 
         Configuration hbaseWriteConfiguration = HBaseConfiguration.create();
         hbaseReadConfiguration.addResource(hbaseXmlHadoop);
@@ -77,6 +79,7 @@ public class App {
 
         SparkConf sparkConf = new SparkConf()
                 .setAppName(sparkAppName)
+                .set("spark.cores.max", "3")
                 .set("spark.executor.cores", sparkExecutorCores)
                 .set("spark.executor.memory", sparkExecutorMemory);
 
@@ -93,10 +96,13 @@ public class App {
 
         JavaRDD<Cell> hbaseCellsJavaRDD = hbaseRDD.flatMap(result -> result.listCells().iterator());
 
+        hbaseCellsJavaRDD.persist(StorageLevel.DISK_ONLY());
+
         JavaRDD<Vertex> vertexJavaRDD = hbaseCellsJavaRDD.flatMap(cell -> {
             try {
-                String domain = getDomain(Bytes.toString(CellUtil.cloneQualifier(cell)));
+                String domain = getDomain(Bytes.toString(CellUtil.cloneRow(cell)));
                 verticesSize.add(1);
+                System.out.println(String.format("Vertix= %s ", domain));
                 return Collections.singleton(new Vertex(domain)).iterator();
             } catch (MalformedURLException e) {
                 return Collections.emptyIterator();
@@ -110,6 +116,7 @@ public class App {
                 String sourceDomain = getDomain(DEFAULT_PROTOCOL + source);
                 String destinationDomain = getDomain(DEFAULT_PROTOCOL + destination);
                 domainToDomainPairSize.add(1);
+                System.out.println(String.format("Edge= %s -> %s", sourceDomain, destinationDomain));
                 return Collections.singleton(new Edge(sourceDomain, destinationDomain)).iterator();
             } catch (MalformedURLException e) {
                 return Collections.emptyIterator();
