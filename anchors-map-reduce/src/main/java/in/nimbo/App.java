@@ -1,8 +1,9 @@
 package in.nimbo;
 
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import in.nimbo.model.Edge;
+import in.nimbo.model.Vertex;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
@@ -10,15 +11,16 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.util.LongAccumulator;
-//import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
-import scala.Tuple2;
-
-import java.util.List;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+import org.apache.spark.storage.StorageLevel;
+import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
+import org.graphframes.GraphFrame;
+import org.apache.commons.codec.digest.DigestUtils;
 
 
 public class App {
@@ -27,14 +29,12 @@ public class App {
         String sparkAppName = config.getString("spark.app.name");
         String hbaseXmlHadoop = config.getString("hbase.xml.url.in.hadoop");
         String hbaseXmlHbase = config.getString("hbase.xml.url.in.hbase");
-        String hbaseTableName = config.getString("hbase.read.table.name");
-        String hbaseColumnFamily = config.getString("hbase.read.column.family");
+        String hbaseTableName = config.getString("hbase.table.name");
+        String hbaseColumnFamily = config.getString("hbase.column.family");
         String sparkExecutorCores = config.getString("spark.executor.cores");
         String sparkExecutorMemory = config.getString("spark.executor.memory");
         String elasticNodesIp = config.getString("es.nodes.ip");
         String elasticIndexName = config.getString("es.index.name");
-        String elasticTableName = config.getString("es.table.name");
-
 
         Configuration hbaseConfiguration = HBaseConfiguration.create();
 
@@ -48,38 +48,43 @@ public class App {
                 .setAppName(sparkAppName)
                 .set("spark.executor.cores", sparkExecutorCores)
                 .set("spark.executor.memory", sparkExecutorMemory)
-                .setMaster("local[*]")
-//                .set("es.nodes", elasticNodesIp)
-//                .set("es.mapping.id", "id")
-                // todo
-//                .set("es.write.operation", "update")
-                ;
-        JavaSparkContext sparkContext = new JavaSparkContext(sparkConf);
+                .set("es.nodes", elasticNodesIp)
+                .set("es.mapping.id", "id")
+                .set("es.mapping.page-rank", "pageRank")
+                .set("es.write.operation", "upsert");
 
-        LongAccumulator rowCount = sparkContext.sc().longAccumulator();
-        LongAccumulator cellCount = sparkContext.sc().longAccumulator();
 
-        JavaRDD<Result> hbaseRDD = sparkContext.newAPIHadoopRDD(hbaseConfiguration
+        SparkSession sparkSession = SparkSession.builder()
+                .config(sparkConf)
+                .getOrCreate();
+
+        JavaRDD<Result> hbaseRDD = sparkSession.sparkContext().newAPIHadoopRDD(hbaseConfiguration
                 , TableInputFormat.class, ImmutableBytesWritable.class, Result.class)
-                .values();
-        JavaRDD<Cell> cellRDD = hbaseRDD.flatMap(result -> {
-            List<Cell> cells = result.listCells();
-            rowCount.add(1);
-            cellCount.add(cells.size());
-            return cells.iterator();
-        });
-        JavaPairRDD<byte[], Integer> linkToOne = cellRDD.mapToPair(cell -> new Tuple2<>(CellUtil.cloneQualifier(cell), 1));
-        JavaPairRDD<byte[], Integer> linkToCount = linkToOne.reduceByKey(Integer::sum);
+                .toJavaRDD().map(tuple -> tuple._2);
 
-        System.err.println("row count: "+rowCount.value());
-        System.err.println("cell count: "+cellCount.value());
-        JavaRDD<UpdateObject> updateObjectJavaRDD = linkToCount.map(t -> new UpdateObject(new String(t._1), t._2));
-        linkToCount.foreach(t -> {
-            if (t._2 > 1)
-                System.out.println(new String(t._1) + ":" + t._2);
+        JavaRDD<Cell> cellJavaRDD = hbaseRDD.flatMap(result -> {
+            System.out.println(new String(result.getRow()) + " :: " + result.listCells().size());
+            return result.listCells().iterator();
         });
-//        JavaEsSpark.saveToEs(updateObjectJavaRDD, elasticIndexName + "/" + elasticTableName);
-        sparkContext.close();
 
+        JavaRDD<Vertex> vertexJavaRDD = cellJavaRDD.map(cell -> new Vertex(Bytes.toString(CellUtil.cloneQualifier(cell))));
+        JavaRDD<Edge> edgeJavaRDD = cellJavaRDD.map(cell -> new Edge(Bytes.toString(CellUtil.cloneRow(cell)), Bytes.toString(CellUtil.cloneQualifier(cell))));
+
+        Dataset<Row> vertexDF = sparkSession.createDataFrame(vertexJavaRDD, Vertex.class);
+        Dataset<Row> edgeDF = sparkSession.createDataFrame(edgeJavaRDD, Edge.class);
+
+        GraphFrame graphFrame = new GraphFrame(vertexDF, edgeDF);
+        GraphFrame pageRankResult = graphFrame.pageRank().maxIter(1).run();
+        pageRankResult.persist(StorageLevel.MEMORY_ONLY());
+
+        pageRankResult.vertices().toJavaRDD().map(row -> {
+            System.out.println("DF:String " + row.getString(0));
+            System.out.println("DF:DoubleRank " + row.getDouble(1));
+            return row;
+        });
+        JavaRDD<UpdateObject> elasticJavaRDD = pageRankResult.vertices().toJavaRDD().map(row -> new UpdateObject(DigestUtils.sha256Hex(row.getString(0)), row.getDouble(1)));
+        JavaEsSpark.saveToEs(elasticJavaRDD, elasticIndexName + "/_doc");
+
+        sparkSession.close();
     }
 }
