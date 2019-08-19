@@ -82,7 +82,7 @@ public class App {
         JavaRDD<Result> hbaseRDD = sparkContext.newAPIHadoopRDD(hbaseReadConfiguration
                 , TableInputFormat.class, ImmutableBytesWritable.class, Result.class).values();
 
-        JavaRDD<String> hbaseRows = hbaseRDD.map(result -> new String(result.getRow()));
+//        JavaRDD<String> hbaseRows = hbaseRDD.map(result -> new String(result.getRow()));
 
         JavaRDD<Cell> hbaseCells = hbaseRDD.flatMap(result -> result.listCells().iterator());
 
@@ -108,8 +108,8 @@ public class App {
             System.out.println(String.format("%s -> %s : %d", tuple2IntegerTuple2._1._1, tuple2IntegerTuple2._1._2, tuple2IntegerTuple2._2));
         });
 
-        logger.info("Domain To Domain Pair Size :  " + domainToDomainPairSize.sum());
-        logger.info("Domain To Domain Pair Weighted Size :  " + domainToDomainPairWeightedSize.sum());
+        System.err.println("Domain To Domain Pair Size :  " + domainToDomainPairSize.sum());
+        System.err.println("Domain To Domain Pair Weighted Size :  " + domainToDomainPairWeightedSize.sum());
 
         JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = domainToDomainPairWeightRDD
                 .mapToPair((PairFunction<Tuple2<Tuple2<String, String>, Integer>, ImmutableBytesWritable, Put>) t -> {
