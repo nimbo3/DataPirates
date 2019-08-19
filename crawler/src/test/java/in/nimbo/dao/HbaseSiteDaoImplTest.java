@@ -74,7 +74,7 @@ public class HbaseSiteDaoImplTest {
         map.put("http://www.yahoo.com/google", "see yahoo");
         site.setAnchors(map);
         hbaseSiteDao.insert(site);
-        NavigableMap<byte[], byte[]> actualByteMap = hbaseSiteDao.get(site.getReverseLink()).getFamilyMap(Bytes.toBytes(FAMILY_NAME));
+        NavigableMap<byte[], byte[]> actualByteMap = hbaseSiteDao.get(site.getNoProtocolLink()).getFamilyMap(Bytes.toBytes(FAMILY_NAME));
         Map<String, String> actual = new HashMap<>();
         for (Map.Entry<byte[], byte[]> entry : actualByteMap.entrySet()) {
             actual.put(Bytes.toString(entry.getKey()), Bytes.toString(entry.getValue()));
@@ -108,7 +108,7 @@ public class HbaseSiteDaoImplTest {
         site.setAnchors(map);
         hbaseSiteDao.insert(site);
         hbaseSiteDao.delete(site);
-        Result result = hbaseSiteDao.get(site.getReverseLink());
+        Result result = hbaseSiteDao.get(site.getNoProtocolLink());
         assertTrue(result.isEmpty());
     }
 
@@ -128,7 +128,7 @@ public class HbaseSiteDaoImplTest {
             hbaseSiteDao.insert(sites[i]);
         }
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Result result = hbaseSiteDao.get(sites[i].getReverseLink());
+            Result result = hbaseSiteDao.get(sites[i].getNoProtocolLink());
             assertEquals(text, Bytes.toString(result.getValue(Bytes.toBytes(FAMILY_NAME), Bytes.toBytes("stackoverflow.com/google"))));
         }
     }

@@ -1,8 +1,11 @@
 package in.nimbo.kafka;
 
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.typesafe.config.Config;
+import in.nimbo.FetcherThread;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -37,6 +40,9 @@ public class LinkConsumer implements Closeable {
         this.consumer = new KafkaConsumer<>(properties);
         topicName = config.getString("kafka.topic.name");
         buffer = new ArrayBlockingQueue<>(config.getInt("kafka.buffer.size"));
+        SharedMetricRegistries.getDefault().register(
+                MetricRegistry.name(LinkConsumer.class, "kafka consumer buffer queue"),
+                (Gauge<Integer>) buffer::size);
     }
 
     public void start() {
