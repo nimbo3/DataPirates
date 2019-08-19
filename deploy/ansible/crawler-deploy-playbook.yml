@@ -7,7 +7,7 @@
     project_module_name: crawler
     project_module_version: 1.0-SNAPSHOT
     crawler_deploy_dir: /opt/data-pirates/
-    JAVA_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9010 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=0.0.0.0
+    JAVA_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9010 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=0.0.0.0 -Dmyprocessname Crawler
   environment:
     JAVA_HOME: /usr/lib/jvm/jdk1.8.0_211
   tasks:
@@ -18,6 +18,7 @@
       packages:
       - git
       - maven
+
   - name: Get latest project files from github
     git:
       repo: "{{ git_repository_url }}"
@@ -25,6 +26,7 @@
       force: yes
       version: "{{ git_repository_branch }}"
     register: git
+
   - name: Prepair crawler and run 
     block:
     - name: Create runnable jar file with maven
@@ -33,19 +35,23 @@
       changed_when: "'BUILD FAILURE' not in mvn.stdout"
       args:
         chdir: "{{ crawler_deploy_dir }}{{ project_module_name }}"
+    
     - name: Copy profile folder near runnable jar
       copy:
         src: "{{ crawler_deploy_dir }}{{ project_module_name }}/src/main/resources/profiles"
         dest: "{{ crawler_deploy_dir }}{{ project_module_name }}/target"
         remote_src: yes
+    
     - name: Upload config file
       copy:
         src: config.properties
         dest: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/config.properties"
+    
     - name: Download jmx exporter
       get_url:
         url: "{{ jmx_exporter_url }}"
         dest: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/{{ jmx_exporter_name }}.jar"
+    
     - name: Create jmx exporter config
       copy:
         dest: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/config.yaml"
@@ -60,6 +66,7 @@
         - pattern: ".*"
 
         '
+    
     - name: Run crawler app with jmx exporter
       shell: "nohup $JAVA_HOME/bin/java {{ JAVA_OPTS }} -javaagent:{{ jmx_exporter_name }}.jar=9070:config.yaml -jar {{ project_module_name }}-{{ project_module_version }}.jar &"
       register: nohup
