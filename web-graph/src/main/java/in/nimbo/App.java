@@ -96,59 +96,64 @@ public class App {
         Dataset<Row> edgeDF = sparkSession.createDataFrame(edgeJavaRDD, Edge.class);
 
         GraphFrame graphFrame = new GraphFrame(vertexDF, edgeDF);
-//        graphFrame.triplets().toJavaRDD().map(row -> {
-//
+        graphFrame.triplets().toJavaRDD().foreach(row -> {
+            Vertex srcVertex = (Vertex) row.get(0);
+            Edge edge = (Edge) row.get(1);
+            Vertex dstVertex = (Vertex) row.get(2);
+            System.out.println("srcVertex " + srcVertex.getId());
+            System.out.println("edge " + edge.getSrc() + ":" + edge.getDst());
+            System.out.println("dstVertex " + dstVertex.getId());
+        });
+
+//        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = hbaseCellsJavaRDD.flatMapToPair(cell -> {
+//            String source = new String(CellUtil.cloneRow(cell));
+//            String destination = new String(CellUtil.cloneQualifier(cell));
+//            try {
+//                String sourceDomain = getDomain(DEFAULT_PROTOCOL + source);
+//                String destinationDomain = getDomain(DEFAULT_PROTOCOL + destination);
+//                Tuple2<String, String> domainPair = new Tuple2<>(sourceDomain, destinationDomain);
+//                domainToDomainPairSize.add(1);
+//                return Collections.singleton(new Tuple2<>(domainPair, 1)).iterator();
+//            } catch (MalformedURLException e) {
+//                return Collections.emptyIterator();
+//            }
 //        });
-
-        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = hbaseCellsJavaRDD.flatMapToPair(cell -> {
-            String source = new String(CellUtil.cloneRow(cell));
-            String destination = new String(CellUtil.cloneQualifier(cell));
-            try {
-                String sourceDomain = getDomain(DEFAULT_PROTOCOL + source);
-                String destinationDomain = getDomain(DEFAULT_PROTOCOL + destination);
-                Tuple2<String, String> domainPair = new Tuple2<>(sourceDomain, destinationDomain);
-                domainToDomainPairSize.add(1);
-                return Collections.singleton(new Tuple2<>(domainPair, 1)).iterator();
-            } catch (MalformedURLException e) {
-                return Collections.emptyIterator();
-            }
-        });
-
-        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairWeightRDD = domainToDomainPairRDD
-                .reduceByKey((Function2<Integer, Integer, Integer>) (integer, integer2) -> integer + integer2);
-
-        domainToDomainPairWeightRDD.foreach((VoidFunction<Tuple2<Tuple2<String, String>, Integer>>) tuple2IntegerTuple2 -> {
-            domainToDomainPairWeightedSize.add(1);
-            System.out.println(String.format("%s -> %s : %d", tuple2IntegerTuple2._1._1, tuple2IntegerTuple2._1._2, tuple2IntegerTuple2._2));
-        });
-
-        System.err.println("Domain To Domain Pair Size :  " + domainToDomainPairSize.sum());
-        System.err.println("Domain To Domain Pair Weighted Size :  " + domainToDomainPairWeightedSize.sum());
-
-        JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = domainToDomainPairWeightRDD
-                .flatMapToPair(t -> {
-                    byte[] sourceDomainBytes = Bytes.toBytes(t._1._1);
-                    byte[] destinationDomainBytes = Bytes.toBytes(t._1._2);
-                    byte[] domainToDomainRefrences = Bytes.toBytes(t._2);
-
-                    Set<Tuple2<ImmutableBytesWritable, Put>> hbasePut = new HashSet<>();
-
-                    Put outputDomainPut = new Put(sourceDomainBytes);
-                    outputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyOutput),
-                            destinationDomainBytes,
-                            domainToDomainRefrences);
-
-                    Put inputDomainPut = new Put(destinationDomainBytes);
-                    inputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyInput),
-                            sourceDomainBytes,
-                            domainToDomainRefrences);
-
-                    hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), inputDomainPut));
-                    hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), outputDomainPut));
-                    return hbasePut.iterator();
-                });
-
-        hbasePuts.saveAsNewAPIHadoopDataset(newAPIJobConfiguration.getConfiguration());
+//
+//        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairWeightRDD = domainToDomainPairRDD
+//                .reduceByKey((Function2<Integer, Integer, Integer>) (integer, integer2) -> integer + integer2);
+//
+//        domainToDomainPairWeightRDD.foreach((VoidFunction<Tuple2<Tuple2<String, String>, Integer>>) tuple2IntegerTuple2 -> {
+//            domainToDomainPairWeightedSize.add(1);
+//            System.out.println(String.format("%s -> %s : %d", tuple2IntegerTuple2._1._1, tuple2IntegerTuple2._1._2, tuple2IntegerTuple2._2));
+//        });
+//
+//        System.err.println("Domain To Domain Pair Size :  " + domainToDomainPairSize.sum());
+//        System.err.println("Domain To Domain Pair Weighted Size :  " + domainToDomainPairWeightedSize.sum());
+//
+//        JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = domainToDomainPairWeightRDD
+//                .flatMapToPair(t -> {
+//                    byte[] sourceDomainBytes = Bytes.toBytes(t._1._1);
+//                    byte[] destinationDomainBytes = Bytes.toBytes(t._1._2);
+//                    byte[] domainToDomainRefrences = Bytes.toBytes(t._2);
+//
+//                    Set<Tuple2<ImmutableBytesWritable, Put>> hbasePut = new HashSet<>();
+//
+//                    Put outputDomainPut = new Put(sourceDomainBytes);
+//                    outputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyOutput),
+//                            destinationDomainBytes,
+//                            domainToDomainRefrences);
+//
+//                    Put inputDomainPut = new Put(destinationDomainBytes);
+//                    inputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyInput),
+//                            sourceDomainBytes,
+//                            domainToDomainRefrences);
+//
+//                    hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), inputDomainPut));
+//                    hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), outputDomainPut));
+//                    return hbasePut.iterator();
+//                });
+//
+//        hbasePuts.saveAsNewAPIHadoopDataset(newAPIJobConfiguration.getConfiguration());
 
         sparkSession.stop();
     }
