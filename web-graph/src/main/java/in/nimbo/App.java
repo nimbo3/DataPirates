@@ -1,5 +1,6 @@
 package in.nimbo;
 
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.apache.avro.generic.GenericData;
@@ -113,21 +114,18 @@ public class App {
 
         JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = domainToDomainPairWeightRDD
                 .flatMapToPair(t -> {
-                    byte[] sourceDomainBytes = Bytes.toBytes(t._1._1);
-                    byte[] destinationDomainBytes = Bytes.toBytes(t._1._2);
-                    byte[] domainToDomainRefrences = Bytes.toBytes(t._2);
 
                     Set<Tuple2<ImmutableBytesWritable, Put>> hbasePut = new HashSet<>();
 
-                    Put outputDomainPut = new Put(sourceDomainBytes);
+                    Put outputDomainPut = new Put(Bytes.toBytes(t._1._1));
                     outputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyOutput),
-                            destinationDomainBytes,
-                            domainToDomainRefrences);
+                            Bytes.toBytes(t._1._2),
+                            Bytes.toBytes(t._2));
 
-                    Put inputDomainPut = new Put(destinationDomainBytes);
+                    Put inputDomainPut = new Put(Bytes.toBytes(t._1._2));
                     inputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyInput),
-                            sourceDomainBytes,
-                            domainToDomainRefrences);
+                            Bytes.toBytes(t._1._1),
+                            Bytes.toBytes(t._2));
 
                     hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), inputDomainPut));
                     hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), outputDomainPut));
