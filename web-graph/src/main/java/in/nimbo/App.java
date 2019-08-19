@@ -2,6 +2,7 @@ package in.nimbo;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
@@ -19,6 +20,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
@@ -32,7 +34,7 @@ import scala.Tuple2;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collections;
+import java.util.*;
 
 
 public class App {
@@ -49,8 +51,8 @@ public class App {
         String hbaseReadTableName = config.getString("hbase.read.table.name");
         String hbaseReadColumnFamily = config.getString("hbase.read.column.family");
         String hbaseWriteTableName = config.getString("hbase.write.table.name");
-        String hbaseWriteColumnFamily = config.getString("hbase.write.column.family");
-        String hbaseWriteQualifier = config.getString("hbase.write.qualifier");
+        String hbaseWriteColumnFamilyInput = config.getString("hbase.write.column.family.input.domains");
+        String hbaseWriteColumnFamilyOutput = config.getString("hbase.write.column.family.output.domains");
         String sparkExecutorCores = config.getString("spark.executor.cores");
         String sparkExecutorMemory = config.getString("spark.executor.memory");
 
@@ -82,8 +84,6 @@ public class App {
         JavaRDD<Result> hbaseRDD = sparkContext.newAPIHadoopRDD(hbaseReadConfiguration
                 , TableInputFormat.class, ImmutableBytesWritable.class, Result.class).values();
 
-//        JavaRDD<String> hbaseRows = hbaseRDD.map(result -> new String(result.getRow()));
-
         JavaRDD<Cell> hbaseCells = hbaseRDD.flatMap(result -> result.listCells().iterator());
 
         JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = hbaseCells.flatMapToPair(cell -> {
@@ -112,13 +112,26 @@ public class App {
         System.err.println("Domain To Domain Pair Weighted Size :  " + domainToDomainPairWeightedSize.sum());
 
         JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = domainToDomainPairWeightRDD
-                .mapToPair((PairFunction<Tuple2<Tuple2<String, String>, Integer>, ImmutableBytesWritable, Put>) t -> {
-                    Put put = new Put(Bytes.toBytes(t._1._1 + ":" + t._1._2));
-                    put.addColumn(Bytes.toBytes(hbaseWriteColumnFamily),
-                            Bytes.toBytes(hbaseWriteQualifier),
-                            Bytes.toBytes(t._2));
+                .flatMapToPair(t -> {
+                    byte[] sourceDomainBytes = Bytes.toBytes(t._1._1);
+                    byte[] destinationDomainBytes = Bytes.toBytes(t._1._2);
+                    byte[] domainToDomainRefrences = Bytes.toBytes(t._2);
 
-                    return new Tuple2<>(new ImmutableBytesWritable(), put);
+                    Set<Tuple2<ImmutableBytesWritable, Put>> hbasePut = new HashSet<>();
+
+                    Put outputDomainPut = new Put(sourceDomainBytes);
+                    outputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyOutput),
+                            destinationDomainBytes,
+                            domainToDomainRefrences);
+
+                    Put inputDomainPut = new Put(destinationDomainBytes);
+                    inputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyInput),
+                            sourceDomainBytes,
+                            domainToDomainRefrences);
+
+                    hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), inputDomainPut));
+                    hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), outputDomainPut));
+                    return hbasePut.iterator();
                 });
 
         hbasePuts.saveAsNewAPIHadoopDataset(newAPIJobConfiguration.getConfiguration());
