@@ -7,7 +7,8 @@
     project_module_name: crawler
     project_module_version: 1.0-SNAPSHOT
     crawler_deploy_dir: /opt/data-pirates/
-    JAVA_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9010 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=0.0.0.0 -Dmyprocessname Crawler
+    JAVA_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9010 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=0.0.0.0
+    PROCESS: jar
   environment:
     JAVA_HOME: /usr/lib/jvm/jdk1.8.0_211
   tasks:
@@ -27,8 +28,16 @@
       version: "{{ git_repository_branch }}"
     register: git
 
+  - name: Get running crawler process
+      shell: "jps | grep {{ PROCESS }}"
+      register: running_process
+
   - name: Prepair crawler and run 
     block:
+    - name: Kill running crawler process
+      shell: kill $(jps | grep {{ PROCESS }} | awk '{print $1}')
+      when: "'jar' in running_process.stdout"
+
     - name: Create runnable jar file with maven
       command: mvn clean package -DskipTests
       register: mvn
@@ -66,11 +75,12 @@
         - pattern: ".*"
 
         '
-    
-    - name: Run crawler app with jmx exporter
-      shell: "nohup $JAVA_HOME/bin/java {{ JAVA_OPTS }} -javaagent:{{ jmx_exporter_name }}.jar=9070:config.yaml -jar {{ project_module_name }}-{{ project_module_version }}.jar &"
-      register: nohup
-      changed_when: "'failed' not in nohup.stderr"
-      args:
-        chdir: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/"
     when: git.changed
+
+  - name: Run crawler app with jmx exporter
+    shell: "nohup $JAVA_HOME/bin/java {{ JAVA_OPTS }} -javaagent:{{ jmx_exporter_name }}.jar=9070:config.yaml -jar {{ project_module_name }}-{{ project_module_version }}.jar &"
+    register: nohup
+    changed_when: "'failed' not in nohup.stderr"
+    args:
+      chdir: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/"
+    when: git.changed or "'jar' not in running_process.stdout"
