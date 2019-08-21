@@ -113,7 +113,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
     @Override
     public void insert(Site site) throws ElasticSiteDaoException {
         try (Timer.Context time = insertionTimer.time()) {
-            String hashedUrl = HashCodeGenerator.sha2Hash(site.getLink());
+            String hashedUrl = HashCodeGenerator.sha2Hash(site.getNoProtocolLink());
             XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
             builder.field("title", site.getTitle());

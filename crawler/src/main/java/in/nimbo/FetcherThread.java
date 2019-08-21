@@ -62,14 +62,14 @@ public class FetcherThread extends Thread implements Closeable {
                     logger.trace(String.format("New link [%s] poped from kafka queue", url));
                     if (!visitedDomainsCache.hasVisited(Parser.getDomain(url))) {
                         try {
-                            String html = fetcher.fetch(url);
-                            Pair<String, String> pair = new Pair<>(fetcher.getRedirectedUrl(), html);
+                            Pair<String, String> pair = fetcher.fetch(url);
+                            String redirectedUrl = pair.getKey();
                             linkPairHtmlQueue.put(pair);
                             linkPairHtmlPutsMeter.mark();
                             visitedUrlsCache.put(url);
-                            visitedUrlsCache.put(fetcher.getRedirectedUrl());
+                            visitedUrlsCache.put(redirectedUrl);
                             visitedDomainsCache.put(Parser.getDomain(url));
-                            visitedDomainsCache.put(Parser.getDomain(fetcher.getRedirectedUrl()));
+                            visitedDomainsCache.put(Parser.getDomain(redirectedUrl));
                         } catch (FetchException e) {
                             logger.error(e.getMessage(), e);
                         } catch (InterruptedException e) {
