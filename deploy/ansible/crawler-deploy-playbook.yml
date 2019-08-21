@@ -1,24 +1,18 @@
-- hosts: slave1
+- hosts: localhost
   vars:
-    jmx_exporter_url: https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.12.0/jmx_prometheus_javaagent-0.12.0.jar
-    jmx_exporter_name: jmx_exporter
     git_repository_url: https://github.com/nimbo3/DataPirates.git
     git_repository_branch: master
     project_module_name: crawler
     project_module_version: 1.0-SNAPSHOT
     crawler_deploy_dir: /opt/data-pirates/
-    JAVA_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9010 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=0.0.0.0
-    PROCESS: jar
-  environment:
-    JAVA_HOME: /usr/lib/jvm/jdk1.8.0_211
   tasks:
   - name: Install needed packages with apt
     apt:
       name: "{{ packages }}"
     vars:
       packages:
-      - git
-      - maven
+        - git
+        - maven
 
   - name: Get latest project files from github
     git:
@@ -28,43 +22,43 @@
       version: "{{ git_repository_branch }}"
     register: git
 
-  - name: Get running crawler process
-    shell: "jps | grep {{ PROCESS }}"
-    register: running_process
-
-  - debug:
-      var: running_process.stdout
-
-  - name: Prepair crawler and run 
-    block:
-    
-    - name: Kill running crawler process
-      shell: kill $(jps | grep {{ PROCESS }} | awk '{print $1}')
-      when: "'jar' in running_process.stdout"
-
-    - name: Create runnable jar file with maven
+  - name: Create runnable jar file with maven
       command: mvn clean package -DskipTests
       register: mvn
       changed_when: "'BUILD FAILURE' not in mvn.stdout"
       args:
         chdir: "{{ crawler_deploy_dir }}{{ project_module_name }}"
-    
+
+
+
+- hosts: slaves
+  vars:
+    jmx_exporter_url: https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.12.0/jmx_prometheus_javaagent-0.12.0.jar
+    jmx_exporter_name: jmx_exporter
+
+  tasks:
+  - name: Upload jar file
+    copy:
+      src: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/{{ project_module_name }}-{{ project_module_version }}.jar"
+      dest: "/opt/deploy/{{ project_module_name }}-{{ project_module_version }}.jar"
+    register: upjar
+
+  block:
+    - name: Upload config file
+        copy:
+          src: config.properties
+          dest: "/opt/deploy/config.properties"
+
     - name: Copy profile folder near runnable jar
       copy:
         src: "{{ crawler_deploy_dir }}{{ project_module_name }}/src/main/resources/profiles"
-        dest: "{{ crawler_deploy_dir }}{{ project_module_name }}/target"
-        remote_src: yes
-    
-    - name: Upload config file
-      copy:
-        src: config.properties
-        dest: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/config.properties"
-    
+        dest: "/opt/deploy/"
+
     - name: Download jmx exporter
       get_url:
         url: "{{ jmx_exporter_url }}"
         dest: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/{{ jmx_exporter_name }}.jar"
-    
+
     - name: Create jmx exporter config
       copy:
         dest: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/config.yaml"
@@ -79,12 +73,33 @@
         - pattern: ".*"
 
         '
-    when: git.changed
 
-  - name: Run crawler app with jmx exporter
-    shell: "LD_LIBRARY_PATH=/usr/local/hadoop/lib/native nohup $JAVA_HOME/bin/java {{ JAVA_OPTS }} -javaagent:{{ jmx_exporter_name }}.jar=9070:config.yaml -jar {{ project_module_name }}-{{ project_module_version }}.jar &"
-    register: nohup
-    changed_when: "'failed' not in nohup.stderr"
-    args:
-      chdir: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/"
-    when: git.changed or "'jar' not in running_process.stdout"
+  when: upjar.changed
+
+
+- hosts: slaves
+  vars:
+    JAVA_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9010 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=0.0.0.0 -XX:+UseG1GC
+    PROCESS: jar
+  tasks:
+    - name: Get running crawler process
+      shell: "jps | grep {{ PROCESS }}"
+      register: running_process
+
+    - name: Kill running crawler process
+      shell: kill $(jps | grep {{ PROCESS }} | awk '{print $1}')
+      when: "'jar' in running_process.stdout"
+
+    - name: Run crawler app with jmx exporter
+      shell: "LD_LIBRARY_PATH=/usr/local/hadoop/lib/native nohup java {{ JAVA_OPTS }} -javaagent:{{ jmx_exporter_name }}.jar=9070:config.yaml -jar {{ project_module_name }}-{{ project_module_version }}.jar &"
+      register: nohup
+      changed_when: "'failed' not in nohup.stderr"
+      args:
+        chdir: /opt/deploy/
+      when: "'jar' not in running_process.stdout"
+
+
+
+
+
+
