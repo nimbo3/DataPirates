@@ -31,8 +31,9 @@ public class App {
         String hbaseXmlHbase = config.getString("hbase.xml.url.in.hbase");
         String hbaseTableName = config.getString("hbase.table.name");
         String hbaseColumnFamily = config.getString("hbase.column.family");
-        String sparkExecutorCores = config.getString("spark.executor.cores");
+        int sparkExecutorCores = config.getInt("spark.executor.cores");
         String sparkExecutorMemory = config.getString("spark.executor.memory");
+        int sparkExecutorNumber = config.getInt("spark.executor.number");
         String elasticNodesIp = config.getString("es.nodes.ip");
         String elasticIndexName = config.getString("es.index.name");
 
@@ -46,8 +47,9 @@ public class App {
 
         SparkConf sparkConf = new SparkConf()
                 .setAppName(sparkAppName)
-                .set("spark.executor.cores", sparkExecutorCores)
+                .set("spark.executor.cores", String.valueOf(sparkExecutorCores))
                 .set("spark.executor.memory", sparkExecutorMemory)
+                .set("spark.cores.max", String.valueOf(sparkExecutorCores * sparkExecutorNumber))
                 .set("es.nodes", elasticNodesIp)
                 .set("es.mapping.id", "id")
                 .set("es.mapping.page-rank", "pageRank")
@@ -62,16 +64,16 @@ public class App {
                 , TableInputFormat.class, ImmutableBytesWritable.class, Result.class)
                 .toJavaRDD().map(tuple -> tuple._2);
 
-        JavaRDD<Cell> cellJavaRDD = hbaseRDD.flatMap(result -> {
+        JavaRDD<Cell> cellRDD = hbaseRDD.flatMap(result -> {
             System.out.println(new String(result.getRow()) + " :: " + result.listCells().size());
             return result.listCells().iterator();
         });
 
-        JavaRDD<Vertex> vertexJavaRDD = cellJavaRDD.map(cell -> new Vertex(Bytes.toString(CellUtil.cloneQualifier(cell))));
-        JavaRDD<Edge> edgeJavaRDD = cellJavaRDD.map(cell -> new Edge(Bytes.toString(CellUtil.cloneRow(cell)), Bytes.toString(CellUtil.cloneQualifier(cell))));
+        JavaRDD<Vertex> vertexRDD = cellRDD.map(cell -> new Vertex(Bytes.toString(CellUtil.cloneQualifier(cell))));
+        JavaRDD<Edge> edgeRDD = cellRDD.map(cell -> new Edge(Bytes.toString(CellUtil.cloneRow(cell)), Bytes.toString(CellUtil.cloneQualifier(cell))));
 
-        Dataset<Row> vertexDF = sparkSession.createDataFrame(vertexJavaRDD, Vertex.class);
-        Dataset<Row> edgeDF = sparkSession.createDataFrame(edgeJavaRDD, Edge.class);
+        Dataset<Row> vertexDF = sparkSession.createDataFrame(vertexRDD, Vertex.class);
+        Dataset<Row> edgeDF = sparkSession.createDataFrame(edgeRDD, Edge.class);
 
         GraphFrame graphFrame = new GraphFrame(vertexDF, edgeDF);
         GraphFrame pageRankResult = graphFrame.pageRank().maxIter(1).run();
@@ -82,8 +84,9 @@ public class App {
             System.out.println("DF:DoubleRank " + row.getDouble(1));
             return row;
         });
-        JavaRDD<UpdateObject> elasticJavaRDD = pageRankResult.vertices().toJavaRDD().map(row -> new UpdateObject(DigestUtils.sha256Hex(row.getString(0)), row.getDouble(1)));
-        JavaEsSpark.saveToEs(elasticJavaRDD, elasticIndexName + "/_doc");
+
+        JavaRDD<UpdateObject> elasticRDD = pageRankResult.vertices().toJavaRDD().map(row -> new UpdateObject(DigestUtils.sha256Hex(row.getString(0)), row.getDouble(1)));
+        JavaEsSpark.saveToEs(elasticRDD, elasticIndexName + "/_doc");
 
         sparkSession.close();
     }

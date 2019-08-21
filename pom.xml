@@ -14,7 +14,7 @@
     <modules>
         <module>crawler</module>
         <module>backend</module>
-        <module>anchors-map-reduce</module>
+        <module>page-rank</module>
     </modules>
 
 

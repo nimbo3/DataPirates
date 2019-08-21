@@ -9,7 +9,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>anchors-map-reduce</artifactId>
+    <artifactId>page-rank</artifactId>
 
     <properties>
         <spark.version>2.4.3</spark.version>
