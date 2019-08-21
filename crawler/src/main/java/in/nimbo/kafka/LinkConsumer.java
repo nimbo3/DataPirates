@@ -52,8 +52,16 @@ public class LinkConsumer implements Closeable {
         }
     }
 
-    public String pop() throws InterruptedException {
+    public String take() throws InterruptedException {
         return buffer.take();
+    }
+
+    public String pop() {
+        return buffer.poll();
+    }
+
+    public String peek() {
+        return buffer.peek();
     }
 
     @Override

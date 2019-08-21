@@ -50,7 +50,7 @@ public class FetcherThread extends Thread implements Closeable {
                 String url = null;
                 try (Timer.Context time = fetcherTimer.time()) {
                     try {
-                        url = linkConsumer.pop();
+                        url = linkConsumer.take();
                     } catch (InterruptedException e) {
                         logger.error("InterruptedException happened while consuming from Kafka", e);
                         Thread.currentThread().interrupt();

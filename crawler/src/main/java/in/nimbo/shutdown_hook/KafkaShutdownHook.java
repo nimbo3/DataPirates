@@ -24,7 +24,8 @@ public class KafkaShutdownHook extends Thread {
         try (Timer.Context time = kafkaShutdownTimer.time()) {
             logger.info("Kafka Shutdown hook started ...");
             linkConsumer.close();
-            //TODO do sth to return back consumed files to kafka
+            while (linkConsumer.peek() != null)
+                linkProducer.send(linkConsumer.pop());
             linkProducer.close();
             logger.info("Kafka Shutdown hook completed.");
         }
