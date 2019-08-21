@@ -23,6 +23,7 @@ public class ParserTest {
     private static String[] htmls = new String[NUM_OF_TESTS];
     private static Site[] sites = new Site[NUM_OF_TESTS];
     private String[] links = {config.getString("Parser.link1"), config.getString("Parser.link2")};
+    private Parser parser = new Parser();
 
     @BeforeClass
     public static void init() throws IOException {
@@ -94,7 +95,7 @@ public class ParserTest {
     @Test
     public void extractMetadataTest() throws MalformedURLException, ProtocolException {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i]);
+            parser.parse(links[i], htmls[i]);
             String actual = parser.extractMetadata();
             String expected = sites[i].getMetadata();
             double percentage = getPercentage(expected, actual);
@@ -105,7 +106,7 @@ public class ParserTest {
     @Test
     public void extractTitleTest() throws MalformedURLException, ProtocolException {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i]);
+            parser.parse(links[i], htmls[i]);
             String actual = parser.extractTitle();
             String expected = sites[i].getTitle();
             double percentage = getPercentage(expected, actual);
@@ -116,7 +117,7 @@ public class ParserTest {
     @Test
     public void extractPlainTextTest() throws MalformedURLException, ProtocolException {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i]);
+            parser.parse(links[i], htmls[i]);
             String actual = parser.extractPlainText();
             String expected = sites[i].getPlainText();
             double percentage = getPercentage(expected, actual);
@@ -127,7 +128,7 @@ public class ParserTest {
     @Test
     public void extractKeywordsTest() throws MalformedURLException, ProtocolException {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i]);
+            parser.parse(links[i], htmls[i]);
             String actual = parser.extractKeywords();
             String expected = sites[i].getKeywords();
             double percentage = getPercentage(expected, actual);
@@ -138,7 +139,7 @@ public class ParserTest {
     @Test
     public void extractAnchorsTest() throws MalformedURLException, ProtocolException {
         for (int i = 0; i < NUM_OF_TESTS; i++) {
-            Parser parser = new Parser(links[i], htmls[i]);
+            parser.parse(links[i], htmls[i]);
             Map<String, String> actualList = parser.extractAnchors();
             Map<String, String> expectedList = sites[i].getAnchors();
             StringBuilder actual = new StringBuilder(), expected = new StringBuilder();
@@ -167,7 +168,7 @@ public class ParserTest {
 
     @Test
     public void normalizeTest() throws MalformedURLException, ProtocolException {
-        Parser parser = new Parser(links[0], htmls[0]);
+        parser.parse(links[0], htmls[0]);
         String url = "https://www.geeksforgeeks.org:80/url-samefile-method-in-java-with-examples/";
         String expected = "https://geeksforgeeks.org/url-samefile-method-in-java-with-examples";
         Assert.assertEquals(expected, parser.normalize(url));

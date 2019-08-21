@@ -22,6 +22,11 @@ public class Parser {
     private String link;
     private Document document;
 
+    public static String getDomain(String link) throws MalformedURLException {
+        URL url = new URL(link);
+        return url.getHost();
+    }
+
     /**
      * finds the <title>title</title> part in the header of the html which is shown on each tab opened by some browsers
      *
