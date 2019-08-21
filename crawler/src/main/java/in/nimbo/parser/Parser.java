@@ -21,24 +21,6 @@ public class Parser {
     private static Timer parseTimer = SharedMetricRegistries.getDefault().timer("parser");
     private String link;
     private Document document;
-    private String html;
-
-    public Parser(String link, String html) throws MalformedURLException, ProtocolException {
-        this.html = html;
-        if (!link.matches("^\\w+://.+"))
-            link = "http://" + link;
-        if (hasBadProtocol(link)) {
-            throw new ProtocolException("protocol is not supported for:" + link + ". Only http/https are supported");
-        }
-        link = normalize(link);
-        this.link = link;
-        document = Jsoup.parse(html, link);
-    }
-
-    public static String getDomain(String link) throws MalformedURLException {
-        URL url = new URL(link);
-        return url.getHost();
-    }
 
     /**
      * finds the <title>title</title> part in the header of the html which is shown on each tab opened by some browsers
@@ -117,8 +99,15 @@ public class Parser {
         return sb.toString();
     }
 
-    public Site parse() {
+    public Site parse(String link, String html) throws MalformedURLException, ProtocolException {
         try (Timer.Context time = parseTimer.time()) {
+            if (!link.matches("^\\w+://.+"))
+                link = "http://" + link;
+            if (hasBadProtocol(link)) {
+                throw new ProtocolException("protocol is not supported for:" + link + ". Only http/https are supported");
+            }
+            link = normalize(link);
+            document = Jsoup.parse(html, link);
             Site site = new Site();
             site.setTitle(extractTitle());
             site.setKeywords(extractKeywords());

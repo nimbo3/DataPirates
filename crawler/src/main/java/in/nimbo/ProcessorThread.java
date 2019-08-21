@@ -33,6 +33,7 @@ class ProcessorThread extends Thread implements Closeable {
     private VisitedLinksCache visitedUrlsCache;
     private boolean closed = false;
     private List<String> acceptableLanguages;
+    private Parser parser;
 
     public ProcessorThread(LinkProducer linkProducer, ElasticSiteDaoImpl elasticSiteDao,
                            VisitedLinksCache visitedUrlsCache,
@@ -45,6 +46,7 @@ class ProcessorThread extends Thread implements Closeable {
         this.visitedUrlsCache = visitedUrlsCache;
         this.hbaseBulkQueue = hbaseBulkQueue;
         this.acceptableLanguages = acceptableLanguages;
+        this.parser = new Parser();
     }
 
     @Override
@@ -57,8 +59,7 @@ class ProcessorThread extends Thread implements Closeable {
                     String url = pair.getKey();
                     String html = pair.getValue();
                     try {
-                        Parser parser = new Parser(url, html);
-                        Site site = parser.parse();
+                        Site site = parser.parse(url, html);
                         String language = LanguageDetector.detect(site.getPlainText());
                         if (acceptableLanguages.contains(language)) {
                             site.setLanguage(language);
