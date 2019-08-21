@@ -93,12 +93,13 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
     }
 
     public Site get(Site site) {
-        GetRequest getRequest = new GetRequest(String.format("%s-%s", INDEX, site.getLanguage()), site.getLink());
+        String hashedUrl = HashCodeGenerator.sha2Hash(site.getNoProtocolLink());
+        GetRequest getRequest = new GetRequest(String.format("%s-%s", INDEX, site.getLanguage()), hashedUrl);
         try {
             GetResponse response = client.get(getRequest, RequestOptions.DEFAULT);
             if (response.isExists()) {
                 return new Site(
-                        response.getId(),
+                        response.getSourceAsMap().get("link").toString(),
                         response.getSourceAsMap().get("title").toString());
             } else {
                 logger.warn(String.format("Elastic found no match id for [%s]", site.getLink()));
@@ -134,7 +135,8 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
 
     @Override
     public void delete(Site site) {
-        DeleteRequest deleteRequest = new DeleteRequest(String.format("%s-%s", INDEX, site.getLanguage()), site.getLink());
+        String hashedUrl = HashCodeGenerator.sha2Hash(site.getNoProtocolLink());
+        DeleteRequest deleteRequest = new DeleteRequest(String.format("%s-%s", INDEX, site.getLanguage()), hashedUrl);
         try (Timer.Context time = deleteTimer.time()) {
             client.delete(deleteRequest, RequestOptions.DEFAULT);
             logger.trace(String.format("Link [%s] deleted from elastic", site.getLink()));
