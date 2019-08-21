@@ -8,8 +8,6 @@ import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultStatsUtil;
-import org.apache.hadoop.hbase.client.Row;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat;
@@ -22,8 +20,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
-import org.apache.spark.internal.Logging;
-import org.apache.spark.internal.Logging$;
+import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.util.LongAccumulator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,13 +30,14 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 
 public class App {
 
-    private static Logger logger = LoggerFactory.getLogger(App.class);
-
     public static final String DEFAULT_PROTOCOL = "http://";
+    private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) throws IOException {
         Config config = ConfigFactory.load("config");
@@ -49,8 +47,8 @@ public class App {
         String hbaseReadTableName = config.getString("hbase.read.table.name");
         String hbaseReadColumnFamily = config.getString("hbase.read.column.family");
         String hbaseWriteTableName = config.getString("hbase.write.table.name");
-        String hbaseWriteColumnFamily = config.getString("hbase.write.column.family");
-        String hbaseWriteQualifier = config.getString("hbase.write.qualifier");
+        String hbaseWriteColumnFamilyInput = config.getString("hbase.write.column.family.input.domains");
+        String hbaseWriteColumnFamilyOutput = config.getString("hbase.write.column.family.output.domains");
         String sparkExecutorCores = config.getString("spark.executor.cores");
         String sparkExecutorMemory = config.getString("spark.executor.memory");
 
@@ -59,7 +57,7 @@ public class App {
         hbaseReadConfiguration.addResource(hbaseXmlHbase);
         hbaseReadConfiguration.set(TableInputFormat.INPUT_TABLE, hbaseReadTableName);
         hbaseReadConfiguration.set(TableInputFormat.SCAN_COLUMN_FAMILY, hbaseReadColumnFamily);
-        hbaseReadConfiguration.set(TableInputFormat.SCAN_CACHEDROWS, "500");
+        hbaseReadConfiguration.set(TableInputFormat.SCAN_CACHEDROWS, "2");
 
         Configuration hbaseWriteConfiguration = HBaseConfiguration.create();
         hbaseReadConfiguration.addResource(hbaseXmlHadoop);
@@ -72,6 +70,7 @@ public class App {
 
         SparkConf sparkConf = new SparkConf()
                 .setAppName(sparkAppName)
+                .set("spark.cores.max", "3")
                 .set("spark.executor.cores", sparkExecutorCores)
                 .set("spark.executor.memory", sparkExecutorMemory);
         JavaSparkContext sparkContext = new JavaSparkContext(sparkConf);
@@ -82,23 +81,32 @@ public class App {
         JavaRDD<Result> hbaseRDD = sparkContext.newAPIHadoopRDD(hbaseReadConfiguration
                 , TableInputFormat.class, ImmutableBytesWritable.class, Result.class).values();
 
-//        JavaRDD<String> hbaseRows = hbaseRDD.map(result -> new String(result.getRow()));
-
         JavaRDD<Cell> hbaseCells = hbaseRDD.flatMap(result -> result.listCells().iterator());
 
-        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = hbaseCells.flatMapToPair(cell -> {
-            String source = new String(CellUtil.cloneRow(cell));
-            String destination = new String(CellUtil.cloneQualifier(cell));
+        JavaRDD<WGCell> cellWgJavaRDD = hbaseCells.flatMap(cell -> {
             try {
-                String sourceDomain = getDomain(DEFAULT_PROTOCOL + source);
-                String destinationDomain = getDomain(DEFAULT_PROTOCOL + destination);
-                Tuple2<String, String> domainPair = new Tuple2<>(sourceDomain, destinationDomain);
-                domainToDomainPairSize.add(1);
-                return Collections.singleton(new Tuple2<>(domainPair, 1)).iterator();
+                String sourceUrl = Bytes.toString(CellUtil.cloneRow(cell));
+                String destinationUrl = Bytes.toString(CellUtil.cloneQualifier(cell));
+                String sourceDomain = getDomain(DEFAULT_PROTOCOL + sourceUrl);
+                String destinationDomain = getDomain(DEFAULT_PROTOCOL + destinationUrl);
+                System.out.println(String.format("B= %s -> %s", sourceDomain, destinationDomain));
+                return Collections.singleton(new WGCell(sourceDomain, destinationDomain)).iterator();
             } catch (MalformedURLException e) {
                 return Collections.emptyIterator();
             }
         });
+
+        cellWgJavaRDD.persist(StorageLevel.MEMORY_AND_DISK());
+
+        JavaRDD<WGCell> rowWgJavaRDD = cellWgJavaRDD.map(cell -> cell.rowKey).map(WGCell::new);
+
+//        JavaRDD<WGCell> intersectedCellWgJavaRDD = cellWgJavaRDD.intersection(rowWgJavaRDD);
+
+        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = cellWgJavaRDD
+                .mapToPair(wgCell -> {
+                    System.out.println(String.format("A= %s -> %s", wgCell.rowKey, wgCell.value));
+                    return new Tuple2<>(new Tuple2<>(wgCell.rowKey, wgCell.value), 1);
+                });
 
         JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairWeightRDD = domainToDomainPairRDD
                 .reduceByKey((Function2<Integer, Integer, Integer>) (integer, integer2) -> integer + integer2);
@@ -112,14 +120,28 @@ public class App {
         System.err.println("Domain To Domain Pair Weighted Size :  " + domainToDomainPairWeightedSize.sum());
 
         JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = domainToDomainPairWeightRDD
-                .mapToPair((PairFunction<Tuple2<Tuple2<String, String>, Integer>, ImmutableBytesWritable, Put>) t -> {
-                    Put put = new Put(Bytes.toBytes(t._1._1 + ":" + t._1._2));
-                    put.addColumn(Bytes.toBytes(hbaseWriteColumnFamily),
-                            Bytes.toBytes(hbaseWriteQualifier),
-                            Bytes.toBytes(t._2));
+                .flatMapToPair(t -> {
+                    byte[] sourceDomainBytes = Bytes.toBytes(t._1._1);
+                    byte[] destinationDomainBytes = Bytes.toBytes(t._1._2);
+                    byte[] domainToDomainRefrences = Bytes.toBytes(t._2);
 
-                    return new Tuple2<>(new ImmutableBytesWritable(), put);
+                    Set<Tuple2<ImmutableBytesWritable, Put>> hbasePut = new HashSet<>();
+
+                    Put outputDomainPut = new Put(sourceDomainBytes);
+                    outputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyOutput),
+                            destinationDomainBytes,
+                            domainToDomainRefrences);
+
+                    Put inputDomainPut = new Put(destinationDomainBytes);
+                    inputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyInput),
+                            sourceDomainBytes,
+                            domainToDomainRefrences);
+
+                    hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), inputDomainPut));
+                    hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), outputDomainPut));
+                    return hbasePut.iterator();
                 });
+
 
         hbasePuts.saveAsNewAPIHadoopDataset(newAPIJobConfiguration.getConfiguration());
 
