@@ -92,7 +92,7 @@ public class App {
 
         JavaRDD<Cell> hbaseCellsJavaRDD = hbaseRDD.flatMap(result -> result.listCells().iterator());
 
-//        hbaseCellsJavaRDD.persist(StorageLevel.DISK_ONLY());
+        hbaseCellsJavaRDD.persist(StorageLevel.MEMORY_AND_DISK());
 
         JavaRDD<Vertex> vertexJavaRDD = hbaseCellsJavaRDD.flatMap(cell -> {
             try {
