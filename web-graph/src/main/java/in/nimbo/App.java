@@ -79,7 +79,7 @@ public class App {
 
         SparkConf sparkConf = new SparkConf()
                 .setAppName(sparkAppName)
-                .set("spark.cores.max", "3")
+                .set("spark.cores.max", "6")
                 .set("spark.executor.cores", sparkExecutorCores)
                 .set("spark.executor.memory", sparkExecutorMemory);
 
@@ -127,8 +127,10 @@ public class App {
         Dataset<Row> edgeDF = sparkSession.createDataFrame(edgeJavaRDD, Edge.class);
 
         GraphFrame graphFrame = new GraphFrame(vertexDF, edgeDF);
-        GraphFrame graphFrameDropedIsolatedVertices = graphFrame.dropIsolatedVertices();
-        graphFrameDropedIsolatedVertices.triplets().toJavaRDD().foreach(row -> {
+
+        graphFrame.persist(StorageLevel.DISK_ONLY());
+
+        graphFrame.triplets().toJavaRDD().foreach(row -> {
             Vertex srcVertex = (Vertex) row.get(0);
             Edge edge = (Edge) row.get(1);
             Vertex dstVertex = (Vertex) row.get(2);
@@ -137,12 +139,7 @@ public class App {
             System.out.println("dstVertex " + dstVertex.getId());
         });
 
-        graphFrameDropedIsolatedVertices.edges().show(false);
-        graphFrameDropedIsolatedVertices.logInfo(() -> "fuck -_-");
-
-        graphFrameDropedIsolatedVertices.edges().show();
-
-        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = graphFrameDropedIsolatedVertices.triplets().toJavaRDD().mapToPair(row -> {
+        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = graphFrame.triplets().toJavaRDD().mapToPair(row -> {
             Edge edge = (Edge) row.get(1);
             Tuple2<String, String> domainPair = new Tuple2<>(edge.getSrc(), edge.getDst());
             System.out.println(String.format("1= %s -> %s", edge.getSrc(), edge.getDst()));

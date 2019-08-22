@@ -1,6 +1,8 @@
 package in.nimbo.model;
 
-public class Edge {
+import java.io.Serializable;
+
+public class Edge implements Serializable {
     String src;
     String dst;
     Integer weight;
@@ -33,5 +35,12 @@ public class Edge {
 
     public void setWeight(Integer weight) {
         this.weight = weight;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof Edge &&
+                ((Edge) obj).src.equals(this.src) &&
+                ((Edge) obj).dst.equals(this.dst);
     }
 }
