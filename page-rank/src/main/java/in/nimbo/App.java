@@ -18,6 +18,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.storage.StorageLevel;
+import org.elasticsearch.spark.rdd.EsSpark;
 import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 import org.graphframes.GraphFrame;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -52,7 +53,7 @@ public class App {
                 .set("spark.cores.max", String.valueOf(sparkExecutorCores * sparkExecutorNumber))
                 .set("es.nodes", elasticNodesIp)
                 .set("es.mapping.id", "id")
-                .set("es.mapping.page-rank", "pageRank")
+//                .set("es.mapping.page-rank", "pageRank")
                 .set("es.write.operation", "upsert");
 
 
@@ -64,29 +65,33 @@ public class App {
                 , TableInputFormat.class, ImmutableBytesWritable.class, Result.class)
                 .toJavaRDD().map(tuple -> tuple._2);
 
-        JavaRDD<Cell> cellRDD = hbaseRDD.flatMap(result -> {
-            System.out.println(new String(result.getRow()) + " :: " + result.listCells().size());
-            return result.listCells().iterator();
-        });
+        JavaRDD<Cell> cellRDD = hbaseRDD.flatMap(result -> result.listCells().iterator());
 
-        JavaRDD<Vertex> vertexRDD = cellRDD.map(cell -> new Vertex(Bytes.toString(CellUtil.cloneQualifier(cell))));
-        JavaRDD<Edge> edgeRDD = cellRDD.map(cell -> new Edge(Bytes.toString(CellUtil.cloneRow(cell)), Bytes.toString(CellUtil.cloneQualifier(cell))));
+        JavaRDD<Vertex> vertexRDD = cellRDD.map(cell -> new Vertex(Bytes.toString(CellUtil.cloneRow(cell))));
+        JavaRDD<Edge> edgeRDD = cellRDD.map(cell -> {
+            System.out.println(Bytes.toString(CellUtil.cloneRow(cell)) + " <-> " + Bytes.toString(CellUtil.cloneQualifier(cell)));
+            return new Edge(Bytes.toString(CellUtil.cloneQualifier(cell)), Bytes.toString(CellUtil.cloneRow(cell)));
+        });
 
         Dataset<Row> vertexDF = sparkSession.createDataFrame(vertexRDD, Vertex.class);
         Dataset<Row> edgeDF = sparkSession.createDataFrame(edgeRDD, Edge.class);
 
         GraphFrame graphFrame = new GraphFrame(vertexDF, edgeDF);
-        GraphFrame pageRankResult = graphFrame.pageRank().maxIter(1).run();
+        GraphFrame pageRankResult = graphFrame.pageRank().maxIter(10).run();
         pageRankResult.persist(StorageLevel.MEMORY_ONLY());
 
-        pageRankResult.vertices().toJavaRDD().map(row -> {
+        JavaRDD<Row> map = pageRankResult.vertices().toJavaRDD().map(row -> {
             System.out.println("DF:String " + row.getString(0));
             System.out.println("DF:DoubleRank " + row.getDouble(1));
             return row;
         });
 
-        JavaRDD<UpdateObject> elasticRDD = pageRankResult.vertices().toJavaRDD().map(row -> new UpdateObject(DigestUtils.sha256Hex(row.getString(0)), row.getDouble(1)));
-        JavaEsSpark.saveToEs(elasticRDD, elasticIndexName + "/_doc");
+        JavaRDD<UpdateObject> elasticRDD = pageRankResult.vertices().toJavaRDD().map(row -> {
+            System.out.println("link: " + row.getString(0) + ", rank: " + row.getDouble(1));
+            System.out.println("----------------------------------------------------------------------------------------");
+            return new UpdateObject(DigestUtils.sha256Hex(row.getString(0)), row.getString(0), row.getDouble(1));
+        });
+        EsSpark.saveToEs(elasticRDD.rdd(), elasticIndexName);
 
         sparkSession.close();
     }
