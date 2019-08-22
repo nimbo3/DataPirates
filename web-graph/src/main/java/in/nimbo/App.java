@@ -78,7 +78,7 @@ public class App {
 
         SparkConf sparkConf = new SparkConf()
                 .setAppName(sparkAppName)
-                .set("spark.cores.max", "3")
+                .set("spark.cores.max", "12")
                 .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
                 .set("spark.executor.cores", sparkExecutorCores)
                 .set("spark.executor.memory", sparkExecutorMemory);
