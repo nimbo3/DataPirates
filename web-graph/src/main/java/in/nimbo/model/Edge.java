@@ -5,7 +5,7 @@ import java.io.Serializable;
 public class Edge implements Serializable {
     String src;
     String dst;
-    Integer weight;
+    int weight;
 
     public Edge(String src, String dst) {
         this.src = src;

@@ -27,6 +27,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.util.LongAccumulator;
+import org.apache.spark.sql.functions;
 import org.graphframes.GraphFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,7 +138,7 @@ public class App {
         graphFrame.persist(StorageLevel.MEMORY_ONLY());
 
 //        JavaPairRDD<String, String> domainToDomainPair =
-                graphFrame.triplets().toJavaRDD().foreach(row -> {
+        graphFrame.triplets().toJavaRDD().foreach(row -> {
             String srcDomain = row.getStruct(1).getString(1);
             String dstDomain = row.getStruct(1).getString(0);
             int num = row.getStruct(1).getInt(2);
