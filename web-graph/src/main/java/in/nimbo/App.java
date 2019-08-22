@@ -4,6 +4,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.model.Edge;
 import in.nimbo.model.Vertex;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
@@ -75,8 +76,10 @@ public class App {
         SparkConf sparkConf = new SparkConf()
                 .setAppName(sparkAppName)
                 .set("spark.cores.max", "3")
+//                .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
                 .set("spark.executor.cores", sparkExecutorCores)
                 .set("spark.executor.memory", sparkExecutorMemory);
+//        sparkConf.registerKryoClasses(ArrayUtils.toArray(Edge.class, Vertex.class));
 
 
         SparkSession sparkSession = SparkSession.builder()
@@ -92,15 +95,16 @@ public class App {
 
         JavaRDD<Cell> hbaseCellsJavaRDD = hbaseRDD.flatMap(result -> result.listCells().iterator());
 
-        hbaseCellsJavaRDD.persist(StorageLevel.MEMORY_AND_DISK());
+        hbaseCellsJavaRDD.persist(StorageLevel.MEMORY_ONLY());
 
         JavaRDD<Vertex> vertexJavaRDD = hbaseCellsJavaRDD.flatMap(cell -> {
             try {
-                String domain = getDomain(Bytes.toString(CellUtil.cloneRow(cell)));
+                String domain = getDomain(DEFAULT_PROTOCOL + Bytes.toString(CellUtil.cloneRow(cell)));
                 verticesSize.add(1);
                 System.out.println(String.format("Vertix= %s ", domain));
                 return Collections.singleton(new Vertex(domain)).iterator();
             } catch (MalformedURLException e) {
+                System.out.println("Exception Vertix");
                 return Collections.emptyIterator();
             }
         });
