@@ -96,9 +96,9 @@ public class App {
         JavaRDD<Result> hbaseRDD = sparkSession.sparkContext().newAPIHadoopRDD(hbaseReadConfiguration
                 , TableInputFormat.class, ImmutableBytesWritable.class, Result.class).toJavaRDD().map(tuple -> tuple._2);
 
-        JavaRDD<Cell> hbaseCellsJavaRDD = hbaseRDD.flatMap(result -> result.listCells().iterator());
+        hbaseRDD.persist(StorageLevel.MEMORY_AND_DISK());
 
-        hbaseCellsJavaRDD.persist(StorageLevel.MEMORY_ONLY());
+        JavaRDD<Cell> hbaseCellsJavaRDD = hbaseRDD.flatMap(result -> result.listCells().iterator());
 
         JavaRDD<Vertex> vertexJavaRDD = hbaseRDD.flatMap(result -> {
             try {
@@ -132,8 +132,6 @@ public class App {
         Dataset<Row> edgeDF = sparkSession.createDataFrame(edgeJavaRDD, Edge.class);
 
         GraphFrame graphFrame = new GraphFrame(vertexDF, edgeDF);
-
-        graphFrame.persist(StorageLevel.MEMORY_ONLY());
 
         JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = graphFrame.triplets().toJavaRDD().mapToPair(row -> {
             String srcDomain = row.getStruct(1).getString(1);
