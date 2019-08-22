@@ -109,6 +109,8 @@ public class App {
             }
         });
 
+        vertexJavaRDD.foreach(vertex -> System.out.println(vertex.getId()));
+
         JavaRDD<Edge> edgeJavaRDD = hbaseCellsJavaRDD.flatMap(cell -> {
             String source = Bytes.toString(CellUtil.cloneRow(cell));
             String destination = Bytes.toString(CellUtil.cloneQualifier(cell));
@@ -123,20 +125,25 @@ public class App {
             }
         });
 
+        edgeJavaRDD.foreach(edge -> System.out.println(edge.getSrc() + " : " + edge.getDst()));
+
         Dataset<Row> vertexDF = sparkSession.createDataFrame(vertexJavaRDD, Vertex.class);
         Dataset<Row> edgeDF = sparkSession.createDataFrame(edgeJavaRDD, Edge.class);
 
         GraphFrame graphFrame = new GraphFrame(vertexDF, edgeDF);
 
-        graphFrame.persist(StorageLevel.DISK_ONLY());
+        graphFrame.persist(StorageLevel.MEMORY_ONLY());
 
         graphFrame.triplets().toJavaRDD().foreach(row -> {
-            Vertex srcVertex = (Vertex) row.get(0);
-            Edge edge = (Edge) row.get(1);
-            Vertex dstVertex = (Vertex) row.get(2);
-            System.out.println("srcVertex " + srcVertex.getId());
-            System.out.println("edge " + edge.getSrc() + " : " + edge.getDst());
-            System.out.println("dstVertex " + dstVertex.getId());
+            System.out.println(row.get(0).getClass());
+            System.out.println(row.get(1).getClass());
+            System.out.println(row.get(2).getClass());
+//            Vertex srcVertex = (Vertex) row.get(0);
+//            Edge edge = (Edge) row.get(1);
+//            Vertex dstVertex = (Vertex) row.get(2);
+//            System.out.println("srcVertex " + srcVertex.getId());
+//            System.out.println("edge " + edge.getSrc() + " : " + edge.getDst());
+//            System.out.println("dstVertex " + dstVertex.getId());
         });
 
         JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = graphFrame.triplets().toJavaRDD().mapToPair(row -> {
