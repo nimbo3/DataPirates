@@ -137,30 +137,22 @@ public class App {
 
         graphFrame.persist(StorageLevel.MEMORY_ONLY());
 
-//        JavaPairRDD<String, String> domainToDomainPair =
-        graphFrame.triplets().toJavaRDD().foreach(row -> {
+        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = graphFrame.triplets().toJavaRDD().mapToPair(row -> {
             String srcDomain = row.getStruct(1).getString(1);
             String dstDomain = row.getStruct(1).getString(0);
             int num = row.getStruct(1).getInt(2);
             System.out.println("%%% " + srcDomain + " : " + dstDomain + " : " + num);
-//            return new Tuple2<>(srcDomain, dstDomain);
+            Tuple2<String, String> domainsPair = new Tuple2<>(srcDomain, dstDomain);
+            return new Tuple2<>(domainsPair, num);
         });
 
-//        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairRDD = graphFrame.triplets().toJavaRDD().mapToPair(row -> {
-//            Edge edge = (Edge) row.get(1);
-//            Tuple2<String, String> domainPair = new Tuple2<>(edge.getSrc(), edge.getDst());
-//            System.out.println(String.format("pair= %s -> %s", edge.getSrc(), edge.getDst()));
-//            return new Tuple2<>(domainPair, edge.getWeight());
-//        });
-//
-//
-//        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairWeightRDD = domainToDomainPairRDD
-//                .reduceByKey((Function2<Integer, Integer, Integer>) (integer, integer2) -> integer + integer2);
-//
-//        domainToDomainPairWeightRDD.foreach((VoidFunction<Tuple2<Tuple2<String, String>, Integer>>) tuple2IntegerTuple2 -> {
-//            domainToDomainPairWeightSize.add(1);
-//            System.out.println(String.format("reducedPair= %s -> %s : %d", tuple2IntegerTuple2._1._1, tuple2IntegerTuple2._1._2, tuple2IntegerTuple2._2));
-//        });
+        JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairWeightRDD = domainToDomainPairRDD
+                .reduceByKey((Function2<Integer, Integer, Integer>) (integer, integer2) -> integer + integer2);
+
+        domainToDomainPairWeightRDD.foreach((VoidFunction<Tuple2<Tuple2<String, String>, Integer>>) tuple2IntegerTuple2 -> {
+            domainToDomainPairWeightSize.add(1);
+            System.out.println(String.format("reducedPair= %s -> %s : %d", tuple2IntegerTuple2._1._1, tuple2IntegerTuple2._1._2, tuple2IntegerTuple2._2));
+        });
 //
 //        System.out.println("Domain To Domain Pair Size :  " + domainToDomainPairSize.sum());
 //        System.out.println("Domain To Domain Pair Weighted Size :  " + domainToDomainPairWeightSize.sum());
