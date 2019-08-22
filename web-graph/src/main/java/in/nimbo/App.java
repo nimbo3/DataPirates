@@ -104,7 +104,6 @@ public class App {
             try {
                 String domain = getDomain(DEFAULT_PROTOCOL + Bytes.toString(result.getRow()));
                 verticesSize.add(1);
-                System.out.println(String.format("Vertix= %s ", domain));
                 return Collections.singleton(new Vertex(domain)).iterator();
             } catch (MalformedURLException e) {
                 System.out.println("Exception In Mapping Vertix");
@@ -112,7 +111,7 @@ public class App {
             }
         });
 
-        vertexJavaRDD.foreach(vertex -> System.out.println(vertex.getId()));
+
 
         JavaRDD<Edge> edgeJavaRDD = hbaseCellsJavaRDD.flatMap(cell -> {
             String source = Bytes.toString(CellUtil.cloneRow(cell));
@@ -121,7 +120,6 @@ public class App {
                 String sourceDomain = getDomain(DEFAULT_PROTOCOL + source);
                 String destinationDomain = getDomain(DEFAULT_PROTOCOL + destination);
                 domainToDomainPairSize.add(1);
-                System.out.println(String.format("Edge= %s -> %s", sourceDomain, destinationDomain));
                 return Collections.singleton(new Edge(sourceDomain, destinationDomain)).iterator();
             } catch (MalformedURLException e) {
                 System.out.println("Exception In Mapping Edge");
@@ -129,7 +127,6 @@ public class App {
             }
         });
 
-        edgeJavaRDD.foreach(edge -> System.out.println(edge.getSrc() + " : " + edge.getDst()));
 
         Dataset<Row> vertexDF = sparkSession.createDataFrame(vertexJavaRDD, Vertex.class);
         Dataset<Row> edgeDF = sparkSession.createDataFrame(edgeJavaRDD, Edge.class);
@@ -142,7 +139,6 @@ public class App {
             String srcDomain = row.getStruct(1).getString(1);
             String dstDomain = row.getStruct(1).getString(0);
             int num = row.getStruct(1).getInt(2);
-            System.out.println("%%% " + srcDomain + " : " + dstDomain + " : " + num);
             Tuple2<String, String> domainsPair = new Tuple2<>(srcDomain, dstDomain);
             return new Tuple2<>(domainsPair, num);
         });
