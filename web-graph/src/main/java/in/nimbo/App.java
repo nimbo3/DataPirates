@@ -31,6 +31,7 @@ import org.apache.spark.sql.functions;
 import org.graphframes.GraphFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Function0;
 import scala.Tuple2;
 
 import java.io.IOException;
@@ -153,34 +154,34 @@ public class App {
             domainToDomainPairWeightSize.add(1);
             System.out.println(String.format("reducedPair= %s -> %s : %d", tuple2IntegerTuple2._1._1, tuple2IntegerTuple2._1._2, tuple2IntegerTuple2._2));
         });
-//
-//        System.out.println("Domain To Domain Pair Size :  " + domainToDomainPairSize.sum());
-//        System.out.println("Domain To Domain Pair Weighted Size :  " + domainToDomainPairWeightSize.sum());
-//
-//        JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = domainToDomainPairWeightRDD
-//                .flatMapToPair(t -> {
-//                    byte[] sourceDomainBytes = Bytes.toBytes(t._1._1);
-//                    byte[] destinationDomainBytes = Bytes.toBytes(t._1._2);
-//                    byte[] domainToDomainRefrences = Bytes.toBytes(t._2);
-//
-//                    Set<Tuple2<ImmutableBytesWritable, Put>> hbasePut = new HashSet<>();
-//
-//                    Put outputDomainPut = new Put(sourceDomainBytes);
-//                    outputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyOutput),
-//                            destinationDomainBytes,
-//                            domainToDomainRefrences);
-//
-//                    Put inputDomainPut = new Put(destinationDomainBytes);
-//                    inputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyInput),
-//                            sourceDomainBytes,
-//                            domainToDomainRefrences);
-//
-//                    hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), inputDomainPut));
-//                    hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), outputDomainPut));
-//                    return hbasePut.iterator();
-//                });
-//
-//        hbasePuts.saveAsNewAPIHadoopDataset(newAPIJobConfiguration.getConfiguration());
+
+        sparkSession.logInfo(() -> "Domain To Domain Pair Size :  " + domainToDomainPairSize.sum());
+        sparkSession.logInfo(() -> "Domain To Domain Pair Weighted Size :  " + domainToDomainPairWeightSize.sum());
+
+        JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = domainToDomainPairWeightRDD
+                .flatMapToPair(t -> {
+                    byte[] sourceDomainBytes = Bytes.toBytes(t._1._1);
+                    byte[] destinationDomainBytes = Bytes.toBytes(t._1._2);
+                    byte[] domainToDomainRefrences = Bytes.toBytes(t._2);
+
+                    Set<Tuple2<ImmutableBytesWritable, Put>> hbasePut = new HashSet<>();
+
+                    Put outputDomainPut = new Put(sourceDomainBytes);
+                    outputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyOutput),
+                            destinationDomainBytes,
+                            domainToDomainRefrences);
+
+                    Put inputDomainPut = new Put(destinationDomainBytes);
+                    inputDomainPut.addColumn(Bytes.toBytes(hbaseWriteColumnFamilyInput),
+                            sourceDomainBytes,
+                            domainToDomainRefrences);
+
+                    hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), inputDomainPut));
+                    hbasePut.add(new Tuple2<>(new ImmutableBytesWritable(), outputDomainPut));
+                    return hbasePut.iterator();
+                });
+
+        hbasePuts.saveAsNewAPIHadoopDataset(newAPIJobConfiguration.getConfiguration());
 
         sparkSession.stop();
     }
