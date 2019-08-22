@@ -18,19 +18,16 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
-import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.util.LongAccumulator;
+import org.graphframes.GraphFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Function0;
 import scala.Tuple2;
 
 import java.io.IOException;
@@ -38,9 +35,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
-import org.graphframes.GraphFrame;
 
 
 public class App {
@@ -79,9 +74,10 @@ public class App {
 
         SparkConf sparkConf = new SparkConf()
                 .setAppName(sparkAppName)
-                .set("spark.cores.max", "6")
+                .set("spark.cores.max", "3")
                 .set("spark.executor.cores", sparkExecutorCores)
                 .set("spark.executor.memory", sparkExecutorMemory);
+
 
         SparkSession sparkSession = SparkSession.builder()
                 .config(sparkConf)
@@ -96,7 +92,7 @@ public class App {
 
         JavaRDD<Cell> hbaseCellsJavaRDD = hbaseRDD.flatMap(result -> result.listCells().iterator());
 
-        hbaseCellsJavaRDD.persist(StorageLevel.DISK_ONLY());
+//        hbaseCellsJavaRDD.persist(StorageLevel.DISK_ONLY());
 
         JavaRDD<Vertex> vertexJavaRDD = hbaseCellsJavaRDD.flatMap(cell -> {
             try {
