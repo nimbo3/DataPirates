@@ -15,6 +15,7 @@
         <module>crawler</module>
         <module>backend</module>
         <module>anchors-map-reduce</module>
+        <module>keyword-extractor</module>
     </modules>
 
 
