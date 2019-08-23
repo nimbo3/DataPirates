@@ -1,9 +1,6 @@
 package in.nimbo;
 
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.SharedMetricRegistries;
-import com.codahale.metrics.Timer;
+import com.codahale.metrics.*;
 import com.codahale.metrics.jmx.JmxReporter;
 import com.cybozu.labs.langdetect.DetectorFactory;
 import com.cybozu.labs.langdetect.LangDetectException;
@@ -42,6 +39,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class App {
     private static Config config;
@@ -71,10 +69,15 @@ public class App {
             List<String> acceptableLanguages = Arrays.asList(acceptableLanguagesString.split(","));
 
             LinkedBlockingQueue<Site> hbaseBulkQueue = new LinkedBlockingQueue<>();
+
             SharedMetricRegistries.getDefault().register(
                     MetricRegistry.name(HbaseSiteDaoImpl.class, "bulk queue size"),
-                    (Gauge<Integer>) hbaseBulkQueue::size);
-
+                    new CachedGauge<Integer>(15, TimeUnit.SECONDS) {
+                        @Override
+                        protected Integer loadValue() {
+                            return hbaseBulkQueue.size();
+                        }
+                    });
             Configuration hbaseConfig = HBaseConfiguration.create();
 
             final Connection conn = ConnectionFactory.createConnection(hbaseConfig);
@@ -98,8 +101,13 @@ public class App {
             LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue = new LinkedBlockingQueue<>(
                     config.getInt("queue.link.pair.html.size"));
             SharedMetricRegistries.getDefault().register(
-                    MetricRegistry.name(FetcherThread.class, "fetch queue size"),
-                    (Gauge<Integer>) linkPairHtmlQueue::size);
+                    MetricRegistry.name(HbaseSiteDaoImpl.class, "fetch queue size"),
+                    new CachedGauge<Integer>(15, TimeUnit.SECONDS) {
+                        @Override
+                        protected Integer loadValue() {
+                            return linkPairHtmlQueue.size();
+                        }
+                    });
             JsoupFetcher jsoupFetcher = new JsoupFetcher(config);
 
 
