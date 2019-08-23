@@ -39,7 +39,6 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 public class App {
     private static Config config;
@@ -72,12 +71,7 @@ public class App {
 
             SharedMetricRegistries.getDefault().register(
                     MetricRegistry.name(HbaseSiteDaoImpl.class, "bulk queue size"),
-                    new CachedGauge<Integer>(15, TimeUnit.SECONDS) {
-                        @Override
-                        protected Integer loadValue() {
-                            return hbaseBulkQueue.size();
-                        }
-                    });
+                    (Gauge<Integer>) hbaseBulkQueue::size);
             Configuration hbaseConfig = HBaseConfiguration.create();
 
             final Connection conn = ConnectionFactory.createConnection(hbaseConfig);
@@ -102,12 +96,7 @@ public class App {
                     config.getInt("queue.link.pair.html.size"));
             SharedMetricRegistries.getDefault().register(
                     MetricRegistry.name(HbaseSiteDaoImpl.class, "fetch queue size"),
-                    new CachedGauge<Integer>(15, TimeUnit.SECONDS) {
-                        @Override
-                        protected Integer loadValue() {
-                            return linkPairHtmlQueue.size();
-                        }
-                    });
+                    (Gauge<Integer>) linkPairHtmlQueue::size);
             JsoupFetcher jsoupFetcher = new JsoupFetcher(config);
 
 
