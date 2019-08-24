@@ -21,6 +21,7 @@ import in.nimbo.model.Site;
 import in.nimbo.shutdown_hook.HbaseShutdownHook;
 import in.nimbo.shutdown_hook.KafkaShutdownHook;
 import in.nimbo.shutdown_hook.ShutdownHook;
+import in.nimbo.util.ZkConfig;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Connection;
@@ -45,6 +46,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class App {
     private static Config config;
+    private static ZkConfig zkConfig;
     private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) {
@@ -167,7 +169,13 @@ public class App {
     private static void loadConfig() {
         Config outConfig = ConfigFactory.parseFile(new File("config.properties"));
         Config inConfig = ConfigFactory.load("config");
-        config = ConfigFactory.load(outConfig).withFallback(inConfig);
+        try {
+            zkConfig = new ZkConfig(ConfigFactory.load(outConfig).withFallback(inConfig));
+        } catch (IOException e) {
+            logger.error("cannot connect too zookeeper", e);
+            System.exit(1);
+        }
+        config = zkConfig.getConfig();
     }
 }
 
