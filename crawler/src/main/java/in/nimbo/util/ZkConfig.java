@@ -64,10 +64,4 @@ public class ZkConfig extends Observable<Config> {
     public Config getConfig() {
         return getState();
     }
-
-    public static void main(String[] args) throws IOException, InterruptedException {
-//        ZkConfig zkConfig = new ZkConfig();
-//        zkConfig.addObserver(newState -> System.out.println(newState.getString("queue.link.pair.html.size")));
-        Thread.sleep(60000);
-    }
 }

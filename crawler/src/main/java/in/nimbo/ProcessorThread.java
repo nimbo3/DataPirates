@@ -19,7 +19,7 @@ import java.net.ProtocolException;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
-class ProcessorThread extends Thread implements Closeable {
+public class ProcessorThread extends Thread implements Closeable {
     private static Logger logger = Logger.getLogger(ProcessorThread.class);
     private static Timer crawlTimer = SharedMetricRegistries.getDefault().timer("processor thread");
     private static Meter langDetectorSkips = SharedMetricRegistries.getDefault().meter("language detector skips");
