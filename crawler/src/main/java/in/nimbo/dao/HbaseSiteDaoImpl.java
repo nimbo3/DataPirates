@@ -23,38 +23,29 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
     private static final Logger logger = LoggerFactory.getLogger(HbaseSiteDaoImpl.class);
     private final String TABLE_NAME;
-    private final String CACHE_TABLE_NAME;
     private final int BULK_SIZE;
     private Timer hbaseBulkInsertMeter = SharedMetricRegistries.getDefault().timer("hbase-bulk-insert");
-    private Timer hbaseBulkCacheInsertMeter = SharedMetricRegistries.getDefault().timer("hbase-bulk-cache-insert");
     private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("hbase-insertion");
     private Meter insertionFailureMeter = SharedMetricRegistries.getDefault().meter("hbase-insertion-failure");
     private Timer deleteTimer = SharedMetricRegistries.getDefault().timer("hbase-delete");
     private LinkedBlockingQueue<Site> sites;
-    private LinkedBlockingQueue<String> linkCache;
     private List<Put> puts = new LinkedList<>();
-    private List<Put> putsCache = new LinkedList<>();
     private Connection connection;
     private String ANCHORS_FAMILY;
-    private String FLAG_FAMILY;
     private boolean closed = false;
 
-    public HbaseSiteDaoImpl(Connection connection, LinkedBlockingQueue<Site> sites, LinkedBlockingQueue<String> linkCache, Config config) {
+
+    public HbaseSiteDaoImpl(Connection connection, LinkedBlockingQueue<Site> sites, Config config) {
         this.connection = connection;
         TABLE_NAME = config.getString("hbase.table.name");
-        CACHE_TABLE_NAME = config.getString("hbase.cache.table.name");
         ANCHORS_FAMILY = config.getString("hbase.table.column.family.anchors");
-        FLAG_FAMILY = config.getString("hbase.cache.table.column.family");
         BULK_SIZE = config.getInt("hbase.bulk.size");
         this.sites = sites;
-        this.linkCache = linkCache;
     }
 
     public HbaseSiteDaoImpl(Connection connection, Config config) {
         TABLE_NAME = config.getString("hbase.table.name");
-        CACHE_TABLE_NAME = config.getString("hbase.cache.table.name");
         ANCHORS_FAMILY = config.getString("hbase.table.column.family.anchors");
-        FLAG_FAMILY = config.getString("hbase.cache.table.column.family");
         BULK_SIZE = config.getInt("hbase.bulk.size");
         this.connection = connection;
     }
@@ -122,10 +113,6 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
     public void run() {
         try {
             while (!closed && !interrupted()) {
-                Put putCache = new Put(Bytes.toBytes(linkCache.take()));
-                putCache.addColumn(Bytes.toBytes(FLAG_FAMILY),
-                        Bytes.toBytes(FLAG_FAMILY), Bytes.toBytes(true));
-                putsCache.add(putCache);
                 Site site = sites.take();
                 Put put = new Put(Bytes.toBytes(site.getNoProtocolLink()));
                 for (Map.Entry<String, String> anchorEntry : site.getNoProtocolAnchors().entrySet()) {
@@ -143,15 +130,6 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
                         logger.error("Hbase thread can't bulk insert.", e);
                     }
                     puts.clear();
-                }
-                if (putsCache.size() >= BULK_SIZE) {
-                    try (Table table = connection.getTable(TableName.valueOf(CACHE_TABLE_NAME));
-                         Timer.Context time = hbaseBulkCacheInsertMeter.time()) {
-                        table.put(putsCache);
-                    } catch (IOException e) {
-                        logger.error("Hbase thread can't bulk insert cache files.", e);
-                    }
-                    putsCache.clear();
                 }
             }
         } catch (InterruptedException e) {
@@ -171,15 +149,6 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
                 logger.error("Hbase thread can't bulk insert.", e);
             }
             puts.clear();
-        }
-        if (!putsCache.isEmpty()) {
-            try (Table table = connection.getTable(TableName.valueOf(CACHE_TABLE_NAME));
-                 Timer.Context time = hbaseBulkCacheInsertMeter.time()) {
-                table.put(putsCache);
-            } catch (IOException e) {
-                logger.error("Hbase thread can't bulk insert cache files.", e);
-            }
-            putsCache.clear();
         }
     }
 

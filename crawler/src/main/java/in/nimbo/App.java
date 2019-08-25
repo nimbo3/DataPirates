@@ -10,6 +10,7 @@ import com.cybozu.labs.langdetect.LangDetectException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.cache.CaffeineVistedDomainCache;
+import in.nimbo.cache.HBaseVisitedLinksCache;
 import in.nimbo.cache.RedisVisitedLinksCache;
 import in.nimbo.dao.ElasticSiteDaoImpl;
 import in.nimbo.dao.HbaseSiteDaoImpl;
@@ -18,6 +19,7 @@ import in.nimbo.kafka.LinkConsumer;
 import in.nimbo.kafka.LinkProducer;
 import in.nimbo.model.Pair;
 import in.nimbo.model.Site;
+import in.nimbo.shutdown_hook.HbaseCacheShutdownHook;
 import in.nimbo.shutdown_hook.HbaseShutdownHook;
 import in.nimbo.shutdown_hook.KafkaShutdownHook;
 import in.nimbo.shutdown_hook.ShutdownHook;
@@ -124,8 +126,16 @@ public class App {
             HbaseShutdownHook hbaseShutdownHook = new HbaseShutdownHook(hbaseSiteDaoImpls);
             Runtime.getRuntime().addShutdownHook(hbaseShutdownHook);
             for (int i = 0; i < numberOfHbaseThreads; i++) {
-                hbaseSiteDaoImpls[i] = new HbaseSiteDaoImpl(conn, hbaseBulkQueue, hbaseCacheBulkQueue, config);
+                hbaseSiteDaoImpls[i] = new HbaseSiteDaoImpl(conn, hbaseBulkQueue, config);
                 hbaseSiteDaoImpls[i].start();
+            }
+
+            HBaseVisitedLinksCache[] hBaseVisitedLinksCaches = new HBaseVisitedLinksCache[numberOfHbaseThreads];
+            HbaseCacheShutdownHook hbaseCacheShutdownHook = new HbaseCacheShutdownHook(hBaseVisitedLinksCaches);
+            Runtime.getRuntime().addShutdownHook(hbaseCacheShutdownHook);
+            for (int i = 0; i < numberOfHbaseThreads; i++) {
+                hBaseVisitedLinksCaches[i] = new HBaseVisitedLinksCache(conn, hbaseCacheBulkQueue, config);
+                hBaseVisitedLinksCaches[i].start();
             }
 
             ProcessorThread[] processorThreads = new ProcessorThread[numberOfProcessorThreads];
