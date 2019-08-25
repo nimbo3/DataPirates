@@ -10,6 +10,7 @@ import in.nimbo.kafka.LinkConsumer;
 import in.nimbo.kafka.LinkProducer;
 import in.nimbo.model.Pair;
 import in.nimbo.parser.Parser;
+import in.nimbo.util.HashCodeGenerator;
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
@@ -57,7 +58,7 @@ public class FetcherThread extends Thread implements Closeable {
                         logger.error("InterruptedException happened while consuming from Kafka", e);
                         Thread.currentThread().interrupt();
                     }
-                    if (visitedUrlsCache.hasVisited(url)) {
+                    if (visitedUrlsCache.hasVisited(HashCodeGenerator.md5HashString(url))) {
                         visitedLinksSkips.mark();
                         continue;
                     }
@@ -68,8 +69,8 @@ public class FetcherThread extends Thread implements Closeable {
                             String redirectedUrl = pair.getKey();
                             linkPairHtmlQueue.put(pair);
                             linkPairHtmlPutsMeter.mark();
-                            visitedUrlsCache.put(url);
-                            visitedUrlsCache.put(redirectedUrl);
+                            visitedUrlsCache.put(HashCodeGenerator.md5HashString(url));
+                            visitedUrlsCache.put(HashCodeGenerator.md5HashString(redirectedUrl));
                             hbaseCacheBulkQueue.put(url);
                             hbaseCacheBulkQueue.put(redirectedUrl);
                             visitedDomainsCache.put(Parser.getDomain(url));
