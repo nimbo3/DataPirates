@@ -18,11 +18,11 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class FetcherThread extends Thread implements Closeable {
     private static Logger logger = Logger.getLogger(FetcherThread.class);
+    LinkedBlockingQueue<String> hbaseCacheBulkQueue;
     private Timer fetcherTimer = SharedMetricRegistries.getDefault().timer("fetcher thread");
     private Meter visitedLinksSkips = SharedMetricRegistries.getDefault().meter("fetcher visited links skips");
     private Meter visitedDomainsSkips = SharedMetricRegistries.getDefault().meter("fetcher visited domains skips");
     private Meter linkPairHtmlPutsMeter = SharedMetricRegistries.getDefault().meter("fetcher linkpairhtml puts");
-
     private Fetcher fetcher;
     private VisitedLinksCache visitedDomainsCache;
     private VisitedLinksCache visitedUrlsCache;
@@ -34,13 +34,15 @@ public class FetcherThread extends Thread implements Closeable {
     public FetcherThread(Fetcher fetcher,
                          VisitedLinksCache visitedDomainsCache, VisitedLinksCache visitedUrlsCache,
                          LinkConsumer linkConsumer, LinkProducer linkProducer,
-                         LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue) {
+                         LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue,
+                         LinkedBlockingQueue<String> hbaseCacheBulkQueue) {
         this.fetcher = fetcher;
         this.visitedDomainsCache = visitedDomainsCache;
         this.linkConsumer = linkConsumer;
         this.linkProducer = linkProducer;
         this.visitedUrlsCache = visitedUrlsCache;
         this.linkPairHtmlQueue = linkPairHtmlQueue;
+        this.hbaseCacheBulkQueue = hbaseCacheBulkQueue;
     }
 
     @Override
@@ -68,6 +70,8 @@ public class FetcherThread extends Thread implements Closeable {
                             linkPairHtmlPutsMeter.mark();
                             visitedUrlsCache.put(url);
                             visitedUrlsCache.put(redirectedUrl);
+                            hbaseCacheBulkQueue.put(url);
+                            hbaseCacheBulkQueue.put(redirectedUrl);
                             visitedDomainsCache.put(Parser.getDomain(url));
                             visitedDomainsCache.put(Parser.getDomain(redirectedUrl));
                         } catch (FetchException e) {

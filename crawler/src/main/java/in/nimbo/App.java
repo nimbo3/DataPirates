@@ -74,6 +74,10 @@ public class App {
             SharedMetricRegistries.getDefault().register(
                     MetricRegistry.name(HbaseSiteDaoImpl.class, "bulk queue size"),
                     (Gauge<Integer>) hbaseBulkQueue::size);
+            LinkedBlockingQueue<String> hbaseCacheBulkQueue = new LinkedBlockingQueue<>();
+            SharedMetricRegistries.getDefault().register(
+                    MetricRegistry.name(HbaseSiteDaoImpl.class, "cache bulk queue size"),
+                    (Gauge<Integer>) hbaseCacheBulkQueue::size);
 
             Configuration hbaseConfig = HBaseConfiguration.create();
 
@@ -110,7 +114,8 @@ public class App {
                         visitedUrlsCache,
                         linkConsumer,
                         linkProducer,
-                        linkPairHtmlQueue);
+                        linkPairHtmlQueue,
+                        hbaseCacheBulkQueue);
                 closeables.add(fetcherThreads[i]);
                 fetcherThreads[i].start();
             }
@@ -119,7 +124,7 @@ public class App {
             HbaseShutdownHook hbaseShutdownHook = new HbaseShutdownHook(hbaseSiteDaoImpls);
             Runtime.getRuntime().addShutdownHook(hbaseShutdownHook);
             for (int i = 0; i < numberOfHbaseThreads; i++) {
-                hbaseSiteDaoImpls[i] = new HbaseSiteDaoImpl(conn, hbaseBulkQueue, hbaseConfig, config);
+                hbaseSiteDaoImpls[i] = new HbaseSiteDaoImpl(conn, hbaseBulkQueue, hbaseCacheBulkQueue, config);
                 hbaseSiteDaoImpls[i].start();
             }
 
