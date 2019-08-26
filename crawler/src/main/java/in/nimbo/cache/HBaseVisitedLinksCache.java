@@ -37,13 +37,6 @@ public class HBaseVisitedLinksCache extends Thread implements Closeable {
         this.linkCache = linkCache;
     }
 
-    public HBaseVisitedLinksCache(Connection connection, Config config) {
-        CACHE_TABLE_NAME = config.getString("hbase.cache.table.name");
-        FLAG_FAMILY = config.getString("hbase.cache.table.column.family");
-        BULK_SIZE = config.getInt("hbase.bulk.size");
-        this.connection = connection;
-    }
-
     @Override
     public void run() {
         try {

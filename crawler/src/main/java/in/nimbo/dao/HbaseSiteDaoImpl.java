@@ -28,6 +28,9 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
     private Timer insertionTimer = SharedMetricRegistries.getDefault().timer("hbase-insertion");
     private Meter insertionFailureMeter = SharedMetricRegistries.getDefault().meter("hbase-insertion-failure");
     private Timer deleteTimer = SharedMetricRegistries.getDefault().timer("hbase-delete");
+    private Timer getMethodTimer = SharedMetricRegistries.getDefault().timer("hbase-get");
+    private Timer containsTimer = SharedMetricRegistries.getDefault().timer("hbase-contains");
+    private Meter deleteFailureMeter = SharedMetricRegistries.getDefault().meter("hbase-delete-failure");
     private LinkedBlockingQueue<Site> sites;
     private List<Put> puts = new LinkedList<>();
     private Connection connection;
@@ -70,42 +73,42 @@ public class HbaseSiteDaoImpl extends Thread implements Closeable, SiteDao {
     }
 
     @Override
-    public void delete(Site site) {
+    public void delete(Site site) throws HbaseSiteDaoException {
         try {
-            String link = site.getNoProtocolLink();
+            String noProtocolLink = site.getNoProtocolLink();
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
                  Timer.Context time = deleteTimer.time()) {
-                Delete del = new Delete(Bytes.toBytes(link));
+                Delete del = new Delete(Bytes.toBytes(noProtocolLink));
                 table.delete(del);
-                logger.debug(String.format("Link [%s] deleted from hbase", link));
             }
         } catch (IOException e) {
-            logger.error("can't delete this link: " + site.getLink() + "from hbase", e);
+            deleteFailureMeter.mark();
+            throw new HbaseSiteDaoException("can't delete this link: " + site.getLink() + "from hbase", e);
         }
     }
 
-    public Result get(String link) throws SiteDaoException {
+    public Result get(String noProtocolLink) throws SiteDaoException {
         try {
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
-                 Timer.Context time = deleteTimer.time()) {
-                Get get = new Get(Bytes.toBytes(link));
+                 Timer.Context time = getMethodTimer.time()) {
+                Get get = new Get(Bytes.toBytes(noProtocolLink));
                 return table.get(get);
             }
         } catch (IOException e) {
-            throw new HbaseSiteDaoException("can't get from Hbase", e);
+            throw new HbaseSiteDaoException("can't get link: " + noProtocolLink + "from Hbase", e);
         }
     }
 
     public boolean contains(Site site) throws SiteDaoException {
         try {
             try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
-                 Timer.Context time = deleteTimer.time()) {
+                 Timer.Context time = containsTimer.time()) {
                 Get get = new Get(Bytes.toBytes(site.getNoProtocolLink()));
                 Result result = table.get(get);
                 return result.size() > 0;
             }
         } catch (IOException e) {
-            throw new HbaseSiteDaoException(e);
+            throw new HbaseSiteDaoException("can't perform contains for: " + site.getLink() + "on Hbase", e);
         }
     }
 
