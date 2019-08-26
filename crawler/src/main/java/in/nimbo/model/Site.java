@@ -7,6 +7,7 @@ import java.util.Map;
 
 public class Site {
     private String language;
+    //This link has protocol and doesn't contain 'www.'
     private String link;
     private String title;
     private String keywords;
@@ -39,19 +40,6 @@ public class Site {
         this.language = language;
     }
 
-    public String getReverseLink() throws MalformedURLException {
-        URL url = new URL(link);
-        final String[] splits = url.getHost().split("\\.");
-        StringBuilder reverse = new StringBuilder();
-        for (int i = splits.length - 1; i >= 0; i--) {
-            reverse.append(splits[i]);
-            reverse.append(".");
-        }
-        if (reverse.charAt(reverse.length() - 1) == '.')
-            reverse.deleteCharAt(reverse.length() - 1);
-        return link.replace(url.getHost(), reverse).replaceFirst("https?://", "").
-                replaceFirst("\\.www", "");
-    }
 
     public String getHtml() {
         return html;
@@ -104,12 +92,13 @@ public class Site {
     public void setAnchors(Map<String, String> anchors) {
         this.anchors = anchors;
     }
-
+    //This method is used to remove protocol from anchors so that links in hbase and elastic will be the same
+    //these anchors will be put in hbase and no protocol link is put in elastic
     public Map<String, String> getNoProtocolAnchors() {
         Map<String, String> map = new HashMap<>();
         for (Map.Entry<String, String> entry : anchors.entrySet()) {
             map.put(entry.getKey().replaceFirst("https?://", "").
-                            replaceFirst("www\\.", ""), entry.getValue());
+                            replaceFirst("^www\\.", ""), entry.getValue());
         }
         return map;
     }

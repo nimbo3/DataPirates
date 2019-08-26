@@ -104,7 +104,7 @@ public class Parser {
     public String normalize(String href) throws MalformedURLException {
         href = NormalizeURL.normalize(href);
         URL url = new URL(href);
-        String domain = url.getHost().replaceFirst("www\\.", "");
+        String domain = url.getHost().replaceFirst("^(\\w+://)?www\\.", "");
         return href.replace(url.getHost(), domain);
     }
 
