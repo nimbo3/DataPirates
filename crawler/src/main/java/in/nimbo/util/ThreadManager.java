@@ -47,7 +47,7 @@ public class ThreadManager implements Observer<Config>, Closeable {
         this.jsoupFetcher = jsoupFetcher;
         this.visitedDomainCache = visitedDomainCache;
         this.linkConsumer = linkConsumer;
-        this.hbaseBulkQueue = hbaseBulkQueue;
+        this.hbaseCacheBulkQueue = hbaseCacheBulkQueue;
 
         this.zkConfig = zkConfig;
         this.zkConfig.addObserver(this);
