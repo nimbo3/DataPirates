@@ -26,5 +26,13 @@ public class SearchResultController {
             return elasticSearch.fuzzySearch(input);
         throw new IllegalArgumentException();
     }
+
+    @CrossOrigin
+    @GetMapping("/web-graph/single-domain")
+    public List<String> singleDomainGraph() {
+        return null;
+    }
+
+
 }
 
