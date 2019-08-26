@@ -39,7 +39,7 @@ public class ZkConfig extends Observable<Config> {
                 logger.info("Zookeeper connected.");
             } else {
                 logger.error("Error connecting to zookeeper");
-                throw new RuntimeException("Error connecting to zookeeper");
+                System.exit(-1);
             }
             latch.countDown();
         });
@@ -49,15 +49,19 @@ public class ZkConfig extends Observable<Config> {
     private void updateConfig() {
         try {
             Map<String, String> newConfig = getConfigMapFromZk();
-            if (!previousConfigMap.equals(newConfig)) {
+            if (!newConfig.equals(previousConfigMap)) {
                 previousConfigMap = newConfig;
                 setState(ConfigFactory.parseMap(newConfig));
             }
-        } catch (KeeperException e) {
-            logger.error("ZooKeeper get exception", e);
         } catch (InterruptedException e) {
             logger.error("interrupted!", e);
             Thread.currentThread().interrupt();
+        } catch (KeeperException e) {
+            if (previousConfigMap == null) {
+                logger.error("couldn't load initial config from zookeeper", e);
+                System.exit(-1);
+            } else
+                logger.error("can't update config from zookeeper", e);
         }
     }
 
@@ -108,15 +112,19 @@ public class ZkConfig extends Observable<Config> {
                 zookeeper.setData(path + "/config/" + stringConfigValueEntry.getKey(),
                         ((String) stringConfigValueEntry.getValue().unwrapped()).getBytes(), stat.getVersion());
             } catch (KeeperException e) {
-                logger.info("couldn't write on zookeeper. try to create new node.");
-                try {
-                    zookeeper.create(path + "/config/" + stringConfigValueEntry.getKey(),
-                            ((String) stringConfigValueEntry.getValue().unwrapped()).getBytes(),
-                            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                } catch (KeeperException e2) {
-                    logger.error("couldn't write on zookeeper", e);
-                } catch (InterruptedException e2) {
-                    Thread.currentThread().interrupt();
+                if (e.code() == KeeperException.Code.NONODE) {
+                    try {
+                        zookeeper.create(path + "/config/" + stringConfigValueEntry.getKey(),
+                                ((String) stringConfigValueEntry.getValue().unwrapped()).getBytes(),
+                                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                    } catch (KeeperException e2) {
+                        logger.error("couldn't write on zookeeper", e);
+                    } catch (InterruptedException e2) {
+                        Thread.currentThread().interrupt();
+                    }
+                } else {
+                    logger.error("exception in writing on zookeeper", e);
+                    System.exit(-1);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
