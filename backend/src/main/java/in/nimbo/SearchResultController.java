@@ -41,7 +41,7 @@ public class SearchResultController {
             if (result.listCells() != null) {
                 Set<Edge> edges = new LinkedHashSet<>();
                 Set<Vertex> verteces = new LinkedHashSet<>();
-                verteces.add(new Vertex(Bytes.toString(result.getRow())));
+                verteces.add(new Vertex(Bytes.toString(result.getRow()), "#17a2b8"));
                 result.listCells().forEach(cell -> {
                     String row = Bytes.toString(CellUtil.cloneRow(cell));
                     String family = Bytes.toString(CellUtil.cloneFamily(cell));
@@ -49,12 +49,14 @@ public class SearchResultController {
                     Integer value = Bytes.toInt(CellUtil.cloneValue(cell));
                     verteces.add(new Vertex(qualifier));
                     Edge edge;
-                    if (family.equals("i")) {
-                        edge = new Edge(qualifier, row, value);
-                    } else {
-                        edge = new Edge(row, qualifier, value);
+                    if (!row.equals(qualifier)) {
+                        if (family.equals("i")) {
+                            edge = new Edge(qualifier, row, value);
+                        } else {
+                            edge = new Edge(row, qualifier, value);
+                        }
+                        edges.add(edge);
                     }
-                    edges.add(edge);
                 });
                 return new WebGraphResult(new ArrayList<>(verteces), new ArrayList<>(edges));
             } else {

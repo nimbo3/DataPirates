@@ -9,10 +9,27 @@ public class Vertex implements Serializable {
     String id;
     @JsonProperty("label")
     String label;
+    @JsonProperty("color")
+    String color;
 
     public Vertex(String id) {
         this.id = id;
         this.label = id;
+        this.color = "#cbf1f7";
+    }
+
+    public Vertex(String id, String color) {
+        this.id = id;
+        this.label = id;
+        this.color = color;
+    }
+
+    public String getColor() {
+        return color;
+    }
+
+    public void setColor(String color) {
+        this.color = color;
     }
 
     public String getId() {
