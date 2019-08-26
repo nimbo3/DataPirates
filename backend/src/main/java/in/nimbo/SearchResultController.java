@@ -40,7 +40,7 @@ public class SearchResultController {
 
     @CrossOrigin
     @GetMapping("/web-graph/single-domain")
-    public List<String> singleDomainGraph(@RequestParam(value = "google.com") String domain) {
+    public List<String> singleDomainGraph(@RequestParam(value = "domain", defaultValue = "link1.com") String domain) {
         try {
             Result result = hbase.get(domain);
             Map<String, Integer> inputDomains = new LinkedHashMap<>();
@@ -55,7 +55,6 @@ public class SearchResultController {
                     outputDomains.put(qualifier, value);
                 }
             });
-
             return null;
         } catch (HbaseException e) {
             return new ArrayList<>();

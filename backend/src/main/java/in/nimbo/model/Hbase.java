@@ -18,7 +18,6 @@ import java.io.IOException;
 public class Hbase {
     private static final Logger logger = LoggerFactory.getLogger(Hbase.class);
     private final String TABLE_NAME;
-    private Timer getTimer = SharedMetricRegistries.getDefault().timer("hbase-get");
     private Connection connection;
 
     public Hbase(Connection connection, Config config) {
@@ -27,8 +26,7 @@ public class Hbase {
     }
 
     public Result get(String domain) throws HbaseException {
-        try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
-             Timer.Context time = getTimer.time()) {
+        try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME))) {
             Get get = new Get(Bytes.toBytes(domain));
             return table.get(get);
         } catch (IOException e) {
