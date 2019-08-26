@@ -2,6 +2,7 @@ package in.nimbo.util;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValue;
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -57,11 +58,8 @@ public class ZkConfig extends Observable<Config> {
             logger.error("interrupted!", e);
             Thread.currentThread().interrupt();
         } catch (KeeperException e) {
-            if (previousConfigMap == null) {
-                logger.error("couldn't load initial config from zookeeper", e);
-                System.exit(-1);
-            } else
-                logger.error("can't update config from zookeeper", e);
+            logger.error("couldn't load initial config from zookeeper", e);
+            System.exit(-1);
         }
     }
 
@@ -90,6 +88,7 @@ public class ZkConfig extends Observable<Config> {
                 configMap.put(configName, configValue);
             } catch (KeeperException e) {
                 logger.error("can't get config from zookeeper", e);
+                System.exit(-1);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -105,23 +104,12 @@ public class ZkConfig extends Observable<Config> {
      * path should exist in zookeeper
      */
     public void initInZooKeeper(String resource, String path) {
-        ConfigFactory.parseResourcesAnySyntax(resource).entrySet().forEach(stringConfigValueEntry -> {
+        ConfigFactory.parseResourcesAnySyntax(resource).entrySet().forEach(ConfigEntry -> {
             try {
-                Stat stat = new Stat();
-                zookeeper.getData(path + "/config/" + stringConfigValueEntry.getKey(), null, stat);
-                zookeeper.setData(path + "/config/" + stringConfigValueEntry.getKey(),
-                        ((String) stringConfigValueEntry.getValue().unwrapped()).getBytes(), stat.getVersion());
+                updateConfigNode(path, ConfigEntry);
             } catch (KeeperException e) {
                 if (e.code() == KeeperException.Code.NONODE) {
-                    try {
-                        zookeeper.create(path + "/config/" + stringConfigValueEntry.getKey(),
-                                ((String) stringConfigValueEntry.getValue().unwrapped()).getBytes(),
-                                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                    } catch (KeeperException e2) {
-                        logger.error("couldn't write on zookeeper", e);
-                    } catch (InterruptedException e2) {
-                        Thread.currentThread().interrupt();
-                    }
+                    createConfigNode(path, ConfigEntry);
                 } else {
                     logger.error("exception in writing on zookeeper", e);
                     System.exit(-1);
@@ -130,6 +118,27 @@ public class ZkConfig extends Observable<Config> {
                 Thread.currentThread().interrupt();
             }
         });
+    }
+
+    private void createConfigNode(String path, Map.Entry<String, ConfigValue> configEntry) {
+        try {
+            zookeeper.create(path + "/config/" + configEntry.getKey(),
+                    ((String) configEntry.getValue().unwrapped()).getBytes(),
+                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        } catch (KeeperException e) {
+            logger.error("couldn't write on zookeeper", e);
+            System.exit(-1);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void updateConfigNode(String path, Map.Entry<String, ConfigValue> configEntry)
+            throws KeeperException, InterruptedException {
+        Stat stat = new Stat();
+        zookeeper.getData(path + "/config/" + configEntry.getKey(), null, stat);
+        zookeeper.setData(path + "/config/" + configEntry.getKey(),
+                ((String) configEntry.getValue().unwrapped()).getBytes(), stat.getVersion());
     }
 
     public static void main(String[] args) throws IOException {
