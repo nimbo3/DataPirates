@@ -2,9 +2,7 @@ package in.nimbo;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import in.nimbo.model.Hbase;
-import in.nimbo.model.Pair;
-import in.nimbo.model.ResultEntry;
+import in.nimbo.model.*;
 import in.nimbo.model.exceptions.HbaseException;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Result;
@@ -14,10 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 public class SearchResultController {
@@ -40,24 +35,33 @@ public class SearchResultController {
 
     @CrossOrigin
     @GetMapping("/web-graph/single-domain")
-    public List<String> singleDomainGraph(@RequestParam(value = "domain", defaultValue = "link1.com") String domain) {
+    public WebGraphResult singleDomainGraph(@RequestParam(value = "domain") String domain) {
         try {
             Result result = hbase.get(domain);
-            Map<String, Integer> inputDomains = new LinkedHashMap<>();
-            Map<String, Integer> outputDomains = new LinkedHashMap<>();
-            result.listCells().forEach(cell -> {
-                String family = Bytes.toString(CellUtil.cloneFamily(cell));
-                String qualifier = Bytes.toString(CellUtil.cloneQualifier(cell));
-                Integer value = Bytes.toInt(CellUtil.cloneValue(cell));
-                if (family.equals("i")) {
-                    inputDomains.put(qualifier, value);
-                } else {
-                    outputDomains.put(qualifier, value);
-                }
-            });
-            return null;
+            if (result.listCells() != null) {
+                Set<Edge> edges = new LinkedHashSet<>();
+                Set<Vertex> verteces = new LinkedHashSet<>();
+                verteces.add(new Vertex(Bytes.toString(result.getRow())));
+                result.listCells().forEach(cell -> {
+                    String row = Bytes.toString(CellUtil.cloneRow(cell));
+                    String family = Bytes.toString(CellUtil.cloneFamily(cell));
+                    String qualifier = Bytes.toString(CellUtil.cloneQualifier(cell));
+                    Integer value = Bytes.toInt(CellUtil.cloneValue(cell));
+                    verteces.add(new Vertex(qualifier));
+                    Edge edge;
+                    if (family.equals("i")) {
+                        edge = new Edge(qualifier, row, value);
+                    } else {
+                        edge = new Edge(row, qualifier, value);
+                    }
+                    edges.add(edge);
+                });
+                return new WebGraphResult(new ArrayList<>(verteces), new ArrayList<>(edges));
+            } else {
+                return null;
+            }
         } catch (HbaseException e) {
-            return new ArrayList<>();
+            return null;
         }
     }
 
