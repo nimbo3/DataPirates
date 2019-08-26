@@ -21,14 +21,10 @@ public class Hbase {
     private Timer getTimer = SharedMetricRegistries.getDefault().timer("hbase-get");
     private Connection connection;
 
-    private boolean closed = false;
-
-
     public Hbase(Connection connection, Config config) {
         TABLE_NAME = config.getString("hbase.table.name");
         this.connection = connection;
     }
-
 
     public Result get(String domain) throws HbaseException {
         try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
@@ -36,8 +32,7 @@ public class Hbase {
             Get get = new Get(Bytes.toBytes(domain));
             return table.get(get);
         } catch (IOException e) {
-            logger.error("Can't get from hbase", e);
-            throw new HbaseException("can't get from Hbase", e);
+            throw new HbaseException("Can't get from Hbase", e);
         }
     }
 
