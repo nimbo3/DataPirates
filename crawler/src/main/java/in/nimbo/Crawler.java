@@ -10,6 +10,7 @@ import com.cybozu.labs.langdetect.LangDetectException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.cache.CaffeineVistedDomainCache;
+import in.nimbo.cache.HBaseVisitedLinksCache;
 import in.nimbo.cache.RedisVisitedLinksCache;
 import in.nimbo.dao.ElasticSiteDaoImpl;
 import in.nimbo.dao.HbaseSiteDaoImpl;
@@ -18,6 +19,7 @@ import in.nimbo.kafka.LinkConsumer;
 import in.nimbo.kafka.LinkProducer;
 import in.nimbo.model.Pair;
 import in.nimbo.model.Site;
+import in.nimbo.shutdown_hook.HbaseCacheShutdownHook;
 import in.nimbo.shutdown_hook.HbaseShutdownHook;
 import in.nimbo.shutdown_hook.KafkaShutdownHook;
 import in.nimbo.shutdown_hook.ShutdownHook;
@@ -67,16 +69,21 @@ public class Crawler {
             SharedMetricRegistries.getDefault().register(
                     MetricRegistry.name(HbaseSiteDaoImpl.class, "bulk queue size"),
                     (Gauge<Integer>) hbaseBulkQueue::size);
+            LinkedBlockingQueue<String> hbaseCacheBulkQueue = new LinkedBlockingQueue<>();
+            SharedMetricRegistries.getDefault().register(
+                    MetricRegistry.name(HbaseSiteDaoImpl.class, "cache bulk queue size"),
+                    (Gauge<Integer>) hbaseCacheBulkQueue::size);
 
-            createThreadManager(hbaseBulkQueue);
+            createThreadManager(hbaseBulkQueue, hbaseCacheBulkQueue);
 
-            createHbaseDaos(hbaseBulkQueue);
+            createHbaseDaos(hbaseBulkQueue, hbaseCacheBulkQueue);
         } catch (IOException e) {
             logger.error("Can't create connection to hbase!", e);
         }
     }
 
-    private void createThreadManager(LinkedBlockingQueue<Site> hbaseBulkQueue) {
+    private void createThreadManager(LinkedBlockingQueue<Site> hbaseBulkQueue,
+                                     LinkedBlockingQueue<String> hbaseCacheBulkQueue) {
         RedisVisitedLinksCache visitedUrlsCache = new RedisVisitedLinksCache(config);
         closeables.add(visitedUrlsCache);
         CaffeineVistedDomainCache visitedDomainCache = new CaffeineVistedDomainCache(config);
@@ -98,11 +105,12 @@ public class Crawler {
         JsoupFetcher jsoupFetcher = new JsoupFetcher(config);
 
         ThreadManager threadManager = new ThreadManager(zkConfig, linkProducer, elasticDao, visitedUrlsCache, linkPairHtmlQueue, hbaseBulkQueue,
-                acceptableLanguages,jsoupFetcher,visitedDomainCache,linkConsumer);
+                acceptableLanguages, jsoupFetcher, visitedDomainCache, linkConsumer, hbaseCacheBulkQueue);
         closeables.add(threadManager);
     }
 
-    private void createHbaseDaos(LinkedBlockingQueue<Site> hbaseBulkQueue) throws IOException {
+    private void createHbaseDaos(LinkedBlockingQueue<Site> hbaseBulkQueue,
+                                 LinkedBlockingQueue<String> hbaseCacheBulkQueue) throws IOException {
         Configuration hbaseConfig = HBaseConfiguration.create();
         final Connection hbaseConnection = ConnectionFactory.createConnection(hbaseConfig);
         int numberOfHbaseThreads = config.getInt("hbase.threads.num");
@@ -110,8 +118,15 @@ public class Crawler {
         HbaseShutdownHook hbaseShutdownHook = new HbaseShutdownHook(hbaseSiteDaoImpls);
         Runtime.getRuntime().addShutdownHook(hbaseShutdownHook);
         for (int i = 0; i < numberOfHbaseThreads; i++) {
-            hbaseSiteDaoImpls[i] = new HbaseSiteDaoImpl(hbaseConnection, hbaseBulkQueue, hbaseConfig, config);
+            hbaseSiteDaoImpls[i] = new HbaseSiteDaoImpl(hbaseConnection, hbaseBulkQueue, config);
             hbaseSiteDaoImpls[i].start();
+        }
+        HBaseVisitedLinksCache[] hBaseVisitedLinksCaches = new HBaseVisitedLinksCache[numberOfHbaseThreads];
+        HbaseCacheShutdownHook hbaseCacheShutdownHook = new HbaseCacheShutdownHook(hBaseVisitedLinksCaches);
+        Runtime.getRuntime().addShutdownHook(hbaseCacheShutdownHook);
+        for (int i = 0; i < numberOfHbaseThreads; i++) {
+            hBaseVisitedLinksCaches[i] = new HBaseVisitedLinksCache(hbaseConnection, hbaseCacheBulkQueue, config);
+            hBaseVisitedLinksCaches[i].start();
         }
     }
 

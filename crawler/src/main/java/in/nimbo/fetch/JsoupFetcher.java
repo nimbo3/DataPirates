@@ -6,6 +6,7 @@ import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.typesafe.config.Config;
 import in.nimbo.exception.FetchException;
+import in.nimbo.model.Pair;
 import org.apache.log4j.Logger;
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
@@ -24,7 +25,6 @@ public class JsoupFetcher implements Fetcher {
     private Meter socketTimeoutMeter;
     private Meter httpStatusMeter;
     private Meter unsupportedMimeTypeMeter;
-    private String redirectedUrl;
     private int connectionTimeOut;
 
     public JsoupFetcher(Config config) {
@@ -39,17 +39,18 @@ public class JsoupFetcher implements Fetcher {
     }
 
     @Override
-    public String fetch(String url) throws FetchException {
+    public Pair<String, String> fetch(String url) throws FetchException {
         try (Timer.Context time = fetchTimer.time()) {
             logger.trace(String.format("Trying to fetch Url [%s]", url));
             Connection.Response response = Jsoup.connect(url)
                     .followRedirects(true)
                     .timeout(connectionTimeOut)
                     .execute();
-            redirectedUrl = response.url().toString();
+            String redirectedUrl = response.url().toString();
+            String html = response.body();
             logger.trace(String.format("Url [%s] fetched successfully", url));
             successFetchMeter.mark();
-            return response.body();
+            return new Pair<>(redirectedUrl, html);
         } catch (MalformedURLException e) {
             malformedURLMeter.mark();
             throw new FetchException(String.format("Can't fetch url [%s]", url), e);
@@ -67,7 +68,4 @@ public class JsoupFetcher implements Fetcher {
         }
     }
 
-    public String getRedirectedUrl() {
-        return redirectedUrl;
-    }
 }

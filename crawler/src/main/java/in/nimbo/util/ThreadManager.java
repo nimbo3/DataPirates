@@ -27,6 +27,7 @@ public class ThreadManager implements Observer<Config>, Closeable {
     private VisitedLinksCache visitedUrlsCache;
     private LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue;
     private LinkedBlockingQueue<Site> hbaseBulkQueue;
+    private LinkedBlockingQueue<String> hbaseCacheBulkQueue;
     private List<String> acceptableLanguages;
     private Fetcher jsoupFetcher;
     private VisitedLinksCache visitedDomainCache;
@@ -36,7 +37,7 @@ public class ThreadManager implements Observer<Config>, Closeable {
                          VisitedLinksCache visitedUrlsCache,
                          LinkedBlockingQueue<Pair<String, String>> linkPairHtmlQueue,
                          LinkedBlockingQueue<Site> hbaseBulkQueue, List<String> acceptableLanguages,
-                         Fetcher jsoupFetcher, VisitedLinksCache visitedDomainCache, LinkConsumer linkConsumer) {
+                         Fetcher jsoupFetcher, VisitedLinksCache visitedDomainCache, LinkConsumer linkConsumer, LinkedBlockingQueue<String> hbaseCacheBulkQueue) {
         this.linkProducer = linkProducer;
         this.elasticDao = elasticDao;
         this.visitedUrlsCache = visitedUrlsCache;
@@ -46,6 +47,7 @@ public class ThreadManager implements Observer<Config>, Closeable {
         this.jsoupFetcher = jsoupFetcher;
         this.visitedDomainCache = visitedDomainCache;
         this.linkConsumer = linkConsumer;
+        this.hbaseBulkQueue = hbaseBulkQueue;
 
         this.zkConfig = zkConfig;
         this.zkConfig.addObserver(this);
@@ -71,7 +73,8 @@ public class ThreadManager implements Observer<Config>, Closeable {
                 visitedUrlsCache,
                 linkConsumer,
                 linkProducer,
-                linkPairHtmlQueue));
+                linkPairHtmlQueue,
+                hbaseCacheBulkQueue));
         fetcherThreads.peekLast().start();
     }
 

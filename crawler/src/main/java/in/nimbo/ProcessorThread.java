@@ -10,6 +10,7 @@ import in.nimbo.kafka.LinkProducer;
 import in.nimbo.model.Pair;
 import in.nimbo.model.Site;
 import in.nimbo.parser.Parser;
+import in.nimbo.util.HashCodeGenerator;
 import in.nimbo.util.LanguageDetector;
 import org.apache.log4j.Logger;
 
@@ -22,7 +23,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class ProcessorThread extends Thread implements Closeable {
     private static Logger logger = Logger.getLogger(ProcessorThread.class);
     private static Timer crawlTimer = SharedMetricRegistries.getDefault().timer("processor thread");
+    private static Timer kafkaAnchorsPutTimer = SharedMetricRegistries.getDefault().timer("kafka anchors put");
     private static Meter langDetectorSkips = SharedMetricRegistries.getDefault().meter("language detector skips");
+    private static Meter redisAnchorSkips = SharedMetricRegistries.getDefault().meter("redis anchors skips");
+    private static Meter redisAnchorMatches = SharedMetricRegistries.getDefault().meter("redis anchors fetched-before matches");
     private LinkProducer linkProducer;
     private ElasticSiteDaoImpl elasitcSiteDao;
     private LinkedBlockingQueue<Site> hbaseBulkQueue;
@@ -64,11 +68,16 @@ public class ProcessorThread extends Thread implements Closeable {
                                 hbaseBulkQueue.put(site);
                             logger.trace("Inserted In DBs: " + site.getTitle() + " : " + site.getLink());
                             logger.trace(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
-                            site.getAnchors().keySet().forEach(link -> {
-                                if (!visitedUrlsCache.hasVisited(link)) {
-                                    linkProducer.send(link);
-                                }
-                            });
+                            try (Timer.Context kafkaPutTime = kafkaAnchorsPutTimer.time()){
+                                site.getAnchors().keySet().forEach(link -> {
+                                    if (!visitedUrlsCache.hasVisited(HashCodeGenerator.md5HashString(link))) {
+                                        linkProducer.send(link);
+                                        redisAnchorSkips.mark();
+                                    } else {
+                                        redisAnchorMatches.mark();
+                                    }
+                                });
+                            }
                             logger.trace(String.format("anchors in Kafka putted(%s)", url));
                         } else {
                             langDetectorSkips.mark();
