@@ -3,16 +3,15 @@ package in.nimbo;
 import com.google.common.collect.Iterables;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import in.nimbo.model.UpdateObject;
 import in.nimbo.util.CellUtility;
 import in.nimbo.util.HashGenerator;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -20,6 +19,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.storage.StorageLevel;
+import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 import scala.Tuple2;
 
 import java.nio.charset.StandardCharsets;
@@ -51,19 +51,16 @@ public class App {
         hbaseConfiguration.addResource(hbaseXmlHbase);
         hbaseConfiguration.set(TableInputFormat.INPUT_TABLE, hbaseTableName);
         hbaseConfiguration.set(TableInputFormat.SCAN_COLUMN_FAMILY, hbaseColumnFamily);
-//        hbaseConfiguration.set(TableInputFormat.SCAN_CACHEDROWS, "500");
 
         SparkConf sparkConf = new SparkConf()
                 .setAppName(sparkAppName)
                 .set("spark.executor.cores", String.valueOf(sparkExecutorCores))
                 .set("spark.executor.memory", sparkExecutorMemory)
                 .set("spark.cores.max", String.valueOf(sparkExecutorCores * sparkExecutorNumber))
-//                .set("es.nodes", elasticNodesIp)
-//                .set("es.mapping.id", "id")
-//                .set("es.index.auto.create", elasticAutoCreateIndex)
-//                .set("es.write.operation", "upsert")
-                ;
-
+                .set("es.nodes", elasticNodesIp)
+                .set("es.mapping.id", "id")
+                .set("es.index.auto.create", elasticAutoCreateIndex)
+                .set("es.write.operation", "upsert");
 
         SparkSession sparkSession = SparkSession.builder()
                 .config(sparkConf)
@@ -107,13 +104,8 @@ public class App {
             ranks = contribs.reduceByKey(Double::sum).mapValues(sum -> 0.15 + sum * 0.85);
         }
 
-        List<Tuple2<String, Double>> result = ranks.collect();
-
-        for (Tuple2<?, ?> tuple : result) {
-            System.out.println(tuple._1() + " has rank: " + tuple._2() + ".");
-        }
-//        JavaRDD<UpdateObject> elasticRDD = null;
-//        JavaEsSpark.saveToEs(elasticRDD, elasticIndexName);
+        JavaRDD<UpdateObject> elasticRDD = ranks.map(tuple -> new UpdateObject(HashGenerator.md5HashString(tuple._1), tuple._1, tuple._2));
+        JavaEsSpark.saveToEs(elasticRDD, elasticIndexName);
 
         sparkSession.close();
     }
