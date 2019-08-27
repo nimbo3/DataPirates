@@ -47,6 +47,9 @@ public class SearchResultController {
                     String family = Bytes.toString(CellUtil.cloneFamily(cell));
                     String qualifier = Bytes.toString(CellUtil.cloneQualifier(cell));
                     Integer value = Bytes.toInt(CellUtil.cloneValue(cell));
+                    if (value > 5) {
+                        value = 5;
+                    }
                     verteces.add(new Vertex(qualifier));
                     Edge edge;
                     if (!row.equals(qualifier)) {
