@@ -1,5 +1,6 @@
 package in.nimbo;
 
+import com.google.common.collect.Iterables;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.model.UpdateObject;
@@ -14,15 +15,19 @@ import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.storage.StorageLevel;
 import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
+import scala.Tuple2;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 
@@ -40,6 +45,7 @@ public class App {
         String elasticNodesIp = config.getString("es.nodes.ip");
         String elasticIndexName = config.getString("es.index.name");
         String elasticAutoCreateIndex = config.getString("es.index.auto.create");
+        int pageRankIterNum = config.getInt("page.rank.iter.num");
 
         Configuration hbaseConfiguration = HBaseConfiguration.create();
 
@@ -70,13 +76,13 @@ public class App {
 
         JavaSparkContext javaSparkContext = new JavaSparkContext(sparkSession.sparkContext());
 
-        JavaRDD<Cell> cellRDD = hbaseRDD.flatMap(result -> result.listCells().iterator());
+        JavaRDD<Cell> cells = hbaseRDD.flatMap(result -> result.listCells().iterator());
 
 
-        cellRDD.persist(StorageLevel.MEMORY_AND_DISK());
+        cells.persist(StorageLevel.MEMORY_AND_DISK());
 
         Set hashedRowKeys = new HashSet();
-        cellRDD.foreach(cell -> {
+        cells.foreach(cell -> {
             String rowKey = Bytes.toString(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength());
             String hashedRowKey = new String(DigestUtils.md5(rowKey), StandardCharsets.UTF_8);
             hashedRowKeys.add(hashedRowKey);
@@ -85,22 +91,32 @@ public class App {
         Broadcast<Set> broadcastVar = javaSparkContext.broadcast(hashedRowKeys);
 
         Set broadcastHashSet = broadcastVar.getValue();
-        JavaRDD<Cell> cellEdgeRDD = cellRDD.filter(cell -> broadcastHashSet.contains(HashGenerator.md5HashString(CellUtility.getCellQualifier(cell))));
+        JavaRDD<Cell> validCells = cells.filter(cell -> broadcastHashSet.contains(HashGenerator.md5HashString(CellUtility.getCellQualifier(cell))));
         broadcastVar.destroy();
 
+        JavaPairRDD<String, Iterable<String>> links = validCells.mapToPair(cell -> new Tuple2<>(CellUtility.getCellRowString(cell), CellUtility.getCellQualifier(cell))).groupByKey().cache();
+        JavaPairRDD<String, Double> ranks = links.mapValues(rs -> 1.0);
 
-//        sparkSession.sparkContext().broadcast(hashedRowKeys, classTag(HashSet.class));
-//        cellRDD.foreachPartition(cellIterator -> {
-//            while (cellIterator.hasNext()){
-//                Cell cell = cellIterator.next();
-//            }
-//        });
-//
-        cellRDD.persist(StorageLevel.MEMORY_AND_DISK());
+        for (int current = 0; current < pageRankIterNum; current++) {
+            JavaPairRDD<String, Double> contribs = links.join(ranks).values()
+                    .flatMapToPair(s -> {
+                        int urlCount = Iterables.size(s._1());
+                        List<Tuple2<String, Double>> results = new ArrayList<>();
+                        for (String n : s._1) {
+                            results.add(new Tuple2<>(n, s._2() / urlCount));
+                        }
+                        return results.iterator();
+                    });
+            ranks = contribs.reduceByKey(Double::sum).mapValues(sum -> 0.15 + sum * 0.85);
+        }
 
-        JavaRDD<UpdateObject> elasticRDD = null;
+        List<Tuple2<String, Double>> result = ranks.collect();
 
-        JavaEsSpark.saveToEs(elasticRDD, elasticIndexName);
+        for (Tuple2<?, ?> tuple : result) {
+            System.out.println(tuple._1() + " has rank: " + tuple._2() + ".");
+        }
+//        JavaRDD<UpdateObject> elasticRDD = null;
+//        JavaEsSpark.saveToEs(elasticRDD, elasticIndexName);
 
         sparkSession.close();
     }
