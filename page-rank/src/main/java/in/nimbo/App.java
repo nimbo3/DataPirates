@@ -2,8 +2,10 @@ package in.nimbo;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import in.nimbo.model.Edge;
-import in.nimbo.model.Vertex;
+import in.nimbo.model.UpdateObject;
+import in.nimbo.util.CellUtility;
+import in.nimbo.util.HashGenerator;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -13,13 +15,15 @@ import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
+import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.storage.StorageLevel;
 import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
-import org.graphframes.GraphFrame;
-import org.apache.commons.codec.digest.DigestUtils;
+
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.Set;
 
 
 public class App {
@@ -64,27 +68,37 @@ public class App {
                 , TableInputFormat.class, ImmutableBytesWritable.class, Result.class)
                 .toJavaRDD().map(tuple -> tuple._2);
 
+        JavaSparkContext javaSparkContext = new JavaSparkContext(sparkSession.sparkContext());
+
         JavaRDD<Cell> cellRDD = hbaseRDD.flatMap(result -> result.listCells().iterator());
+
 
         cellRDD.persist(StorageLevel.MEMORY_AND_DISK());
 
-        JavaRDD<Vertex> vertexRDD = cellRDD.map(cell -> new Vertex(Bytes.toString(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength())));
-        JavaRDD<Edge> edgeRDD = cellRDD.map(cell -> {
-            String src = Bytes.toString(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength());
-            String dst = Bytes.toString(cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength());
-            return new Edge(src, dst);
+        Set hashedRowKeys = new HashSet();
+        cellRDD.foreach(cell -> {
+            String rowKey = Bytes.toString(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength());
+            String hashedRowKey = new String(DigestUtils.md5(rowKey), StandardCharsets.UTF_8);
+            hashedRowKeys.add(hashedRowKey);
         });
 
-        Dataset<Row> vertexDF = sparkSession.createDataFrame(vertexRDD, Vertex.class);
-        Dataset<Row> edgeDF = sparkSession.createDataFrame(edgeRDD, Edge.class);
+        Broadcast<Set> broadcastVar = javaSparkContext.broadcast(hashedRowKeys);
 
-        cellRDD.unpersist();
-        GraphFrame graphFrame = new GraphFrame(vertexDF, edgeDF);
-        graphFrame.cache();
-        GraphFrame pageRankResult = graphFrame.pageRank().maxIter(3).run();
-        pageRankResult.persist(StorageLevel.MEMORY_AND_DISK());
+        Set broadcastHashSet = broadcastVar.getValue();
+        JavaRDD<Cell> cellEdgeRDD = cellRDD.filter(cell -> broadcastHashSet.contains(HashGenerator.md5HashString(CellUtility.getCellQualifier(cell))));
+        broadcastVar.destroy();
 
-        JavaRDD<UpdateObject> elasticRDD = pageRankResult.vertices().toJavaRDD().map(row -> new UpdateObject(DigestUtils.sha256Hex(row.getString(0)), row.getDouble(1)));
+
+//        sparkSession.sparkContext().broadcast(hashedRowKeys, classTag(HashSet.class));
+//        cellRDD.foreachPartition(cellIterator -> {
+//            while (cellIterator.hasNext()){
+//                Cell cell = cellIterator.next();
+//            }
+//        });
+//
+        cellRDD.persist(StorageLevel.MEMORY_AND_DISK());
+
+        JavaRDD<UpdateObject> elasticRDD = null;
 
         JavaEsSpark.saveToEs(elasticRDD, elasticIndexName);
 

@@ -1,4 +1,4 @@
-package in.nimbo;
+package in.nimbo.model;
 
 import java.io.Serializable;
 
