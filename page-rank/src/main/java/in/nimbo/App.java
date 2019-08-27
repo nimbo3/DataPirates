@@ -3,7 +3,6 @@ package in.nimbo;
 import com.google.common.collect.Iterables;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import in.nimbo.model.UpdateObject;
 import in.nimbo.util.CellUtility;
 import in.nimbo.util.HashGenerator;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -21,7 +20,6 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.storage.StorageLevel;
-import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 import scala.Tuple2;
 
 import java.nio.charset.StandardCharsets;
@@ -60,10 +58,11 @@ public class App {
                 .set("spark.executor.cores", String.valueOf(sparkExecutorCores))
                 .set("spark.executor.memory", sparkExecutorMemory)
                 .set("spark.cores.max", String.valueOf(sparkExecutorCores * sparkExecutorNumber))
-                .set("es.nodes", elasticNodesIp)
-                .set("es.mapping.id", "id")
-                .set("es.index.auto.create", elasticAutoCreateIndex)
-                .set("es.write.operation", "upsert");
+//                .set("es.nodes", elasticNodesIp)
+//                .set("es.mapping.id", "id")
+//                .set("es.index.auto.create", elasticAutoCreateIndex)
+//                .set("es.write.operation", "upsert")
+                ;
 
 
         SparkSession sparkSession = SparkSession.builder()
@@ -76,25 +75,23 @@ public class App {
 
         JavaSparkContext javaSparkContext = new JavaSparkContext(sparkSession.sparkContext());
 
-        JavaRDD<Cell> cells = hbaseRDD.flatMap(result -> result.listCells().iterator());
+        JavaPairRDD<String, String> edges = hbaseRDD.flatMap(result -> result.listCells().iterator()).mapToPair(cell -> new Tuple2<>(CellUtility.getCellRowString(cell), CellUtility.getCellQualifier(cell)));
 
-
-        cells.persist(StorageLevel.MEMORY_AND_DISK());
+        edges.persist(StorageLevel.MEMORY_AND_DISK());
 
         Set hashedRowKeys = new HashSet();
-        cells.foreach(cell -> {
-            String rowKey = Bytes.toString(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength());
-            String hashedRowKey = new String(DigestUtils.md5(rowKey), StandardCharsets.UTF_8);
+        edges.foreach(edge -> {
+            String hashedRowKey = new String(DigestUtils.md5(edge._1), StandardCharsets.UTF_8);
             hashedRowKeys.add(hashedRowKey);
         });
 
         Broadcast<Set> broadcastVar = javaSparkContext.broadcast(hashedRowKeys);
 
         Set broadcastHashSet = broadcastVar.getValue();
-        JavaRDD<Cell> validCells = cells.filter(cell -> broadcastHashSet.contains(HashGenerator.md5HashString(CellUtility.getCellQualifier(cell))));
+        JavaPairRDD<String, String> validEdges = edges.filter(edge -> broadcastHashSet.contains(HashGenerator.md5HashString(edge._2)));
         broadcastVar.destroy();
 
-        JavaPairRDD<String, Iterable<String>> links = validCells.mapToPair(cell -> new Tuple2<>(CellUtility.getCellRowString(cell), CellUtility.getCellQualifier(cell))).groupByKey().cache();
+        JavaPairRDD<String, Iterable<String>> links = validEdges.groupByKey().cache();
         JavaPairRDD<String, Double> ranks = links.mapValues(rs -> 1.0);
 
         for (int current = 0; current < pageRankIterNum; current++) {
