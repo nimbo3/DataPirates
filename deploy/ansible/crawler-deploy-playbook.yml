@@ -4,7 +4,7 @@
     git_repository_branch: master
     project_module_name: crawler
     project_module_version: 1.0-SNAPSHOT
-    crawler_deploy_dir: /opt/data-pirates/
+    git_clone_directory: /opt/data-pirates/
   tasks:
   - name: Install needed packages with apt
     apt:
@@ -17,7 +17,7 @@
   - name: Get latest project files from github
     git:
       repo: "{{ git_repository_url }}"
-      dest: "{{ crawler_deploy_dir }}"
+      dest: "{{ git_clone_directory }}"
       force: yes
       version: "{{ git_repository_branch }}"
     register: git
@@ -27,7 +27,7 @@
     register: mvn
     changed_when: '"BUILD FAILURE" not in mvn.stdout'
     args:
-      chdir: "{{ crawler_deploy_dir }}{{ project_module_name }}"
+      chdir: "{{ git_clone_directory }}{{ project_module_name }}"
 
 
 - hosts: slaves
@@ -36,40 +36,42 @@
     jmx_exporter_name: jmx_exporter
     project_module_name: crawler
     project_module_version: 1.0-SNAPSHOT
-    crawler_deploy_dir: /opt/data-pirates/
+    git_clone_directory: /opt/data-pirates/
+    deploy_dir: /opt/deploy/
     update: true
-    JAVA_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9010 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=0.0.0.0 -XX:+UseG1GC
+    JAVA_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9010 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -XX:+UseG1GC -Djava.rmi.server.hostname=
+    NATIVE_CODE_LOADER: LD_LIBRARY_PATH=/usr/local/hadoop/lib/native
     PROCESS: jar
   tasks:
-  - name: Create Deploy dir
+  - name: Create deploy dir
     file:
-      path: /opt/deploy
+      path: "{{ deploy_dir }}"
       state: directory
   - name: Upload jar file
     copy:
-      src: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/{{ project_module_name }}-{{ project_module_version }}.jar"
-      dest: "/opt/deploy/{{ project_module_name }}-{{ project_module_version }}.jar"
+      src: "{{ git_clone_directory }}{{ project_module_name }}/target/{{ project_module_name }}-{{ project_module_version }}.jar"
+      dest: "{{ deploy_dir }}{{ project_module_name }}-{{ project_module_version }}.jar"
     register: upjar
   - name: block
     block:
     - name: Upload config file
       copy:
         src: config.properties
-        dest: "/opt/deploy/config.properties"
+        dest: "{{ deploy_dir }}config.properties"
 
     - name: Copy profile folder near runnable jar
       copy:
-        src: "{{ crawler_deploy_dir }}{{ project_module_name }}/src/main/resources/profiles"
-        dest: "/opt/deploy/"
+        src: "{{ git_clone_directory }}{{ project_module_name }}/src/main/resources/profiles"
+        dest: "{{ deploy_dir }}"
 
     - name: Download jmx exporter
       get_url:
         url: "{{ jmx_exporter_url }}"
-        dest: "/opt/deploy/{{ jmx_exporter_name }}.jar"
+        dest: "{{ deploy_dir }}{{ jmx_exporter_name }}.jar"
 
     - name: Create jmx exporter config
       copy:
-        dest: "/opt/deploy/config.yaml"
+        dest: "{{ deploy_dir }}config.yaml"
         content: '---
 
         username:
@@ -88,16 +90,29 @@
     register: running_process
     ignore_errors: yes
 
-  - name: Kill running crawler process
-    shell: kill $(jps | grep {{ PROCESS }} | awk '{print $1}')
-    when: '"jar" in running_process.stdout' or update
-#            and upjar.changed
+  - name : Shutdown crawler
+    block:
+    - name: Kill running crawler process
+      shell: kill $(jps | grep {{ PROCESS }} | awk '{print $1}')
+      when: 'update'
+
+    - name: Get process id
+      shell: "jps | grep {{ PROCESS }} | awk '{print $1}'"
+      register: processid
+      ignore_errors: yes
+
+    - name: Wait until the process is finished and pid was destroyed
+      wait_for:
+        path: "/proc/{{ processid.stdout }}/status"
+        state: absent
+    when: '"jar" in running_process.stdout and update'
+
 
   - name: Run crawler app with jmx exporter
-    shell: "LD_LIBRARY_PATH=/usr/local/hadoop/lib/native nohup java {{ JAVA_OPTS }} -javaagent:{{ jmx_exporter_name }}.jar=9070:config.yaml -jar {{ project_module_name }}-{{ project_module_version }}.jar &"
+    shell: "{{ NATIVE_CODE_LOADER }} nohup java {{ JAVA_OPTS }}{{ ansible_hostname }} -javaagent:{{ jmx_exporter_name }}.jar=9070:config.yaml -jar {{ project_module_name }}-{{ project_module_version }}.jar &"
     register: nohup
     changed_when: '"failed" not in nohup.stderr'
     args:
-      chdir: /opt/deploy/
-    when: '"jar" not in running_process.stdout' or update
+      chdir: "{{ deploy_dir }}"
+    when: '"jar" not in running_process.stdout or update'
 
