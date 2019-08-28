@@ -121,7 +121,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
             builder.field("link", site.getLink());
             builder.field("text", site.getPlainText());
             builder.field("keywords", site.getKeywords());
-            builder.field("domain", site.getDomain());
+            builder.field("domain", site.getHost());
             builder.endObject();
             IndexRequest indexRequest = new IndexRequest(String.format("%s-%s", INDEX, site.getLanguage()))
                     .id(hashedUrl).source(builder);
