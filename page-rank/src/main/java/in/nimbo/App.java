@@ -9,10 +9,13 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
+import org.apache.hadoop.hbase.mapreduce.TableOutputFormat;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -22,6 +25,7 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -35,8 +39,11 @@ public class App {
         String sparkAppName = config.getString("spark.app.name");
         String hbaseXmlHadoop = config.getString("hbase.xml.url.in.hadoop");
         String hbaseXmlHbase = config.getString("hbase.xml.url.in.hbase");
-        String hbaseTableName = config.getString("hbase.table.name");
-        String hbaseColumnFamily = config.getString("hbase.column.family");
+        String hbaseReadTableName = config.getString("hbase.table.name");
+        String hbaseReadColumnFamily = config.getString("hbase.column.family");
+        String hbaseResultTableName = config.getString("hbase.result.table.name");
+        String hbaseResultColumnFamily = config.getString("hbase.result.column.family");
+        String hbaseResultColumnQualifier = config.getString("hbase.result.column.qualifier");
         int sparkExecutorCores = config.getInt("spark.executor.cores");
         String sparkExecutorMemory = config.getString("spark.executor.memory");
         int sparkExecutorNumber = config.getInt("spark.executor.number");
@@ -45,12 +52,12 @@ public class App {
         String elasticAutoCreateIndex = config.getString("es.index.auto.create");
         int pageRankIterNum = config.getInt("page.rank.iter.num");
 
-        Configuration hbaseConfiguration = HBaseConfiguration.create();
+        Configuration hbaseReadConfiguration = HBaseConfiguration.create();
 
-        hbaseConfiguration.addResource(hbaseXmlHadoop);
-        hbaseConfiguration.addResource(hbaseXmlHbase);
-        hbaseConfiguration.set(TableInputFormat.INPUT_TABLE, hbaseTableName);
-        hbaseConfiguration.set(TableInputFormat.SCAN_COLUMN_FAMILY, hbaseColumnFamily);
+        hbaseReadConfiguration.addResource(hbaseXmlHadoop);
+        hbaseReadConfiguration.addResource(hbaseXmlHbase);
+        hbaseReadConfiguration.set(TableInputFormat.INPUT_TABLE, hbaseReadTableName);
+        hbaseReadConfiguration.set(TableInputFormat.SCAN_COLUMN_FAMILY, hbaseReadColumnFamily);
 //        hbaseConfiguration.set(TableInputFormat.SCAN_CACHEDROWS, "500");
 
         SparkConf sparkConf = new SparkConf()
@@ -69,7 +76,7 @@ public class App {
                 .config(sparkConf)
                 .getOrCreate();
 
-        JavaRDD<Result> hbaseRDD = sparkSession.sparkContext().newAPIHadoopRDD(hbaseConfiguration
+        JavaRDD<Result> hbaseRDD = sparkSession.sparkContext().newAPIHadoopRDD(hbaseReadConfiguration
                 , TableInputFormat.class, ImmutableBytesWritable.class, Result.class)
                 .toJavaRDD().map(tuple -> tuple._2);
 
@@ -107,10 +114,30 @@ public class App {
             ranks = contribs.reduceByKey(Double::sum).mapValues(sum -> 0.15 + sum * 0.85);
         }
 
-        List<Tuple2<String, Double>> result = ranks.collect();
+        byte[] familyBytes = Bytes.toBytes(hbaseResultColumnFamily);
+        byte[] qualifierBytes = Bytes.toBytes(hbaseResultColumnQualifier);
+        JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = ranks.mapToPair(t -> {
+            byte[] urlBytes = Bytes.toBytes(t._1);
+            byte[] rankBytes = Bytes.toBytes(t._2);
+            Put hbasePut = new Put(urlBytes);
+            hbasePut.addColumn(familyBytes, qualifierBytes, rankBytes);
+            return new Tuple2<>(new ImmutableBytesWritable(), hbasePut);
+        });
 
-        for (Tuple2<?, ?> tuple : result) {
-            System.out.println(tuple._1() + " has rank: " + tuple._2() + ".");
+        Configuration hbaseWriteConfiguration = HBaseConfiguration.create();
+        hbaseWriteConfiguration.addResource(hbaseXmlHadoop);
+        hbaseWriteConfiguration.addResource(hbaseXmlHbase);
+        hbaseWriteConfiguration.set(TableInputFormat.INPUT_TABLE, hbaseResultTableName);
+
+        try {
+            Job jobConfig = Job.getInstance(hbaseWriteConfiguration);
+            jobConfig.getConfiguration().set(TableOutputFormat.OUTPUT_TABLE, hbaseResultTableName);
+            jobConfig.setOutputFormatClass(TableOutputFormat.class);
+
+            hbasePuts.saveAsNewAPIHadoopDataset(jobConfig.getConfiguration());
+        } catch (IOException e) {
+            // do sth
+            System.out.println("couldn't insert into hbase :((");
         }
 //        JavaRDD<UpdateObject> elasticRDD = null;
 //        JavaEsSpark.saveToEs(elasticRDD, elasticIndexName);
