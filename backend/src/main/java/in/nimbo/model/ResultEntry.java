@@ -16,11 +16,17 @@ public class ResultEntry {
     @JsonProperty("tags")
     private List<String> tags;
 
-    public ResultEntry(String title, String link, String summary, double pageRank, List<String> tags) {
+    public ResultEntry(String title, String link, String summary) {
         this.title = title;
         this.link = link;
         this.summary = summary;
+    }
+
+    public void setPageRank(double pageRank) {
         this.pageRank = pageRank;
+    }
+
+    public void setTags(List<String> tags) {
         this.tags = tags;
     }
 
