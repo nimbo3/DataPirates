@@ -95,14 +95,14 @@ public class ElasticSearch {
         }
     }
 
-    public List<String> autoComplete(String input) throws IOException {
-        SearchRequest searchRequest = new SearchRequest(String.format("%s-%s", index, "en"));
+    public List<String> autoComplete(String input, String lang) throws IOException {
+        SearchRequest searchRequest = new SearchRequest(String.format("%s-%s", index, lang));
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
         searchSourceBuilder.query(QueryBuilders.multiMatchQuery(input,"title.auto-complete"
                 ,"title.auto-complete._2gram", "title.auto-complete._3gram")
 //                .type(MatchQuery.Type.BOOLEAN_PREFIX)
         );
-        searchSourceBuilder.size(50);
+        searchSourceBuilder.size(20);
         searchRequest.source(searchSourceBuilder);
         SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
         Set<String> completionList = new LinkedHashSet<>();

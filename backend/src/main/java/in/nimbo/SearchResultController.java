@@ -30,10 +30,10 @@ public class SearchResultController {
 
     @CrossOrigin
     @GetMapping("/api/autocomplete")
-    public List<String> autoComplete(@RequestParam(value = "input") String input) {
+    public List<String> autoComplete(@RequestParam(value = "input") String input, @RequestParam(value = "lang") String lang) {
         ElasticSearch elasticSearch = new ElasticSearch(config);
         try {
-            List<String> autoComplete = elasticSearch.autoComplete(input);
+            List<String> autoComplete = elasticSearch.autoComplete(input, lang.toLowerCase());
             return autoComplete;
         } catch (IOException e) {
             e.printStackTrace();
