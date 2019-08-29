@@ -18,7 +18,9 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public class ElasticSearch {
     private static Logger logger = Logger.getLogger(ElasticSearch.class);
@@ -94,24 +96,22 @@ public class ElasticSearch {
     }
 
     public List<String> autoComplete(String input) throws IOException {
-        SearchRequest searchRequest = new SearchRequest(String.format("%s-%s", index, "fa"));
+        SearchRequest searchRequest = new SearchRequest(String.format("%s-%s", index, "en"));
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
         searchSourceBuilder.query(QueryBuilders.multiMatchQuery(input,"title.auto-complete"
-                ,"title.auto-complete._2gram", "title.auto-complete._3gram"
-                )
+                ,"title.auto-complete._2gram", "title.auto-complete._3gram")
 //                .type(MatchQuery.Type.BOOLEAN_PREFIX)
         );
-        searchSourceBuilder.size(8);
+        searchSourceBuilder.size(50);
         searchRequest.source(searchSourceBuilder);
         SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
-        List<String> completionList = new ArrayList<>();
+        Set<String> completionList = new LinkedHashSet<>();
         for (SearchHit searchHit : searchResponse.getHits().getHits()) {
-            completionList.add(searchHit.getSourceAsMap().get("title").toString());
+            completionList.add(searchHit.getSourceAsMap().get("title").toString().toLowerCase());
+            if (completionList.size() > 5)
+                break;
         }
-
-
-
-        return completionList;
+        return new ArrayList<>(completionList);
     }
 }
 
