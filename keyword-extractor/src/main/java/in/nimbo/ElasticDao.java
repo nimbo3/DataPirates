@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.*;
@@ -137,9 +138,10 @@ public class ElasticDao implements Closeable {
 
     public static void main(String[] args) {
         SharedMetricRegistries.setDefault("data-pirates-keywords");
+        final Config config = loadConfig();
         ElasticDao elasticDao = null;
         try {
-            elasticDao = new ElasticDao(ConfigFactory.load("config"));
+            elasticDao = new ElasticDao(config);
             ShutDownHook shutDownHook = new ShutDownHook(elasticDao);
             Runtime.getRuntime().addShutdownHook(shutDownHook);
             while (!closed) {
@@ -160,6 +162,11 @@ public class ElasticDao implements Closeable {
             }
 
         }
+    }
+    private static Config loadConfig() {
+        Config outConfig = ConfigFactory.parseFile(new File("config.properties"));
+        Config inConfig = ConfigFactory.load("config");
+        return ConfigFactory.load(outConfig).withFallback(inConfig);
     }
 
     public void scroll() throws IOException {
