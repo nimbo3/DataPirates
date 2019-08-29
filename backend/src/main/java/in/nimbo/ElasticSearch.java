@@ -10,7 +10,9 @@ import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.Fuzziness;
+import org.elasticsearch.index.query.MultiMatchQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.search.MatchQuery;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
@@ -89,6 +91,27 @@ public class ElasticSearch {
             logger.error(String.format("Elastic couldn't search [%s]", input), e);
             return new ArrayList<>();
         }
+    }
+
+    public List<String> autoComplete(String input) throws IOException {
+        SearchRequest searchRequest = new SearchRequest(String.format("%s-%s", index, "fa"));
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(QueryBuilders.multiMatchQuery(input,"title.auto-complete"
+                ,"title.auto-complete._2gram", "title.auto-complete._3gram"
+                )
+//                .type(MatchQuery.Type.BOOLEAN_PREFIX)
+        );
+        searchSourceBuilder.size(8);
+        searchRequest.source(searchSourceBuilder);
+        SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+        List<String> completionList = new ArrayList<>();
+        for (SearchHit searchHit : searchResponse.getHits().getHits()) {
+            completionList.add(searchHit.getSourceAsMap().get("title").toString());
+        }
+
+
+
+        return completionList;
     }
 }
 

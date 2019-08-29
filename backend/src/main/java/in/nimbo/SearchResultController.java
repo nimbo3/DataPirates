@@ -1,17 +1,18 @@
 package in.nimbo;
 
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.SharedMetricRegistries;
-import com.codahale.metrics.jmx.JmxReporter;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.model.ResultEntry;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 @RestController
 public class SearchResultController {
+
+    private static Config config = ConfigFactory.load("config");
 
     @CrossOrigin
     @GetMapping("/search")
@@ -25,6 +26,23 @@ public class SearchResultController {
         else if (type == 3)
             return elasticSearch.fuzzySearch(input);
         throw new IllegalArgumentException();
+    }
+
+    @CrossOrigin
+    @GetMapping("/api/autocomplete")
+    public List<String> autoComplete(@RequestParam(value = "input") String input) {
+        ElasticSearch elasticSearch = new ElasticSearch(config);
+        try {
+            List<String> autoComplete = elasticSearch.autoComplete(input);
+            return autoComplete;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return Arrays.asList(
+                    "salam",
+                    "khoobi",
+                    "chetori"
+            );
+        }
     }
 }
 
