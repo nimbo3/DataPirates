@@ -28,7 +28,7 @@ public class Site {
         this.link = link;
     }
 
-    public String getDomain() throws MalformedURLException {
+    public String getHost() throws MalformedURLException {
         return new URL(link).getHost();
     }
 
