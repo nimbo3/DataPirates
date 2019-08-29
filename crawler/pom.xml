@@ -22,6 +22,7 @@
         <dropwizard-annotation.version>3.0.2</dropwizard-annotation.version>
         <lettuce-core.version>5.1.7.RELEASE</lettuce-core.version>
         <zookeeper.version>3.5.5</zookeeper.version>
+        <netty.version>4.1.17.Final</netty.version>
     </properties>
 
     <artifactId>crawler</artifactId>
@@ -104,7 +105,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.17.Final</version>
+            <version>${netty.version}</version>
         </dependency>
 
         <dependency>
