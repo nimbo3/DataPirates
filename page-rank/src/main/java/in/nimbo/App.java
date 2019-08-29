@@ -6,6 +6,7 @@ import in.nimbo.model.Edge;
 import in.nimbo.model.Vertex;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
@@ -30,9 +31,9 @@ public class App {
         String hbaseXmlHbase = config.getString("hbase.xml.url.in.hbase");
         String hbaseTableName = config.getString("hbase.table.name");
         String hbaseColumnFamily = config.getString("hbase.column.family");
-        int sparkExecutorCores = config.getInt("spark.executor.cores");
+        String sparkExecutorCores = config.getString("spark.executor.cores");
         String sparkExecutorMemory = config.getString("spark.executor.memory");
-        int sparkExecutorNumber = config.getInt("spark.executor.number");
+
         String elasticNodesIp = config.getString("es.nodes.ip");
         String elasticIndexName = config.getString("es.index.name");
         String elasticAutoCreateIndex = config.getString("es.index.auto.create");
@@ -43,17 +44,24 @@ public class App {
         hbaseConfiguration.addResource(hbaseXmlHbase);
         hbaseConfiguration.set(TableInputFormat.INPUT_TABLE, hbaseTableName);
         hbaseConfiguration.set(TableInputFormat.SCAN_COLUMN_FAMILY, hbaseColumnFamily);
-//        hbaseConfiguration.set(TableInputFormat.SCAN_CACHEDROWS, "500");
+        hbaseConfiguration.set(TableInputFormat.SCAN_CACHEDROWS, "1000");
 
         SparkConf sparkConf = new SparkConf()
                 .setAppName(sparkAppName)
-                .set("spark.executor.cores", String.valueOf(sparkExecutorCores))
+                .set("spark.cores.max", "12")
+                .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+                .set("spark.executor.cores", sparkExecutorCores)
                 .set("spark.executor.memory", sparkExecutorMemory)
-//                .set("spark.cores.max", String.valueOf(sparkExecutorCores * sparkExecutorNumber))
-                .set("es.nodes", elasticNodesIp)
-                .set("es.mapping.id", "id")
-                .set("es.index.auto.create", elasticAutoCreateIndex)
-                .set("es.write.operation", "upsert");
+//                .set("es.nodes", elasticNodesIp)
+//                .set("es.mapping.id", "id")
+//                .set("es.index.auto.create", elasticAutoCreateIndex)
+//                .set("es.write.operation", "upsert")
+                ;
+        sparkConf.registerKryoClasses(new Class[]{
+                Edge.class,
+                Vertex.class,
+                UpdateObject.class
+        });
 
 
         SparkSession sparkSession = SparkSession.builder()
@@ -69,6 +77,7 @@ public class App {
         cellRDD.persist(StorageLevel.MEMORY_AND_DISK());
 
         JavaRDD<Vertex> vertexRDD = cellRDD.map(cell -> new Vertex(Bytes.toString(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength())));
+
         JavaRDD<Edge> edgeRDD = cellRDD.map(cell -> {
             String src = Bytes.toString(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength());
             String dst = Bytes.toString(cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength());
@@ -80,13 +89,16 @@ public class App {
 
         cellRDD.unpersist();
         GraphFrame graphFrame = new GraphFrame(vertexDF, edgeDF);
-        graphFrame.cache();
-        GraphFrame pageRankResult = graphFrame.pageRank().maxIter(3).run();
-        pageRankResult.persist(StorageLevel.MEMORY_AND_DISK());
+//        graphFrame.cache();
+        GraphFrame pageRankResult = graphFrame.pageRank()
+                .resetProbability(0.15).maxIter(1).run();
 
-        JavaRDD<UpdateObject> elasticRDD = pageRankResult.vertices().toJavaRDD().map(row -> new UpdateObject(DigestUtils.sha256Hex(row.getString(0)), row.getDouble(1)));
+//        JavaRDD<UpdateObject> elasticRDD =
+                pageRankResult.vertices().toJavaRDD()
+                        .foreach(row -> System.out.println(String.format("%s -> %f", row.getString(0), row.getDouble(1))));
+//                .map(row -> new UpdateObject(DigestUtils.sha256Hex(row.getString(0)), row.getDouble(1)));
 
-        JavaEsSpark.saveToEs(elasticRDD, elasticIndexName);
+//        JavaEsSpark.saveToEs(elasticRDD, elasticIndexName);
 
         sparkSession.close();
     }
