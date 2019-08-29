@@ -3,26 +3,24 @@ package in.nimbo;
 import com.google.common.collect.Iterables;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import in.nimbo.model.UpdateObject;
 import in.nimbo.util.CellUtility;
 import in.nimbo.util.HashGenerator;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.storage.StorageLevel;
-import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 import scala.Tuple2;
 
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -74,13 +72,14 @@ public class App {
 
         JavaPairRDD<String, String> edges = hbaseRDD.flatMap(result -> result.listCells().iterator()).mapToPair(cell -> new Tuple2<>(CellUtility.getCellRowString(cell), CellUtility.getCellQualifier(cell)));
 
-        edges.persist(StorageLevel.MEMORY_AND_DISK());
-
-        Set hashedRowKeys = new HashSet();
-        edges.foreach(edge -> {
-            String hashedRowKey = new String(DigestUtils.md5(edge._1), StandardCharsets.UTF_8);
-            hashedRowKeys.add(hashedRowKey);
-        });
+        Set hashedRowKeys = null;
+        try {
+            hashedRowKeys = createRowKeysHashSet(hbaseTableName, hbaseColumnFamily);
+        } catch (IOException e) {
+            // do sth
+            System.out.println("couldn't connect to hbase table!!!");
+            System.exit(1);
+        }
 
         Broadcast<Set> broadcastVar = javaSparkContext.broadcast(hashedRowKeys);
 
@@ -97,16 +96,38 @@ public class App {
                         int urlCount = Iterables.size(s._1());
                         List<Tuple2<String, Double>> results = new ArrayList<>();
                         for (String n : s._1) {
-                            results.add(new Tuple2<>(n, s._2() / urlCount));
+                            results.add(new Tuple2<>(n, s._2 / urlCount));
                         }
                         return results.iterator();
                     });
             ranks = contribs.reduceByKey(Double::sum).mapValues(sum -> 0.15 + sum * 0.85);
         }
 
-        JavaRDD<UpdateObject> elasticRDD = ranks.map(tuple -> new UpdateObject(HashGenerator.md5HashString(tuple._1), tuple._1, tuple._2));
-        JavaEsSpark.saveToEs(elasticRDD, elasticIndexName);
+        ranks.foreach(t -> {
+            System.out.println(String.format("link: %s -> rank: %s", t._1, t._2));
+        });
+//        JavaRDD<UpdateObject> elasticRDD = ranks.map(tuple -> new UpdateObject(HashGenerator.md5HashString(tuple._1), tuple._1, tuple._2));
+//        JavaEsSpark.saveToEs(elasticRDD, elasticIndexName);
 
         sparkSession.close();
+    }
+
+    private static Set<String> createRowKeysHashSet(String tableName, String columnFamily) throws IOException {
+        Configuration config = HBaseConfiguration.create();
+
+        Connection connection = ConnectionFactory.createConnection(config);
+
+        Scan scan = new Scan();
+        scan.addFamily(Bytes.toBytes(columnFamily));
+        Table table = connection.getTable(TableName.valueOf(tableName));
+
+        ResultScanner scanner = table.getScanner(scan);
+        table.close();
+
+        Set<String> hashedRows = new HashSet<>();
+        for (Result result : scanner) {
+            hashedRows.add(HashGenerator.md5HashString(result.getRow()));
+        }
+        return hashedRows;
     }
 }
