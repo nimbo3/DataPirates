@@ -21,10 +21,7 @@ import org.apache.spark.sql.SparkSession;
 import scala.Tuple2;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 
 public class App {
@@ -64,13 +61,7 @@ public class App {
                 .config(sparkConf)
                 .getOrCreate();
 
-        JavaRDD<Result> hbaseRDD = sparkSession.sparkContext().newAPIHadoopRDD(hbaseConfiguration
-                , TableInputFormat.class, ImmutableBytesWritable.class, Result.class)
-                .toJavaRDD().map(tuple -> tuple._2);
-
         JavaSparkContext javaSparkContext = new JavaSparkContext(sparkSession.sparkContext());
-
-        JavaPairRDD<String, String> edges = hbaseRDD.flatMap(result -> result.listCells().iterator()).mapToPair(cell -> new Tuple2<>(CellUtility.getCellRowString(cell), CellUtility.getCellQualifier(cell)));
 
         Set hashedRowKeys = null;
         try {
@@ -84,10 +75,15 @@ public class App {
         Broadcast<Set> broadcastVar = javaSparkContext.broadcast(hashedRowKeys);
 
         Set broadcastHashSet = broadcastVar.getValue();
-        JavaPairRDD<String, String> validEdges = edges.filter(edge -> broadcastHashSet.contains(HashGenerator.md5HashString(edge._2)));
+
+        JavaRDD<Result> hbaseRDD = sparkSession.sparkContext().newAPIHadoopRDD(hbaseConfiguration
+                , TableInputFormat.class, ImmutableBytesWritable.class, Result.class)
+                .toJavaRDD().map(tuple -> tuple._2);
+
+
+        JavaPairRDD<String, Iterable<String>> links = hbaseRDD.mapToPair(result -> new Tuple2<>(new String(result.getRow()), getIterableFromIterator(result.listCells().stream().filter(cell -> broadcastHashSet.contains(CellUtility.getCellQualifier(cell))).map(cell -> CellUtility.getCellQualifier(cell)).iterator()))).cache();
         broadcastVar.destroy();
 
-        JavaPairRDD<String, Iterable<String>> links = validEdges.groupByKey().cache();
         JavaPairRDD<String, Double> ranks = links.mapValues(rs -> 1.0);
 
         for (int current = 0; current < pageRankIterNum; current++) {
@@ -110,6 +106,10 @@ public class App {
 //        JavaEsSpark.saveToEs(elasticRDD, elasticIndexName);
 
         sparkSession.close();
+    }
+
+    private static <T> Iterable<T> getIterableFromIterator(Iterator<T> iterator) {
+        return () -> iterator;
     }
 
     private static Set<String> createRowKeysHashSet(String tableName, String columnFamily) throws IOException {
