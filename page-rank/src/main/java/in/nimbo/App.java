@@ -9,6 +9,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.filter.FirstKeyOnlyFilter;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -66,6 +67,7 @@ public class App {
         Set hashedRowKeys = null;
         try {
             hashedRowKeys = createRowKeysHashSet(hbaseTableName, hbaseColumnFamily);
+            System.out.println("hash set created successfully!!");
         } catch (IOException e) {
             // do sth
             System.out.println("couldn't connect to hbase table!!!");
@@ -87,6 +89,9 @@ public class App {
         JavaPairRDD<String, Double> ranks = links.mapValues(rs -> 1.0);
 
         for (int current = 0; current < pageRankIterNum; current++) {
+            ranks.foreach(t -> {
+                System.out.println(String.format("link: %s -> rank: %s", t._1, t._2));
+            });
             JavaPairRDD<String, Double> contribs = links.join(ranks).values()
                     .flatMapToPair(s -> {
                         int urlCount = Iterables.size(s._1());
@@ -113,21 +118,30 @@ public class App {
     }
 
     private static Set<String> createRowKeysHashSet(String tableName, String columnFamily) throws IOException {
+        System.out.println("initializing configuration for scanning hbase ...");
         Configuration config = HBaseConfiguration.create();
 
         Connection connection = ConnectionFactory.createConnection(config);
 
         Scan scan = new Scan();
         scan.addFamily(Bytes.toBytes(columnFamily));
+        scan.setFilter(new FirstKeyOnlyFilter());
         Table table = connection.getTable(TableName.valueOf(tableName));
 
         ResultScanner scanner = table.getScanner(scan);
         table.close();
+        System.out.println("Scanning ...");
 
         Set<String> hashedRows = new HashSet<>();
+        int counter = 0;
         for (Result result : scanner) {
+            counter++;
             hashedRows.add(HashGenerator.md5HashString(result.getRow()));
+            if (counter % 1000 == 0)
+                System.out.println("counter: " + counter);
         }
+        System.out.println("hash set is ready now!");
+
         return hashedRows;
     }
 }
