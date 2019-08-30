@@ -149,13 +149,13 @@ public class ElasticDao implements Closeable {
             elasticDao = new ElasticDao(config);
             ShutDownHook shutDownHook = new ShutDownHook(elasticDao);
             Runtime.getRuntime().addShutdownHook(shutDownHook);
-                try {
-                    elasticDao.scroll();
-                } catch (IOException e) {
-                    logger.error("can't search query to elastic", e);
-                } catch (Exception e) {
-                    logger.error("Exception in Thread main", e);
-                }
+            try {
+                elasticDao.scroll();
+            } catch (IOException e) {
+                logger.error("can't search query to elastic", e);
+            } catch (Exception e) {
+                logger.error("Exception in Thread main", e);
+            }
         } finally {
             try {
                 assert elasticDao != null;
@@ -175,8 +175,9 @@ public class ElasticDao implements Closeable {
 
     public void scroll() throws IOException {
         SearchResponse searchResponse;
+        if (scrollId.length() == 0) {
             QueryBuilder matchQueryBuilder = QueryBuilders.matchAllQuery();
-            SearchRequest searchRequest = new SearchRequest(INDEX);
+            SearchRequest searchRequest = new SearchRequest(TERM_VECTOR_INDEX);
             SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
             searchSourceBuilder.query(matchQueryBuilder);
             searchSourceBuilder.size(SIZE);
@@ -184,15 +185,24 @@ public class ElasticDao implements Closeable {
             searchRequest.scroll(TimeValue.timeValueMinutes(SCROLL_TIME_ALIVE));
             searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
             scrollId = searchResponse.getScrollId();
+        } else {
+            SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
+            scrollRequest.scroll(TimeValue.timeValueMinutes(SCROLL_TIME_ALIVE));
+            searchResponse = client.scroll(scrollRequest, RequestOptions.DEFAULT);
+            scrollId = searchResponse.getScrollId();
+        }
         do {
+            final String[] ids = Arrays.stream(searchResponse.getHits().getHits()).
+                    map(SearchHit::getId).toArray(String[]::new);
 
             try {
-
-                final SearchHit[] hits = searchResponse.getHits().getHits();
-                Arrays.stream(hits).forEach(h -> addToNewOne(h.getSourceAsMap().get("text").toString(),
-                        h.getId()));
-                bulkInsertionMeter.mark(hits.length);
-            } catch (ElasticsearchStatusException e){
+                if (ids.length > 0) {
+                    updateKeywordsWithId(ids);
+                }
+            } catch (JsonParseException | SocketTimeoutException e) {
+                logger.error("can't update keywords", e);
+                updateKeywordsWithIdFailure.mark();
+            } catch (ElasticsearchStatusException e) {
                 logger.error("ids requested is empty", e);
             }
 
@@ -225,14 +235,12 @@ public class ElasticDao implements Closeable {
                 string = getSingleTermVector(termVectorsResponse.getId());
             }
             add(string, termVectorsResponse.getId());
-//            update(string, termVectorsResponse.getId());
             docs_updated_counter.inc();
         }
     }
 
     private void add(String string, String id) {
         IndexRequest indexRequest = new IndexRequest(TAGS_INDEX).id(id).source("tags", string);
-//        UpdateRequest request = new UpdateRequest(TAGS_INDEX, id).doc("tags", string);
         insertBulkProcessor.add(indexRequest);
 
     }
@@ -291,7 +299,7 @@ public class ElasticDao implements Closeable {
                     if (count >= NUM_SAVED_KEYWORDS)
                         break;
                     String termStr = term.getTerm();
-                    if (!termStr.matches("\\d+")) {
+                    if (!termStr.matches("[+-]?\\d+(?:\\.\\d+)?")) {
                         ++count;
                         stringBuilder.append(termStr).append(", ");
                     }
