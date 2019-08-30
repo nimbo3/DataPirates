@@ -123,8 +123,14 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
             builder.field("keywords", site.getKeywords());
             builder.field("domain", site.getHost());
             builder.endObject();
-            IndexRequest indexRequest = new IndexRequest(String.format("%s-%s", INDEX, site.getLanguage()))
+            IndexRequest indexRequest;
+            if(site.getLanguage().equals("en")){
+                indexRequest = new IndexRequest("new-en")
                     .id(hashedUrl).source(builder);
+            }else{
+                indexRequest = new IndexRequest(String.format("%s-%s", INDEX, site.getLanguage()))
+                    .id(hashedUrl).source(builder);
+            }
             bulkProcessor.add(indexRequest);
             logger.trace(String.format("Elastic Inserted [%s]", site.getLink()));
         } catch (IOException e) {
