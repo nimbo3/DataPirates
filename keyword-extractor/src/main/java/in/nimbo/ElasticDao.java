@@ -14,6 +14,7 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollRequest;
@@ -44,8 +45,10 @@ import java.util.stream.Collectors;
 
 public class ElasticDao implements Closeable {
     private static final Logger logger = LoggerFactory.getLogger(ElasticDao.class);
+    private final String TAGS_INDEX;
     private static boolean closed = false;
     private final String INDEX;
+    private final String TERM_VECTOR_INDEX;
     private final Config config;
     private final Timer bulkInsertionTimer;
     private final Timer bulkTermVectorTimer;
@@ -68,6 +71,8 @@ public class ElasticDao implements Closeable {
     public ElasticDao(Config config) {
         this.config = config;
         this.INDEX = config.getString("elastic.index.name");
+        this.TERM_VECTOR_INDEX = config.getString("elastic.term.vector.index.name");
+        this.TAGS_INDEX = config.getString("elastic.tags.index.name");
         elasticBulkTimeOut = config.getInt("elastic.bulk.timeout");
         final RestClientBuilder builder = RestClient.builder(
                 new HttpHost(config.getString("elastic.hostname"),
@@ -144,7 +149,6 @@ public class ElasticDao implements Closeable {
             elasticDao = new ElasticDao(config);
             ShutDownHook shutDownHook = new ShutDownHook(elasticDao);
             Runtime.getRuntime().addShutdownHook(shutDownHook);
-            while (!closed) {
                 try {
                     elasticDao.scroll();
                 } catch (IOException e) {
@@ -152,7 +156,6 @@ public class ElasticDao implements Closeable {
                 } catch (Exception e) {
                     logger.error("Exception in Thread main", e);
                 }
-            }
         } finally {
             try {
                 assert elasticDao != null;
@@ -163,6 +166,7 @@ public class ElasticDao implements Closeable {
 
         }
     }
+
     private static Config loadConfig() {
         Config outConfig = ConfigFactory.parseFile(new File("config.properties"));
         Config inConfig = ConfigFactory.load("config");
@@ -171,7 +175,6 @@ public class ElasticDao implements Closeable {
 
     public void scroll() throws IOException {
         SearchResponse searchResponse;
-        if (scrollId.length() == 0) {
             QueryBuilder matchQueryBuilder = QueryBuilders.matchAllQuery();
             SearchRequest searchRequest = new SearchRequest(INDEX);
             SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -181,43 +184,15 @@ public class ElasticDao implements Closeable {
             searchRequest.scroll(TimeValue.timeValueMinutes(SCROLL_TIME_ALIVE));
             searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
             scrollId = searchResponse.getScrollId();
-        } else {
-            SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
-            scrollRequest.scroll(TimeValue.timeValueMinutes(SCROLL_TIME_ALIVE));
-            searchResponse = client.scroll(scrollRequest, RequestOptions.DEFAULT);
-            scrollId = searchResponse.getScrollId();
-        }
         do {
-            int docsWithSoManyNumbers = 0;
-            List<String> list = new LinkedList<>();
-            for (SearchHit hit : searchResponse.getHits().getHits()) {
-                if (hit.getSourceAsMap().containsKey("tags")) {
-                    String tag = hit.getSourceAsMap().get("tags").toString();
-                    if (hasSoManyNumbers(tag)) {
-                        ++docsWithSoManyNumbers;
-                        list.add(hit.getId());
-                    }
-                    if (tag.split(" ").length > NUM_SAVED_KEYWORDS) {
-                        list.add(hit.getId());
-                    }
-                } else {
-                    list.add(hit.getId());
-                }
-            }
-
-            final String[] ids = list.toArray(new String[0]);
-
-            docs_skipped_update_counter.inc(searchResponse.getHits().getHits().length - ids.length);
-            docs_with_so_many_numbers_counter.inc(docsWithSoManyNumbers);
 
             try {
-                if(ids.length > 0) {
-                    updateKeywordsWithId(ids);
-                }
-            } catch (JsonParseException | SocketTimeoutException e) {
-                logger.error("can't update keywords", e);
-                updateKeywordsWithIdFailure.mark();
-            }catch (ElasticsearchStatusException e){
+
+                final SearchHit[] hits = searchResponse.getHits().getHits();
+                Arrays.stream(hits).forEach(h -> addToNewOne(h.getSourceAsMap().get("text").toString(),
+                        h.getId()));
+                bulkInsertionMeter.mark(hits.length);
+            } catch (ElasticsearchStatusException e){
                 logger.error("ids requested is empty", e);
             }
 
@@ -227,6 +202,11 @@ public class ElasticDao implements Closeable {
             scrollId = searchResponse.getScrollId();
         } while (searchResponse.getHits().getHits().length != 0);
         scrollId = "";
+    }
+
+    private void addToNewOne(String text, String id) {
+        IndexRequest indexRequest = new IndexRequest(TERM_VECTOR_INDEX).id(id).source("text", text);
+        insertBulkProcessor.add(indexRequest);
     }
 
     public void updateKeywordsWithId(String[] ids) throws IOException {
@@ -244,18 +224,26 @@ public class ElasticDao implements Closeable {
             if (hasSoManyNumbers(string)) {
                 string = getSingleTermVector(termVectorsResponse.getId());
             }
-            update(string, termVectorsResponse.getId());
+            add(string, termVectorsResponse.getId());
+//            update(string, termVectorsResponse.getId());
             docs_updated_counter.inc();
         }
     }
 
+    private void add(String string, String id) {
+        IndexRequest indexRequest = new IndexRequest(TAGS_INDEX).id(id).source("tags", string);
+//        UpdateRequest request = new UpdateRequest(TAGS_INDEX, id).doc("tags", string);
+        insertBulkProcessor.add(indexRequest);
+
+    }
+
     private boolean hasSoManyNumbers(String string) {
         return Arrays.stream(string.split(" "))
-                .filter(word -> word.matches("\\d+")).count() > (double) MAX_NUM_TERMS * 0.75;
+                .filter(word -> word.matches("[+-]?\\d+(?:\\.\\d+)?")).count() > (double) NUM_SAVED_KEYWORDS * 0.2;
     }
 
     public TermVectorsRequest getTermVectorRequestSchema() {
-        TermVectorsRequest request = new TermVectorsRequest(INDEX, "fake");
+        TermVectorsRequest request = new TermVectorsRequest(TERM_VECTOR_INDEX, "fake");
         request.setFields("text");
         request.setTermStatistics(true);
         request.setFieldStatistics(true);
@@ -270,25 +258,23 @@ public class ElasticDao implements Closeable {
 
     public String getSingleTermVector(String id) throws IOException {
         StringBuilder stringBuilder = new StringBuilder();
-        TermVectorsRequest request = new TermVectorsRequest(INDEX, id);
+        TermVectorsRequest request = new TermVectorsRequest(TERM_VECTOR_INDEX, id);
         request.setFields("text");
         request.setTermStatistics(true);
         request.setFieldStatistics(true);
         request.setPositions(false);
         request.setOffsets(false);
-        GetRequest getRequest = new GetRequest(INDEX, id);
+        GetRequest getRequest = new GetRequest(TERM_VECTOR_INDEX, id);
         String text = "";
-        String link = "";
         try {
             GetResponse response = client.get(getRequest, RequestOptions.DEFAULT);
             if (response.isExists()) {
                 text = response.getSourceAsMap().get("text").toString();
-                link = response.getSourceAsMap().get("link").toString();
             } else {
-                logger.warn(String.format("Elastic found no match id for [%s]", link));
+                logger.warn("Elastic found no match id ");
             }
         } catch (IOException e) {
-            logger.error(String.format("Elastic couldn't get [%s]", link), e);
+            logger.error("Elastic couldn't get link", e);
         }
         Map<String, Integer> filters = new HashMap<>();
         int MAX_NUM_TERMS = text.split(" ").length;
