@@ -12,6 +12,7 @@ import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.io.IOException;
 
@@ -21,6 +22,7 @@ public class App {
     public static void main(String[] args) {
         try {
             Config config = ConfigFactory.load("config");
+            TopSites.updateListOfTopDomains();
             Configuration hbaseConfig = HBaseConfiguration.create();
             Connection hbaseConnection = ConnectionFactory.createConnection(hbaseConfig);
             Hbase hbase = new Hbase(hbaseConnection, config);

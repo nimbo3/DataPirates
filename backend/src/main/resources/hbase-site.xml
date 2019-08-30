@@ -1,7 +1,7 @@
 <configuration>
     <property>
         <name>hbase.zookeeper.quorum</name>
-        <value>slave1,slave3</value>
+        <value>slave2,slave3,master</value>
     </property>
     <property>
         <name>hbase.zookeeper.property.clientPort</name>
