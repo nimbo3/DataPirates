@@ -37,6 +37,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
     private final Timer deleteTimer;
     private final Timer bulkInsertionTimer;
     private final Meter bulkInsertionMeter;
+    private final Meter bulkInsertionSuccesses;
     private final Meter bulkInsertionFailures;
     private int elasticBulkTimeOut;
     private RestHighLevelClient client;
@@ -55,6 +56,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
         @Override
         public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
             logger.info("Bulk request sent successfully.");
+            bulkInsertionSuccesses.mark(request.requests().size());
             bulkInsertTime.stop();
         }
 
@@ -90,6 +92,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
         bulkInsertionMeter = metricRegistry.meter("elastic-bulk-insertion");
         bulkInsertionTimer = metricRegistry.timer("elastic-bulk-insertion-timer");
         bulkInsertionFailures = metricRegistry.meter("elastic-bulk-insertion-failure");
+        bulkInsertionSuccesses = metricRegistry.meter("elastic-bulk-insertion-successes");
     }
 
     public Site get(Site site) {
