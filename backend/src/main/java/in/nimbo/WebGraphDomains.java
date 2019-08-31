@@ -29,42 +29,27 @@ public class WebGraphDomains {
         hbase = _hbase;
         try {
             List<String> topDomains = getTopDomainsList();
-            System.out.println(topDomains.size());
 
-//            List<Result> results = new ArrayList<>();
-//            int counter = 0;
-//            for (String domain : topDomains) {
-//                if (counter > 20)
-//                    break;
-//                results.add(hbase.get(domain));
-//                counter++;
-//            }
             Result[] results = hbase.get(topDomains);
-//            System.out.println("results.size() = " + results.size());
 
             Set<Edge> edges = new LinkedHashSet<>();
             Set<Vertex> verteces = new LinkedHashSet<>();
             for (Result result : results) {
                 extractHbaseResultToGraph(edges, verteces, result);
             }
-            System.out.println("verteces = " + verteces.size());
-            System.out.println("edges = " + edges);
-
-            Set<Edge> reorderedEdges = new LinkedHashSet<>();
-            Set<Vertex> reorderedVerteces = new LinkedHashSet<>();
-            verteces.forEach(vertex -> {
-                if (topDomains.contains(vertex.getId()))
-                    reorderedVerteces.add(vertex);
-            });
+            Set<Edge> limitedEdges = new LinkedHashSet<>();
+            Set<Vertex> limitedVerteces = new LinkedHashSet<>();
             edges.forEach(edge -> {
                 if (topDomains.contains(edge.getSrc()) && topDomains.contains(edge.getDst()))
-                    reorderedEdges.add(edge);
+                    limitedEdges.add(edge);
             });
 
-            System.out.println("reorderedEdges.size() = " + reorderedEdges.size());
-            System.out.println("reorderedVerteces.size() = " + reorderedVerteces.size());
+            verteces.forEach(vertex -> {
+                if (topDomains.contains(vertex.getId()))
+                    limitedVerteces.add(vertex);
+            });
 
-            webGraphResult = new WebGraphResult(new ArrayList<>(reorderedVerteces), new ArrayList<>(reorderedEdges));
+            webGraphResult = new WebGraphResult(new ArrayList<>(limitedVerteces), new ArrayList<>(limitedEdges));
         } catch (IOException e) {
             logger.error("Error in fetching top domains", e);
         } catch (HbaseException e) {
@@ -75,10 +60,7 @@ public class WebGraphDomains {
 
     public static void extractHbaseResultToGraph(Set<Edge> edges, Set<Vertex> verteces, Result result) {
         String row = Bytes.toString(result.getRow());
-        System.out.println(row);
-        if (row != null) {
-            if (result.listCells() != null)
-                System.out.println(result.listCells().size());
+        if (row != null && result.listCells() != null) {
             verteces.add(new Vertex(row, "#17a2b8"));
             result.listCells().forEach(cell -> {
                 String family = Bytes.toString(CellUtil.cloneFamily(cell));
@@ -98,13 +80,14 @@ public class WebGraphDomains {
                     edges.add(edge);
                 }
             });
+
         }
     }
 
     private static List<String> getTopDomainsList() throws IOException {
         Document document = Jsoup.connect("https://www.alexa.com/topsites")
                 .followRedirects(true)
-                .timeout(30000)
+                .timeout(20000)
                 .get();
 
         List<String> topDomains = new ArrayList<>();
