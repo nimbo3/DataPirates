@@ -14,6 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Hbase {
     private static final Logger logger = LoggerFactory.getLogger(Hbase.class);
@@ -33,6 +35,19 @@ public class Hbase {
             throw new HbaseException("Can't get from Hbase", e);
         }
     }
+
+    public Result[] get(List<String> domains) throws HbaseException {
+        try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME))) {
+            List<Get> getList = new ArrayList<>();
+            for (String domain : domains) {
+                getList.add(new Get(Bytes.toBytes(domain)));
+            }
+            return table.get(getList);
+        } catch (IOException e) {
+            throw new HbaseException("Can't get from Hbase", e);
+        }
+    }
+
 
     public void closeConnection() throws IOException {
         connection.close();

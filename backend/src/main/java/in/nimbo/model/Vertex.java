@@ -44,10 +44,6 @@ public class Vertex implements Serializable {
         return label;
     }
 
-    public void setId(String id) {
-        this.id = id;
-    }
-
     @Override
     public boolean equals(Object obj) {
         return obj  instanceof Vertex &&

@@ -4,20 +4,25 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.model.*;
 import in.nimbo.model.exceptions.HbaseException;
-import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 @RestController
 public class SearchResultController {
 
     private static Hbase hbase;
+
+    public static void setHbase(Hbase hbase) {
+        SearchResultController.hbase = hbase;
+    }
 
     @CrossOrigin
     @GetMapping("/search")
@@ -38,41 +43,19 @@ public class SearchResultController {
     public WebGraphResult singleDomainGraph(@RequestParam(value = "domain") String domain) {
         try {
             Result result = hbase.get(domain);
-            if (result.listCells() != null) {
-                Set<Edge> edges = new LinkedHashSet<>();
-                Set<Vertex> verteces = new LinkedHashSet<>();
-                verteces.add(new Vertex(Bytes.toString(result.getRow()), "#17a2b8"));
-                result.listCells().forEach(cell -> {
-                    String row = Bytes.toString(CellUtil.cloneRow(cell));
-                    String family = Bytes.toString(CellUtil.cloneFamily(cell));
-                    String qualifier = Bytes.toString(CellUtil.cloneQualifier(cell));
-                    Integer value = Bytes.toInt(CellUtil.cloneValue(cell));
-                    if (value > 5) {
-                        value = 5;
-                    }
-                    verteces.add(new Vertex(qualifier));
-                    Edge edge;
-                    if (!row.equals(qualifier)) {
-                        if (family.equals("i")) {
-                            edge = new Edge(qualifier, row, value);
-                        } else {
-                            edge = new Edge(row, qualifier, value);
-                        }
-                        edges.add(edge);
-                    }
-                });
-                return new WebGraphResult(new ArrayList<>(verteces), new ArrayList<>(edges));
-            } else {
-                return null;
-            }
+            Set<Edge> edges = new LinkedHashSet<>();
+            Set<Vertex> verteces = new LinkedHashSet<>();
+            WebGraphDomains.extractHbaseResultToGraph(edges, verteces, result);
+            return new WebGraphResult(new ArrayList<>(verteces), new ArrayList<>(edges));
         } catch (HbaseException e) {
             return null;
         }
     }
 
-
-    public static void setHbase(Hbase hbase) {
-        SearchResultController.hbase = hbase;
+    @CrossOrigin
+    @GetMapping("/web-graph/top-domains")
+    public WebGraphResult topDomainsGraph() {
+        return WebGraphDomains.getWebGraphResult();
     }
 }
 
