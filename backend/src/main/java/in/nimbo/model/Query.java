@@ -36,7 +36,6 @@ public class Query {
                 text = text.concat(token + " ");
         }
         text = text.trim();
-        System.out.println(text);
         return new Query(text, domain, exclude);
     }
 

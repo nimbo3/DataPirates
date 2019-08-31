@@ -10,11 +10,14 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.text.Text;
 import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 
 import java.io.IOException;
 import java.util.*;
@@ -25,6 +28,7 @@ public class ElasticSearch {
     private String indexPrefix = "sites-";
     private String index = "sites-en";
     private int outputSize;
+    private int summaryMaxLength;
     private float textBoost;
     private float titleBoost;
     private float keywordsBoost;
@@ -35,6 +39,7 @@ public class ElasticSearch {
                         config.getString("elastic.hostname"),
                         config.getInt("elastic.port"))));
         outputSize = config.getInt("elastic.search.result.size");
+        summaryMaxLength = config.getInt("elastic.search.result.summary.length.max");
         textBoost = (float) config.getDouble("elastic.search.text.boost");
         titleBoost = (float) config.getDouble("elastic.search.title.boost");
         keywordsBoost = (float) config.getDouble("elastic.search.keywords.boost");
@@ -78,16 +83,22 @@ public class ElasticSearch {
         Query query = Query.build(queryString);
         SearchRequest searchRequest = new SearchRequest(indexPrefix + language);
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery()
+        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery()
                 .must(QueryBuilders.simpleQueryStringQuery(query.getText())
                         .quoteFieldSuffix(".raw")
                         .field("title", titleBoost)
                         .field("text", textBoost)
                         .field("keyword", keywordsBoost));
         if (query.getDomain() != null)
-            queryBuilder.filter(QueryBuilders.termQuery("domain", query.getDomain()));
-        query.getExclude().forEach(exclude -> queryBuilder.mustNot(QueryBuilders.termQuery("text", exclude)));
-        searchSourceBuilder.query(queryBuilder);
+            boolQueryBuilder.filter(QueryBuilders.termQuery("domain", query.getDomain()));
+        query.getExclude().forEach(exclude -> boolQueryBuilder.mustNot(QueryBuilders.termQuery("text", exclude)));
+        HighlightBuilder highlightBuilder = new HighlightBuilder();
+        HighlightBuilder.Field highlightTitle =
+                new HighlightBuilder.Field("text");
+        highlightTitle.highlighterType("unified");
+        highlightBuilder.field(highlightTitle);
+        searchSourceBuilder.query(boolQueryBuilder);
+        searchSourceBuilder.highlighter(highlightBuilder);
         searchSourceBuilder.size(outputSize);
         searchRequest.source(searchSourceBuilder);
         return getResults(queryString, searchRequest);
@@ -99,16 +110,7 @@ public class ElasticSearch {
             searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
             List<ResultEntry> resultEntries = new ArrayList<>();
             for (SearchHit searchHit : searchResponse.getHits().getHits()) {
-                Map<String, Object> hitMap = searchHit.getSourceAsMap();
-                ResultEntry resultEntry = new ResultEntry(hitMap.get("title").toString(),
-                        hitMap.get("link").toString(),
-                        hitMap.get("text").toString());
-                if (hitMap.get("page-rank") != null)
-                    resultEntry.setPageRank(Double.parseDouble(hitMap.get("page-rank").toString()));
-                else
-                    resultEntry.setPageRank(1);
-                if (hitMap.get("tags") != null)
-                    resultEntry.setTags(Arrays.asList(hitMap.get("tags").toString().split(",")));
+                ResultEntry resultEntry = convertToResultEntry(searchHit);
                 resultEntries.add(resultEntry);
             }
             return resultEntries;
@@ -116,6 +118,38 @@ public class ElasticSearch {
             logger.error(String.format("Elastic couldn't search [%s]", input), e);
             return new ArrayList<>();
         }
+    }
+
+    private ResultEntry convertToResultEntry(SearchHit searchHit) {
+        Map<String, Object> hitMap = searchHit.getSourceAsMap();
+        String summary = extractSummary(searchHit, hitMap);
+        ResultEntry resultEntry = new ResultEntry(hitMap.get("title").toString(),
+                hitMap.get("link").toString(),
+                summary);
+        if (hitMap.get("page-rank") != null)
+            resultEntry.setPageRank(Double.parseDouble(hitMap.get("page-rank").toString()));
+        else
+            resultEntry.setPageRank(1);
+        if (hitMap.get("tags") != null)
+            resultEntry.setTags(Arrays.asList(hitMap.get("tags").toString().split(",")));
+        return resultEntry;
+    }
+
+    private String extractSummary(SearchHit searchHit, Map<String, Object> hitMap) {
+        String summary = "";
+        try {
+            Map<String, HighlightField> highlightFields = searchHit.getHighlightFields();
+            HighlightField highlight = highlightFields.get("text");
+            Text[] fragments = highlight.fragments();
+            for (Text fragment : fragments)
+                if (summary.length() < summaryMaxLength)
+                    summary = summary + "..." + fragment;
+        } catch (NullPointerException e) {
+            summary = hitMap.get("text").toString();
+            if (summary.length() > summaryMaxLength)
+                summary = summary.substring(0, summaryMaxLength) + "...";
+        }
+        return summary;
     }
 }
 
