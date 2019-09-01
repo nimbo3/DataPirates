@@ -97,6 +97,7 @@ public class ElasticSearch {
         String summary = extractSummary(searchHit, hitMap);
         ResultEntry resultEntry = new ResultEntry(hitMap.get("title").toString(),
                 hitMap.get("link").toString(),
+                hitMap.get("text").toString(),
                 summary);
         if (hitMap.get("page-rank") != null)
             resultEntry.setPageRank(Double.parseDouble(hitMap.get("page-rank").toString()));

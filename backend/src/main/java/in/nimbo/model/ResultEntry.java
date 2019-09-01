@@ -11,14 +11,17 @@ public class ResultEntry {
     private String link;
     @JsonProperty("text")
     private String summary;
+    @JsonProperty("full-text")
+    private String text;
     @JsonProperty("rank")
     private double pageRank;
     @JsonProperty("tags")
     private List<String> tags;
 
-    public ResultEntry(String title, String link, String summary) {
+    public ResultEntry(String title, String link, String text, String summary) {
         this.title = title;
         this.link = link;
+        this.text = text;
         this.summary = summary;
     }
 
@@ -40,6 +43,10 @@ public class ResultEntry {
 
     public String getSummary() {
         return summary;
+    }
+
+    public String getText() {
+        return text;
     }
 
     public double getPageRank() {
