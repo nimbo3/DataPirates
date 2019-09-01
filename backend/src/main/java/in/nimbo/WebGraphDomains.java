@@ -21,35 +21,42 @@ import java.util.List;
 import java.util.Set;
 
 public class WebGraphDomains {
-    private static WebGraphResult webGraphResult;
-    private static Logger logger = LoggerFactory.getLogger(WebGraphDomains.class);
-    private static Hbase hbase;
+    private WebGraphResult webGraphResult;
+    private Logger logger = LoggerFactory.getLogger(WebGraphDomains.class);
 
-    public static void load(Hbase _hbase) {
-        hbase = _hbase;
+    private static WebGraphDomains ourInstance = new WebGraphDomains();
+
+    public static WebGraphDomains getInstance() {
+        return ourInstance;
+    }
+
+    private WebGraphDomains() {
+    }
+
+    public void load(Hbase hbase) {
         try {
             List<String> topDomains = getTopDomainsList();
 
             Result[] results = hbase.get(topDomains);
 
             Set<Edge> edges = new LinkedHashSet<>();
-            Set<Vertex> verteces = new LinkedHashSet<>();
+            Set<Vertex> vertices = new LinkedHashSet<>();
             for (Result result : results) {
-                extractHbaseResultToGraph(edges, verteces, result);
+                extractHbaseResultToGraph(edges, vertices, result);
             }
             Set<Edge> limitedEdges = new LinkedHashSet<>();
-            Set<Vertex> limitedVerteces = new LinkedHashSet<>();
+            Set<Vertex> limitedVertices = new LinkedHashSet<>();
             edges.forEach(edge -> {
                 if (topDomains.contains(edge.getSrc()) && topDomains.contains(edge.getDst()))
                     limitedEdges.add(edge);
             });
 
-            verteces.forEach(vertex -> {
+            vertices.forEach(vertex -> {
                 if (topDomains.contains(vertex.getId()))
-                    limitedVerteces.add(vertex);
+                    limitedVertices.add(vertex);
             });
 
-            webGraphResult = new WebGraphResult(new ArrayList<>(limitedVerteces), new ArrayList<>(limitedEdges));
+            webGraphResult = new WebGraphResult(new ArrayList<>(limitedVertices), new ArrayList<>(limitedEdges));
         } catch (IOException e) {
             logger.error("Error in fetching top domains", e);
         } catch (HbaseException e) {
@@ -58,10 +65,10 @@ public class WebGraphDomains {
 
     }
 
-    public static void extractHbaseResultToGraph(Set<Edge> edges, Set<Vertex> verteces, Result result) {
+    public static void extractHbaseResultToGraph(Set<Edge> edges, Set<Vertex> vertices, Result result) {
         String row = Bytes.toString(result.getRow());
         if (row != null && result.listCells() != null) {
-            verteces.add(new Vertex(row, "#17a2b8"));
+            vertices.add(new Vertex(row, "#17a2b8"));
             result.listCells().forEach(cell -> {
                 String family = Bytes.toString(CellUtil.cloneFamily(cell));
                 String qualifier = Bytes.toString(CellUtil.cloneQualifier(cell));
@@ -69,7 +76,7 @@ public class WebGraphDomains {
                 if (value > 5) {
                     value = 5;
                 }
-                verteces.add(new Vertex(qualifier));
+                vertices.add(new Vertex(qualifier));
                 Edge edge;
                 if (!row.equals(qualifier)) {
                     if (family.equals("i")) {
@@ -84,7 +91,7 @@ public class WebGraphDomains {
         }
     }
 
-    private static List<String> getTopDomainsList() throws IOException {
+    private List<String> getTopDomainsList() throws IOException {
         Document document = Jsoup.connect("https://www.alexa.com/topsites")
                 .followRedirects(true)
                 .timeout(20000)
@@ -97,7 +104,9 @@ public class WebGraphDomains {
         return topDomains;
     }
 
-    public static WebGraphResult getWebGraphResult() {
+
+
+    public WebGraphResult getWebGraphResult() {
         return webGraphResult;
     }
 }
