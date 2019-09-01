@@ -11,7 +11,6 @@ import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.text.Text;
-import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
@@ -45,40 +44,6 @@ public class ElasticSearch {
         keywordsBoost = (float) config.getDouble("elastic.search.keywords.boost");
     }
 
-    public List<ResultEntry> search(String input) {
-        SearchRequest searchRequest = new SearchRequest(index);
-        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        searchSourceBuilder.query(QueryBuilders.matchQuery("text", input));
-        searchSourceBuilder.size(outputSize);
-        searchRequest.source(searchSourceBuilder);
-        return getResults(input, searchRequest);
-    }
-
-    public List<ResultEntry> multiMatchSearch(String input) {
-        SearchRequest searchRequest = new SearchRequest(index);
-        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        searchSourceBuilder.query(QueryBuilders.multiMatchQuery(input)
-                .field("title", titleBoost)
-                .field("text", textBoost)
-                .field("keywords", keywordsBoost));
-        searchSourceBuilder.size(outputSize);
-        searchRequest.source(searchSourceBuilder);
-        return getResults(input, searchRequest);
-    }
-
-    public List<ResultEntry> fuzzySearch(String input) {
-        SearchRequest searchRequest = new SearchRequest(index);
-        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        searchSourceBuilder.query(QueryBuilders.multiMatchQuery(input)
-                .field("title", titleBoost)
-                .field("text", textBoost)
-                .field("keywords", keywordsBoost)
-                .fuzziness(Fuzziness.AUTO));
-        searchSourceBuilder.size(outputSize);
-        searchRequest.source(searchSourceBuilder);
-        return getResults(input, searchRequest);
-    }
-
     public List<ResultEntry> search(String queryString, String language) {
         Query query = Query.build(queryString);
         SearchRequest searchRequest = new SearchRequest(indexPrefix + language);
@@ -91,17 +56,24 @@ public class ElasticSearch {
                         .field("keyword", keywordsBoost));
         if (query.getDomain() != null)
             boolQueryBuilder.filter(QueryBuilders.termQuery("domain", query.getDomain()));
-        query.getExclude().forEach(exclude -> boolQueryBuilder.mustNot(QueryBuilders.termQuery("text", exclude)));
-        HighlightBuilder highlightBuilder = new HighlightBuilder();
-        HighlightBuilder.Field highlightTitle =
-                new HighlightBuilder.Field("text");
-        highlightTitle.highlighterType("unified");
-        highlightBuilder.field(highlightTitle);
+        query.getExclude().forEach(exclude ->
+                boolQueryBuilder.mustNot(QueryBuilders.termQuery("text", exclude)));
         searchSourceBuilder.query(boolQueryBuilder);
-        searchSourceBuilder.highlighter(highlightBuilder);
+        searchSourceBuilder.highlighter(getHighlightBuilder("text"));
         searchSourceBuilder.size(outputSize);
         searchRequest.source(searchSourceBuilder);
         return getResults(queryString, searchRequest);
+    }
+
+    private HighlightBuilder getHighlightBuilder(String fieldName) {
+        HighlightBuilder highlightBuilder = new HighlightBuilder();
+        HighlightBuilder.Field highlightText =
+                new HighlightBuilder.Field(fieldName);
+        highlightText.preTags("<b>");
+        highlightText.postTags("</b>");
+        highlightText.highlighterType("unified");
+        highlightBuilder.field(highlightText);
+        return highlightBuilder;
     }
 
     private List<ResultEntry> getResults(String input, SearchRequest searchRequest) {
