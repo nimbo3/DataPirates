@@ -165,34 +165,6 @@ public class ParserTest {
         }
     }
 
-
-    @Test
-    public void reverseTest() throws IOException {
-        String url = "https://www.geeksforgeeks.org:80/url-samefile-method-in-java-with-examples/";
-        String expected = "org.geeksforgeeks:80/url-samefile-method-in-java-with-examples/";
-        Site site = new Site(url, "title");
-        Assert.assertEquals(expected, site.getReverseLink());
-        expected = "org.apache.spark/documentation.html";
-        url = "http://www.spark.apache.org/documentation.html";
-        site = new Site(url, "title");
-        Assert.assertEquals(expected, site.getReverseLink());
-        expected = "com.stackoverflow/questions/7569335/reverse-a-string-in-java";
-        url = "https://stackoverflow.com/questions/7569335/reverse-a-string-in-java";
-        site = new Site(url, "title");
-        Assert.assertEquals(expected, site.getReverseLink());
-        expected = "master:16010/table.jsp?name=wc";
-        url = "http://master:16010/table.jsp?name=wc";
-        site = new Site(url, "title");
-        Assert.assertEquals(expected, site.getReverseLink());
-        expected = "ir.ac.sbu.znu.samp";
-        url = "https://samp.znu.sbu.ac.ir";
-        site = new Site(url, "title");
-        Assert.assertEquals(expected, site.getReverseLink());
-        expected = "ir.ac.sbu.znu.samp/www.asd";
-        url = "https://samp.znu.sbu.ac.ir/www.asd";
-        site = new Site(url, "title");
-        Assert.assertEquals(expected, site.getReverseLink());
-    }
     @Test
     public void normalizeTest() throws MalformedURLException, ProtocolException {
         Parser parser = new Parser(links[0], htmls[0]);
@@ -211,6 +183,16 @@ public class ParserTest {
         url = "http://www.yahoo.com/asdwaefselkjhklsd?asghar=2";
         expected = "http://yahoo.com/asdwaefselkjhklsd?asghar=2";
         Assert.assertEquals(expected, parser.normalize(url));
+    }
+
+    @Test
+    public void getDomainTest() throws MalformedURLException {
+        Assert.assertEquals("google.com", Parser.getDomain("http://www.google.com"));
+        Assert.assertEquals("google.com", Parser.getDomain("http://google.com"));
+        Assert.assertEquals("co.uk", Parser.getDomain("http://www.google.co.uk"));
+        Assert.assertEquals("google.com", Parser.getDomain("http://docs.google.com"));
+        Assert.assertEquals("google.com", Parser.getDomain("http://www.docs.google.com"));
+        Assert.assertEquals("google.com", Parser.getDomain("http://docs.google.com"));
     }
 
 }

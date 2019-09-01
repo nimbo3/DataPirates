@@ -23,7 +23,6 @@ import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NavigableMap;
-
 import static org.junit.Assert.*;
 
 
@@ -32,10 +31,11 @@ public class HbaseSiteDaoImplTest {
     private static String FAMILY_NAME;
     private static HbaseSiteDaoImpl hbaseSiteDao;
     private static Connection conn;
+    private static Config config;
 
     @BeforeClass
     public static void init() throws IOException {
-        Config config = ConfigFactory.load("config");
+        config = ConfigFactory.load("config");
         try {
             SharedMetricRegistries.getDefault();
         } catch (IllegalStateException e) {
@@ -43,7 +43,7 @@ public class HbaseSiteDaoImplTest {
         }
         Configuration hBaseConfiguration = HBaseConfiguration.create();
         conn = ConnectionFactory.createConnection(hBaseConfiguration);
-        hbaseSiteDao = new HbaseSiteDaoImpl(conn, hBaseConfiguration, config);
+        hbaseSiteDao = new HbaseSiteDaoImpl(conn, config);
         TABLE_NAME = config.getString("hbase.table.name");
         FAMILY_NAME = config.getString("hbase.table.column.family.anchors");
         try (final Admin admin = conn.getAdmin()) {

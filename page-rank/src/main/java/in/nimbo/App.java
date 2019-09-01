@@ -4,6 +4,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import in.nimbo.model.Edge;
 import in.nimbo.model.Vertex;
+import in.nimbo.util.CellUtility;
+import in.nimbo.util.HashGenerator;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
@@ -74,11 +76,11 @@ public class App {
 
         JavaRDD<Cell> cellRDD = hbaseRDD.flatMap(result -> result.listCells().iterator());
 
-        JavaRDD<Vertex> vertexRDD = cellRDD.map(cell -> new Vertex(Bytes.toString(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength())));
+        JavaRDD<Vertex> vertexRDD = cellRDD.map(cell -> new Vertex(HashGenerator.md5HashString(CellUtility.getCellRowString(cell))));
 
         JavaRDD<Edge> edgeRDD = cellRDD.map(cell -> {
-            String src = Bytes.toString(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength());
-            String dst = Bytes.toString(cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength());
+            String src = HashGenerator.md5HashString(CellUtility.getCellRowString(cell));
+            String dst = HashGenerator.md5HashString(CellUtility.getCellQualifier(cell));
             return new Edge(src, dst);
         });
 

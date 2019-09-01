@@ -21,6 +21,7 @@
         <dropwizard.version>4.1.0</dropwizard.version>
         <dropwizard-annotation.version>3.0.2</dropwizard-annotation.version>
         <lettuce-core.version>5.1.7.RELEASE</lettuce-core.version>
+        <zookeeper.version>3.5.5</zookeeper.version>
     </properties>
 
     <artifactId>crawler</artifactId>
@@ -106,6 +107,14 @@
             <version>4.1.17.Final</version>
         </dependency>
 
+<<<<<<< HEAD
+=======
+        <dependency>
+            <groupId>org.apache.zookeeper</groupId>
+            <artifactId>zookeeper</artifactId>
+            <version>${zookeeper.version}</version>
+        </dependency>
+>>>>>>> 8de2151175952f3c4b3bf1eb6fa97732ce3aeb20
     </dependencies>
 
     <build>
