@@ -74,8 +74,6 @@ public class App {
 
         JavaRDD<Cell> cellRDD = hbaseRDD.flatMap(result -> result.listCells().iterator());
 
-        cellRDD.persist(StorageLevel.MEMORY_AND_DISK());
-
         JavaRDD<Vertex> vertexRDD = cellRDD.map(cell -> new Vertex(Bytes.toString(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength())));
 
         JavaRDD<Edge> edgeRDD = cellRDD.map(cell -> {
@@ -87,18 +85,12 @@ public class App {
         Dataset<Row> vertexDF = sparkSession.createDataFrame(vertexRDD, Vertex.class);
         Dataset<Row> edgeDF = sparkSession.createDataFrame(edgeRDD, Edge.class);
 
-        cellRDD.unpersist();
         GraphFrame graphFrame = new GraphFrame(vertexDF, edgeDF);
-//        graphFrame.cache();
         GraphFrame pageRankResult = graphFrame.pageRank()
                 .resetProbability(0.15).maxIter(1).run();
 
-//        JavaRDD<UpdateObject> elasticRDD =
                 pageRankResult.vertices().toJavaRDD()
                         .foreach(row -> System.out.println(String.format("%s -> %f", row.getString(0), row.getDouble(1))));
-//                .map(row -> new UpdateObject(DigestUtils.sha256Hex(row.getString(0)), row.getDouble(1)));
-
-//        JavaEsSpark.saveToEs(elasticRDD, elasticIndexName);
 
         sparkSession.close();
     }
