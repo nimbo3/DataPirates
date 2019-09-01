@@ -92,7 +92,8 @@ public class WebGraphDomains {
     }
 
     private List<String> getTopDomainsList() throws IOException {
-        Document document = Jsoup.connect("https://www.alexa.com/topsites")
+        String url = "https://www.alexa.com/topsites";
+        Document document = Jsoup.connect(url)
                 .followRedirects(true)
                 .timeout(20000)
                 .get();
