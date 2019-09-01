@@ -1,49 +1,78 @@
-- hosts: slaves
+- hosts: localhost
   vars:
-    jmx_exporter_url: https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.12.0/jmx_prometheus_javaagent-0.12.0.jar
-    jmx_exporter_name: jmx_exporter
     git_repository_url: https://github.com/nimbo3/DataPirates.git
     git_repository_branch: master
     project_module_name: crawler
     project_module_version: 1.0-SNAPSHOT
-    crawler_deploy_dir: /opt/data-pirates/
-  environment:
-    JAVA_HOME: /usr/lib/jvm/jdk1.8.0_211
+    git_clone_directory: /opt/data-pirates/
   tasks:
   - name: Install needed packages with apt
     apt:
       name: "{{ packages }}"
     vars:
       packages:
-      - git
-      - maven
+        - git
+        - maven
+
   - name: Get latest project files from github
     git:
       repo: "{{ git_repository_url }}"
-      dest: "{{ crawler_deploy_dir }}"
+      dest: "{{ git_clone_directory }}"
       force: yes
       version: "{{ git_repository_branch }}"
-  - name: Create runnable jar file with maven
-    command: mvn clean package -DskipTests -DoutputDirectory=/opt
-    register: mvn
-    changed_when: "'BUILD FAILURE' not in mvn.stdout"
-    args:
-      chdir: "{{ crawler_deploy_dir }}{{ project_module_name }}"
-  - name: Copy profile folder near runnable jar
-    copy:
-      src: "{{ crawler_deploy_dir }}{{ project_module_name }}/src/main/resources/profiles"
-      dest: "{{ crawler_deploy_dir }}{{ project_module_name }}/target"
-      remote_src: yes
-  - name: Download jmx exporter
-    get_url:
-      url: "{{ jmx_exporter_url }}"
-      dest: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/{{ jmx_exporter_name }}.jar"
-  - name: Create jmx exporter config
-    copy:
-      dest: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/config.yaml"
-      content: '---
+    register: git
 
-        hostPort: localhost:5555
+  - name: Create runnable jar file with maven
+    command: mvn clean package -DskipTests
+    register: mvn
+    changed_when: '"BUILD FAILURE" not in mvn.stdout'
+    args:
+      chdir: "{{ git_clone_directory }}{{ project_module_name }}"
+
+
+- hosts: slaves
+  vars:
+    jmx_exporter_url: https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.12.0/jmx_prometheus_javaagent-0.12.0.jar
+    jmx_exporter_name: jmx_exporter
+    project_module_name: crawler
+    project_module_version: 1.0-SNAPSHOT
+    git_clone_directory: /opt/data-pirates/
+    deploy_dir: /opt/deploy/
+    update: true
+    JAVA_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9010 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -XX:+UseG1GC -Djava.rmi.server.hostname=
+    NATIVE_CODE_LOADER: LD_LIBRARY_PATH=/usr/local/hadoop/lib/native
+    PROCESS: jar
+  tasks:
+  - name: Create deploy dir
+    file:
+      path: "{{ deploy_dir }}"
+      state: directory
+  - name: Upload jar file
+    copy:
+      src: "{{ git_clone_directory }}{{ project_module_name }}/target/{{ project_module_name }}-{{ project_module_version }}.jar"
+      dest: "{{ deploy_dir }}{{ project_module_name }}-{{ project_module_version }}.jar"
+    register: upjar
+  - name: block
+    block:
+    - name: Upload config file
+      copy:
+        src: config.properties
+        dest: "{{ deploy_dir }}config.properties"
+
+    - name: Copy profile folder near runnable jar
+      copy:
+        src: "{{ git_clone_directory }}{{ project_module_name }}/src/main/resources/profiles"
+        dest: "{{ deploy_dir }}"
+
+    - name: Download jmx exporter
+      get_url:
+        url: "{{ jmx_exporter_url }}"
+        dest: "{{ deploy_dir }}{{ jmx_exporter_name }}.jar"
+
+    - name: Create jmx exporter config
+      copy:
+        dest: "{{ deploy_dir }}config.yaml"
+        content: '---
 
         username:
 
@@ -54,9 +83,36 @@
         - pattern: ".*"
 
         '
+    when: upjar.changed
+
+  - name: Get running crawler process
+    shell: "jps | grep {{ PROCESS }}"
+    register: running_process
+    ignore_errors: yes
+
+  - name : Shutdown crawler
+    block:
+    - name: Kill running crawler process
+      shell: kill $(jps | grep {{ PROCESS }} | awk '{print $1}')
+      when: 'update'
+
+    - name: Get process id
+      shell: "jps | grep {{ PROCESS }} | awk '{print $1}'"
+      register: processid
+      ignore_errors: yes
+
+    - name: Wait until the process is finished and pid was destroyed
+      wait_for:
+        path: "/proc/{{ processid.stdout }}/status"
+        state: absent
+    when: '"jar" in running_process.stdout and update'
+
+
   - name: Run crawler app with jmx exporter
-    shell: "nohup $JAVA_HOME/bin/java -javaagent:{{ jmx_exporter_name }}.jar=9070:config.yaml -jar {{ project_module_name }}-{{ project_module_version }}.jar &"
+    shell: "{{ NATIVE_CODE_LOADER }} nohup java {{ JAVA_OPTS }}{{ ansible_hostname }} -javaagent:{{ jmx_exporter_name }}.jar=9070:config.yaml -jar {{ project_module_name }}-{{ project_module_version }}.jar &"
     register: nohup
-    changed_when: "'failed' not in nohup.stderr"
+    changed_when: '"failed" not in nohup.stderr'
     args:
-      chdir: "{{ crawler_deploy_dir }}{{ project_module_name }}/target/"
+      chdir: "{{ deploy_dir }}"
+    when: '"jar" not in running_process.stdout or update'
+

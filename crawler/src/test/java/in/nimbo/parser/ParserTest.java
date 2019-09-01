@@ -185,4 +185,14 @@ public class ParserTest {
         Assert.assertEquals(expected, parser.normalize(url));
     }
 
+    @Test
+    public void getDomainTest() throws MalformedURLException {
+        Assert.assertEquals("google.com", Parser.getDomain("http://www.google.com"));
+        Assert.assertEquals("google.com", Parser.getDomain("http://google.com"));
+        Assert.assertEquals("co.uk", Parser.getDomain("http://www.google.co.uk"));
+        Assert.assertEquals("google.com", Parser.getDomain("http://docs.google.com"));
+        Assert.assertEquals("google.com", Parser.getDomain("http://www.docs.google.com"));
+        Assert.assertEquals("google.com", Parser.getDomain("http://docs.google.com"));
+    }
+
 }

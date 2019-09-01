@@ -1,9 +1,6 @@
 package in.nimbo.dao;
 
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.SharedMetricRegistries;
-import com.codahale.metrics.Timer;
+import com.codahale.metrics.*;
 import com.typesafe.config.Config;
 import in.nimbo.exception.ElasticSiteDaoException;
 import in.nimbo.model.Site;
@@ -36,7 +33,8 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
     private final Meter elasticFailureMeter;
     private final Timer deleteTimer;
     private final Timer bulkInsertionTimer;
-    private final Meter bulkInsertionMeter;
+    private final Histogram bulkInsertionHistogram;
+    private final Meter bulkInsertionSuccesses;
     private final Meter bulkInsertionFailures;
     private int elasticBulkTimeOut;
     private RestHighLevelClient client;
@@ -48,13 +46,14 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
         @Override
         public void beforeBulk(long executionId, BulkRequest request) {
             logger.info("Sending bulk request ...");
-            bulkInsertionMeter.mark(request.requests().size());
+            bulkInsertionHistogram.update(request.requests().size());
             bulkInsertTime = bulkInsertionTimer.time();
         }
 
         @Override
         public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
             logger.info("Bulk request sent successfully.");
+            bulkInsertionSuccesses.mark();
             bulkInsertTime.stop();
         }
 
@@ -77,7 +76,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
                         client.bulkAsync(bulkRequest, RequestOptions.DEFAULT, bulkResponseActionListener), bulkProcessorListener)
             .setBulkActions(config.getInt("elastic.bulk.size"))
             .setConcurrentRequests(config.getInt("elastic.concurrent.requests"))
-            .setFlushInterval(TimeValue.timeValueMinutes(config.getInt("elastic.bulk.flush.interval.seconds")))
+            .setFlushInterval(TimeValue.timeValueSeconds(config.getInt("elastic.bulk.flush.interval.seconds")))
             .setBackoffPolicy(BackoffPolicy.constantBackoff(
                     TimeValue.timeValueSeconds(config.getLong("elastic.backoff.delay.seconds")),
                     config.getInt("elastic.backoff.retries")));
@@ -87,9 +86,10 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
         deleteTimer = metricRegistry.timer("elastic-delete");
         insertionTimer = metricRegistry.timer("elastic-insertion");
         elasticFailureMeter = metricRegistry.meter("elastic-insertion-failure");
-        bulkInsertionMeter = metricRegistry.meter("elastic-bulk-insertion");
+        bulkInsertionHistogram = metricRegistry.histogram("elastic-bulk-insertion");
         bulkInsertionTimer = metricRegistry.timer("elastic-bulk-insertion-timer");
         bulkInsertionFailures = metricRegistry.meter("elastic-bulk-insertion-failure");
+        bulkInsertionSuccesses = metricRegistry.meter("elastic-bulk-insertion-successes");
     }
 
     public Site get(Site site) {
@@ -121,7 +121,7 @@ public class ElasticSiteDaoImpl implements SiteDao, Closeable {
             builder.field("link", site.getLink());
             builder.field("text", site.getPlainText());
             builder.field("keywords", site.getKeywords());
-            builder.field("domain", site.getDomain());
+            builder.field("domain", site.getHost());
             builder.endObject();
             IndexRequest indexRequest = new IndexRequest(String.format("%s-%s", INDEX, site.getLanguage()))
                     .id(hashedUrl).source(builder);
