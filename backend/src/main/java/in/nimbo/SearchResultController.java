@@ -2,18 +2,13 @@ package in.nimbo;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import in.nimbo.model.*;
-import in.nimbo.model.exceptions.HbaseException;
-import org.apache.hadoop.hbase.client.Result;
+import in.nimbo.model.ResultEntry;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 @RestController
 public class SearchResultController {
@@ -31,7 +26,5 @@ public class SearchResultController {
             return elasticSearch.fuzzySearch(input);
         throw new IllegalArgumentException();
     }
-
-
 }
 

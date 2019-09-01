@@ -10,6 +10,7 @@ import in.nimbo.kafka.LinkProducer;
 import in.nimbo.model.Pair;
 import in.nimbo.model.Site;
 import in.nimbo.parser.Parser;
+import in.nimbo.util.HashCodeGenerator;
 import in.nimbo.util.LanguageDetector;
 import org.apache.log4j.Logger;
 
@@ -19,7 +20,7 @@ import java.net.ProtocolException;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
-class ProcessorThread extends Thread implements Closeable {
+public class ProcessorThread extends Thread implements Closeable {
     private static Logger logger = Logger.getLogger(ProcessorThread.class);
     private static Timer crawlTimer = SharedMetricRegistries.getDefault().timer("processor thread");
     private static Timer kafkaAnchorsPutTimer = SharedMetricRegistries.getDefault().timer("kafka anchors put");
@@ -69,7 +70,7 @@ class ProcessorThread extends Thread implements Closeable {
                             logger.trace(String.format("Putting %d anchors in Kafka(%s)", site.getAnchors().size(), url));
                             try (Timer.Context kafkaPutTime = kafkaAnchorsPutTimer.time()){
                                 site.getAnchors().keySet().forEach(link -> {
-                                    if (!visitedUrlsCache.hasVisited(link)) {
+                                    if (!visitedUrlsCache.hasVisited(HashCodeGenerator.md5HashString(link))) {
                                         linkProducer.send(link);
                                         redisAnchorSkips.mark();
                                     } else {

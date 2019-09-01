@@ -15,6 +15,8 @@ import java.net.ProtocolException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Parser {
     private static final Logger logger = LoggerFactory.getLogger(Parser.class);
@@ -37,7 +39,11 @@ public class Parser {
 
     public static String getDomain(String link) throws MalformedURLException {
         URL url = new URL(link);
-        return url.getHost();
+        String host = url.getHost();
+        Matcher matcher = Pattern.compile("(.*\\.)?(?<domain>.+\\..+)").matcher(host);
+        if (!matcher.find())
+            throw new MalformedURLException("Failed to get domain");
+        return matcher.group("domain");
     }
 
     /**
@@ -104,7 +110,7 @@ public class Parser {
     public String normalize(String href) throws MalformedURLException {
         href = NormalizeURL.normalize(href);
         URL url = new URL(href);
-        String domain = url.getHost().replaceFirst("www\\.", "");
+        String domain = url.getHost().replaceFirst("^(\\w+://)?www\\.", "");
         return href.replace(url.getHost(), domain);
     }
 

@@ -24,10 +24,10 @@ public class WebGraphDomains {
     private WebGraphResult webGraphResult;
     private Logger logger = LoggerFactory.getLogger(WebGraphDomains.class);
 
-    private static WebGraphDomains ourInstance = new WebGraphDomains();
+    private static WebGraphDomains instance = new WebGraphDomains();
 
     public static WebGraphDomains getInstance() {
-        return ourInstance;
+        return instance;
     }
 
     private WebGraphDomains() {
