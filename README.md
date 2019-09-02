@@ -21,11 +21,11 @@ Before using the searchEngine you have setup the following tools:
 * elasticsearch
 * redis  
 
-A complete explanation about what version to use and how to install them is available in [wiki](https://github.com/nimbo3/DataPirates/wiki) page.
+A complete explanation about what version to use and how to install them is available on [wiki](https://github.com/nimbo3/DataPirates/wiki) page.
 
 ### Installing
 
-* [Download](https://github.com/nimbo3/DataPirates/archive/master.zip) and unzip the Elasticsearch official distribution.
+* [Download](https://github.com/nimbo3/DataPirates/archive/master.zip) and unzip the project.
 * Download and install maven 3+
 * Create .jar file with running `mvn clean package -DskipTests` in the source directory. This will create a fat-jar in target directory of each module.
 * Run jar file with `java -jar *.jar` command
