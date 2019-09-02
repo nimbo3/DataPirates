@@ -4,7 +4,7 @@
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=nimbo3_DataPirates&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=nimbo3_DataPirates)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=nimbo3_DataPirates&metric=security_rating)](https://sonarcloud.io/dashboard?id=nimbo3_DataPirates)
 [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=nimbo3_DataPirates&metric=vulnerabilities)](https://sonarcloud.io/dashboard?id=nimbo3_DataPirates)
-# Project Title
+# Doodle search engine
 
 The Search engine is a thorough implementation to crawl websites. links are taken from a queue, and after checking for politeness and duplicates, their HTML docs are fetched and parsed.Finally docs are saved into databases..
 This search engine is considered to be used in a way that is suitable for our usecase, but you can change it. You can setup the necessary tools according to our [wiki](https://github.com/nimbo3/DataPirates/wiki) page.
@@ -37,13 +37,9 @@ A complete explanation about what version to use and how to install them is avai
 ## Authors
 
 * **Alireza Asadi**
-* **Hamidreza Sharifzade**
+* **Hamidreza Sharifzadeh**
 * **Mohammad Kazem Faghih Khorasani**
 * **Mostafa Ojaghi**  
 
 See also the list of [contributors](https://github.com/nimbo3/DataPirates/contributors) who participated in this project.
-
-## License
-
-This project is licensed under the SBU & SUT License.
 
