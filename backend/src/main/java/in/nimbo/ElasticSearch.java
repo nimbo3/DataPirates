@@ -62,7 +62,6 @@ public class ElasticSearch {
         searchSourceBuilder.highlighter(getHighlightBuilder("text"));
         searchSourceBuilder.size(outputSize);
         searchRequest.source(searchSourceBuilder);
-        System.out.println(searchRequest.toString());
         return getResults(queryString, searchRequest);
     }
 
