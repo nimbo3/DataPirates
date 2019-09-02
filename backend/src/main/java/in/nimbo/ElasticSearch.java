@@ -20,10 +20,7 @@ import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class ElasticSearch {
     private static Logger logger = Logger.getLogger(ElasticSearch.class);
@@ -97,7 +94,7 @@ public class ElasticSearch {
     }
 
     public List<String> autoComplete(String input, String lang) throws IOException {
-        SearchRequest searchRequest = new SearchRequest(String.format("%s-%s", index, lang));
+        SearchRequest searchRequest = new SearchRequest(indexPrefix + lang);
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
         searchSourceBuilder.query(QueryBuilders.multiMatchQuery(input, "title.auto-complete"
                 , "title.auto-complete._2gram", "title.auto-complete._3gram")
