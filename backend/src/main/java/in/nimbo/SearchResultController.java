@@ -12,19 +12,13 @@ import java.util.List;
 
 @RestController
 public class SearchResultController {
+    Config config = ConfigFactory.load("config");
+    ElasticSearch elasticSearch = new ElasticSearch(config);
 
     @CrossOrigin
     @GetMapping("/search")
-    public List<ResultEntry> greeting(@RequestParam(value = "input") String input, @RequestParam(value = "type", defaultValue = "2") int type) {
-        Config config = ConfigFactory.load("config");
-        ElasticSearch elasticSearch = new ElasticSearch(config);
-        if (type == 1)
-            return elasticSearch.search(input);
-        else if (type == 2)
-            return elasticSearch.multiMatchSearch(input);
-        else if (type == 3)
-            return elasticSearch.fuzzySearch(input);
-        throw new IllegalArgumentException();
+    public List<ResultEntry> greeting(@RequestParam(value = "query") String query, @RequestParam(value = "lang") String lang) {
+        return elasticSearch.search(query, lang);
     }
 }
 
