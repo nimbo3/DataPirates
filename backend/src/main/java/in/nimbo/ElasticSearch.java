@@ -25,7 +25,6 @@ public class ElasticSearch {
     private static Logger logger = Logger.getLogger(ElasticSearch.class);
     private RestHighLevelClient client;
     private String indexPrefix = "sites-";
-    private String index = "sites-en";
     private int outputSize;
     private int summaryMaxLength;
     private float textBoost;
@@ -62,6 +61,7 @@ public class ElasticSearch {
         searchSourceBuilder.highlighter(getHighlightBuilder("text"));
         searchSourceBuilder.size(outputSize);
         searchRequest.source(searchSourceBuilder);
+        System.out.println(searchRequest.toString());
         return getResults(queryString, searchRequest);
     }
 
