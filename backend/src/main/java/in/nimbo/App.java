@@ -25,7 +25,7 @@ public class App {
             Connection hbaseConnection = ConnectionFactory.createConnection(hbaseConfig);
             Hbase hbase = new Hbase(hbaseConnection, config);
             WebGraphController.setHbase(hbase);
-            WebGraphDomains.getInstance().load(hbase);
+//            WebGraphDomains.getInstance().load(hbase);
             SharedMetricRegistries.setDefault(config.getString("metric.registry.name"));
             MetricRegistry metricRegistry = SharedMetricRegistries.getDefault();
             JmxReporter jmxReporter = JmxReporter.forRegistry(metricRegistry).inDomain(config.getString("metric.domain.name")).build();

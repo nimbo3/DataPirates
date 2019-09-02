@@ -17,6 +17,11 @@ public class ResultEntry {
     private double pageRank;
     @JsonProperty("tags")
     private List<String> tags;
+    @JsonProperty("cluster_id")
+    private int clusterId;
+    @JsonProperty("cluster_label")
+    private String[] clusterLabel;
+
 
     public ResultEntry(String title, String link, String text, String summary) {
         this.title = title;
@@ -25,12 +30,20 @@ public class ResultEntry {
         this.summary = summary;
     }
 
-    public void setPageRank(double pageRank) {
-        this.pageRank = pageRank;
+    public int getClusterId() {
+        return clusterId;
     }
 
-    public void setTags(List<String> tags) {
-        this.tags = tags;
+    public void setClusterId(int clusterId) {
+        this.clusterId = clusterId;
+    }
+
+    public String[] getClusterLabel() {
+        return clusterLabel;
+    }
+
+    public void setClusterLabel(String[] clusterLabel) {
+        this.clusterLabel = clusterLabel;
     }
 
     public String getTitle() {
@@ -53,8 +66,16 @@ public class ResultEntry {
         return pageRank;
     }
 
+    public void setPageRank(double pageRank) {
+        this.pageRank = pageRank;
+    }
+
     public List<String> getTags() {
         return tags;
+    }
+
+    public void setTags(List<String> tags) {
+        this.tags = tags;
     }
 }
 
