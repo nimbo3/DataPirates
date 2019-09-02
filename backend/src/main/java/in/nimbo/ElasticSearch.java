@@ -13,6 +13,7 @@ import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.index.query.MultiMatchQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.search.MatchQuery;
+import org.elasticsearch.index.search.MultiMatchQuery;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
@@ -100,7 +101,7 @@ public class ElasticSearch {
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
         searchSourceBuilder.query(QueryBuilders.multiMatchQuery(input,"title.auto-complete"
                 ,"title.auto-complete._2gram", "title.auto-complete._3gram")
-//                .type(MatchQuery.Type.BOOLEAN_PREFIX)
+                .type(MultiMatchQueryBuilder.Type.BOOL_PREFIX)
         );
         searchSourceBuilder.size(20);
         searchRequest.source(searchSourceBuilder);
