@@ -12,8 +12,6 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.index.query.MultiMatchQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.search.MatchQuery;
-import org.elasticsearch.index.search.MultiMatchQuery;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
@@ -99,8 +97,8 @@ public class ElasticSearch {
     public List<String> autoComplete(String input, String lang) throws IOException {
         SearchRequest searchRequest = new SearchRequest(String.format("%s-%s", index, lang));
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        searchSourceBuilder.query(QueryBuilders.multiMatchQuery(input,"title.auto-complete"
-                ,"title.auto-complete._2gram", "title.auto-complete._3gram")
+        searchSourceBuilder.query(QueryBuilders.multiMatchQuery(input, "title.auto-complete"
+                , "title.auto-complete._2gram", "title.auto-complete._3gram")
                 .type(MultiMatchQueryBuilder.Type.BOOL_PREFIX)
         );
         searchSourceBuilder.size(20);
