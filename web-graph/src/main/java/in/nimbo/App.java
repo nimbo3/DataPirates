@@ -18,10 +18,6 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.VoidFunction;
-import org.apache.spark.util.LongAccumulator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 import java.io.IOException;
@@ -35,7 +31,6 @@ import java.util.Set;
 public class App {
 
     public static final String DEFAULT_PROTOCOL = "http://";
-    private static Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) throws IOException {
         Config config = ConfigFactory.load("config");
@@ -48,6 +43,7 @@ public class App {
         String hbaseWriteColumnFamilyInput = config.getString("hbase.write.column.family.input.domains");
         String hbaseWriteColumnFamilyOutput = config.getString("hbase.write.column.family.output.domains");
         String sparkExecutorCores = config.getString("spark.executor.cores");
+        String sparkMaxExecutorCores = config.getString("spark.max.executor.cores");
         String sparkExecutorMemory = config.getString("spark.executor.memory");
 
         Configuration hbaseReadConfiguration = HBaseConfiguration.create();
@@ -68,7 +64,7 @@ public class App {
 
         SparkConf sparkConf = new SparkConf()
                 .setAppName(sparkAppName)
-                .set("spark.cores.max", "12")
+                .set("spark.cores.max", sparkMaxExecutorCores)
                 .set("spark.executor.cores", sparkExecutorCores)
                 .set("spark.executor.memory", sparkExecutorMemory);
         JavaSparkContext sparkContext = new JavaSparkContext(sparkConf);
@@ -93,10 +89,6 @@ public class App {
 
         JavaPairRDD<Tuple2<String, String>, Integer> domainToDomainPairWeightRDD = domainToDomainPairRDD
                 .reduceByKey((Function2<Integer, Integer, Integer>) (integer, integer2) -> integer + integer2);
-
-//        domainToDomainPairWeightRDD.foreach((VoidFunction<Tuple2<Tuple2<String, String>, Integer>>) tuple2IntegerTuple2 -> {
-//            System.out.println(String.format("%s -> %s : %d", tuple2IntegerTuple2._1._1, tuple2IntegerTuple2._1._2, tuple2IntegerTuple2._2));
-//        });
 
         JavaPairRDD<ImmutableBytesWritable, Put> hbasePuts = domainToDomainPairWeightRDD
                 .flatMapToPair(t -> {
