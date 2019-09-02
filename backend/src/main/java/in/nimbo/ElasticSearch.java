@@ -10,6 +10,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.index.query.MultiMatchQueryBuilder;
 import org.elasticsearch.common.text.Text;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -92,6 +93,25 @@ public class ElasticSearch {
         }
     }
 
+    public List<String> autoComplete(String input, String lang) throws IOException {
+        SearchRequest searchRequest = new SearchRequest(indexPrefix + lang);
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(QueryBuilders.multiMatchQuery(input, "title.auto-complete"
+                , "title.auto-complete._2gram", "title.auto-complete._3gram")
+                .type(MultiMatchQueryBuilder.Type.BOOL_PREFIX)
+        );
+        searchSourceBuilder.size(20);
+        searchRequest.source(searchSourceBuilder);
+        SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+        Set<String> completionList = new LinkedHashSet<>();
+        for (SearchHit searchHit : searchResponse.getHits().getHits()) {
+            completionList.add(searchHit.getSourceAsMap().get("title").toString().toLowerCase());
+            if (completionList.size() > 5)
+                break;
+        }
+        return new ArrayList<>(completionList);
+    }
+  
     private ResultEntry convertToResultEntry(SearchHit searchHit) {
         Map<String, Object> hitMap = searchHit.getSourceAsMap();
         String summary = extractSummary(searchHit, hitMap);
